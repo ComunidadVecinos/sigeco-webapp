@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="bootstrap-5.3.8-dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/acceso.css">
+    <title>Registro comunidad</title>
+</head>
+
+<body>
+    <header>
+        <nav class="navbar bg-white">
+            <div class="container-fluid">
+                <a class="navbar-brand"><img class="img-logo1" src="img/6.png" alt="Sigeco"></a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <h1 class="text-center"><strong>Registrar una nueva cuenta</strong></h1>
+        <hr class="mx-auto w-26 hr-grueso">
+
+        <div class="contorno row d-flex mt-5">
+
+            <form class="formulario">
+                <h2 class="datos"><strong>Datos personales y domicilio</strong></h2>
+
+                <div class="row">
+                    <div class="formulario mb-3 col-6">
+                        <label for="nombre" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="nombre"
+                            placeholder="Maria">
+                    </div>
+                    <div class="formulario mb-3 col-6">
+                        <label for="cif" class="form-label">Apellidos</label>
+                        <input type="text" class="form-control" id="cif" placeholder="Pérez Gómez">
+                    </div>
+                </div>
+
+                <h3 class="ubi"><strong>Direccion del domicilio</strong></h3>
+
+                <div class="row">
+                    <div class="formulario mb-3 col-4">
+                        <label for="pais" class="form-label">Pais</label>
+                        <input type="text" class="form-control" id="pais" placeholder="España">
+                    </div>
+                    <div class="formulario mb-3 col-4">
+                        <label for="provincia" class="form-label">Provincia</label>
+                        <input type="text" class="form-control" id="provincia" placeholder="Madrid">
+                    </div>
+                    <div class="formulario mb-3 col-4">
+                        <label for="municipio" class="form-label">Municipio</label>
+                        <input type="text" class="form-control" id="municipio" placeholder="Madrid">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="formulario mb-3 col-6">
+                        <label for="tipoVia" class="form-label">Tipo de vía</label>
+                        <input type="" class="form-control" id="tipoVia" placeholder="Selecciona...">
+                    </div>
+                    <div class="formulario mb-3 col-5">
+                        <label for="nombreVia" class="form-label">Nombre de la via</label>
+                        <input type="text" class="form-control" id="nombreVia" placeholder="España">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="formulario mb-3 col-3">
+                        <label for="cp" class="form-label">Código Postal</label>
+                        <input type="text" class="form-control" id="cp" placeholder="28000">
+                    </div>
+                    <div class="formulario mb-3 col-3">
+                        <label for="numero" class="form-label">Número</label>
+                        <input type="text" class="form-control" id="numero" placeholder="15">
+                    </div>
+                    <div class="formulario mb-3 col-3">
+                        <label for="bloque" class="form-label">Bloque (opcional)</label>
+                        <input type="text" class="form-control" id="bloque" placeholder="B, 3 ...">
+                    </div>
+                    <div class="formulario mb-3 col-3">
+                        <label for="portal" class="form-label">Portal (opcional)</label>
+                        <input type="text" class="form-control" id="portal" placeholder="A, 1 ...">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="formulario mb-3 col-4">
+                        <label for="planta" class="form-label">Planta</label>
+                        <input type="text" class="form-control" id="planta" placeholder="Bajo, Primero, Segundo ...">
+                    </div>
+                    <div class="formulario mb-3 col-4">
+                        <label for="puerta" class="form-label">Puerta</label>
+                        <input type="text" class="form-control" id="puerta" placeholder="A, B, IZQ, DER ...">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <h3 class="ubi"><strong>Observaciones para el presidente (opcional)</strong></h3>
+                    <div class="formulario mb-3 col-12">
+                        <input type="text" class="form-control" id="Observaciones" placeholder="Ej.: Soy arrendataria desde 10/2025; puerta firmada como ‘IZQ’ en el contrato. Vivo con mi marido Juajo y dos niños pequeños (Mario y Lucas).">
+                    </div>
+                </div>
+
+            </form>
+
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+            <a href="#" class="btn btn-light btn-lg" onclick="history.back(); return false;">Anterior</a>
+        </div>
+
+        <div class="d-flex justify-content-center mt-4">
+            <a href="" class="btn btn-primary btn-lg">Registrarme</a>
+        </div>
+
+        <div>
+            <p class="text-center mt-4">
+                Si ya tienes una cuenta, <a href="">inicia sesion aqui.</a>
+            </p>
+        </div>
+    </main>
+
+</body>
+
+</html>

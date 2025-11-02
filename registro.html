@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="bootstrap-5.3.8-dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/acceso.css">
+    <title>SIGECO</title>
+</head>
+
+<body>
+    <header>
+        <nav class="navbar bg-white">
+            <div class="container-fluid">
+                <a class="navbar-brand"><img class="img-logo1" src="img/6.png" alt="Sigeco"></a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <h1 class="text-center"><strong>Registrar una nueva cuenta</strong></h1>
+        <hr class="mx-auto w-26 hr-grueso">
+
+        <div class="contorno row d-flex justify-content-center mt-5">
+            <h2 class="sub-title"><strong>Selecciona un método de registro</strong></h2>
+
+            <div class="sub-contorno col-6">
+                <h3><strong>Nueva Vivienda</strong></h3>
+                <p class="p-cont text-center">Únete a una Comunidad existente con un código de registro. <br> Recuerda contactar con el presidente de la comunidad y/o
+                administrador de la cuenta.</p>
+                <input type="radio" name="metodo-registro" id="radio-vivienda" value="vivienda">
+            </div>
+
+            <div class="sub-contorno col-6">
+                <h3><strong>Nueva comunidad</strong></h3>
+                <p class="p-cont text-center">Crea una nueva cuenta de comunidad. Al hacerlo, obtendrás permisos de administrador que podrás trasnferir al presidente.
+                    <br>¿A qué esperas?</p>
+                <input type="radio" name="metodo-registro" id="radio-comunidad" value="comunidad">
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end mt-4">
+            <a href="#" class="btn btn-light btn-lg disabled" id="btn-siguiente" role="button" aria-disabled="true">Siguiente</a>
+        </div>
+       
+        <div>
+            <p class="text-center mt-4">
+                Si ya tienes una cuenta, <a href="">inicia sesion aqui.</a>
+            </p>
+        </div>
+    </main>
+
+    <script src="js/acceso.js"></script>
+
+</body>
+
+</html>
