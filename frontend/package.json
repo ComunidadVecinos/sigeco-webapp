@@ -8,7 +8,16 @@
     "web-vitals": "^2.1.0"
   },
   "devDependencies": {
-    "react-scripts": "5.0.1"
+    "@types/axios": "^0.9.36",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-router-dom": "^5.3.3",
+    "axios": "^1.13.2",
+    "react-router-dom": "^7.10.1",
+    "react-scripts": "5.0.1",
+    "sass": "^1.94.2",
+    "typescript": "^4.9.5"
   },
   "scripts": {
     "start": "react-scripts start",
