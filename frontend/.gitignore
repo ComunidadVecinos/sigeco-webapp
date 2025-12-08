@@ -1,5 +1,5 @@
 # Dependencias
-/node_modules
+node_modules
 
 # Logs
 npm-debug.log*
@@ -7,8 +7,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # Builds y Bundles de Producción
-/frontend/build
-/frontend/dist
+build
+dist
 
 # Entorno y archivos de configuración local
 .env
