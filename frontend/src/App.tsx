@@ -3,15 +3,15 @@
 import React from 'react';
 import {Routes, Route} from 'react-router-dom';
 
-import LandingPage from './pages/LandingPage/LandingPage.tsx';
+import LandingPage from './pages/LandingPage/LandingPage';
+import WelcomePage from './pages/WelcomePage/WelcomePage';
 
 const App: React.FC = () => {
     return (
         <div className="App">
             <Routes>
-
-                <Route path="/" element={<LandingPage />} /> {/* UC-01  */}
-                
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/acceso" element={<WelcomePage />} /> 
             </Routes>
         </div>
     );

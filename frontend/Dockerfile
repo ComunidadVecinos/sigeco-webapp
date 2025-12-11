@@ -9,6 +9,7 @@ RUN npm install
 # Copy React app
 COPY public ./public
 COPY src ./src
+COPY tsconfig.json ./
 
 # Build static files
 RUN npm run build

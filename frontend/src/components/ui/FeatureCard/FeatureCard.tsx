@@ -1,26 +1,24 @@
 //Tarjeta reutilizable para caracteriticas de la landingPage
 
 import React from 'react';
-import logo from '../../../assets/images/1.png';
 
 interface FeatureCardProps {
     title: string;
     subtitle: string;
     description: string;
+    icon: string;
 }
 
-const FeatureCard: React.FC<FeatureCardProps> = ({title, subtitle, description}) =>{
+const FeatureCard: React.FC<FeatureCardProps> = ({title, subtitle, description, icon}) =>{
     return (
-        <div className="card text-center">
-            <h3 className="mt-4">
-                <strong>{title}</strong>
-            </h3>
-            <img className="card-img-top" src={logo} alt="{`Icono de ${title}`}"/>
-            <div className="card-body">
-                <h4>
-                    <strong>{subtitle}</strong>
-                </h4>
-                <p className="card-text">{description}</p>
+        <div className="feature-card">
+            <div className="feature-card-header">
+                <img className="feature-card-icon" src={icon} alt={`Icono de ${title}`}/>
+                <h3><strong>{title}</strong></h3>
+            </div>
+            <div className="feature-card-body">
+                <h4><strong>{subtitle}</strong></h4>
+                <p>{description}</p>
             </div>
         </div>
     );

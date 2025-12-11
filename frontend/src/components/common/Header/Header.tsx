@@ -2,20 +2,21 @@
 
 import React from 'react';
 import logo from '../../../assets/images/1.png';
+import {Link} from 'react-router-dom';
 
 const Header: React.FC = () =>{
     return(
         <header>
             <nav className="navbar bg-body-tertiary">
                 <div className="container-fluid">
-                    <a href="/" className="navbar-brand">
-                    <img src={logo} alt="Sigeco" className="img-logo" />
-                    </a>
+                    <Link to="/" className="navbar-brand">
+                        <img src={logo} alt="Sigeco" className="img-logo" />
+                    </Link>
 
                     <form className="d-flex" role="search">
-                        <a href="/acceso" className="btn">
+                        <Link to="/acceso" className="btn">
                             <strong>Acceso</strong>
-                        </a>
+                        </Link>
                     </form>
                 </div>
             </nav>  
