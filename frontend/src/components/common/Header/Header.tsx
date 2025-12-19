@@ -14,7 +14,7 @@ const Header: React.FC = () =>{
                     </Link>
 
                     <form className="d-flex" role="search">
-                        <Link to="/acceso" className="btn">
+                        <Link to="/acceso" className="btn acceso">
                             <strong>Acceso</strong>
                         </Link>
                     </form>

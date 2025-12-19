@@ -5,6 +5,7 @@ import {Routes, Route} from 'react-router-dom';
 
 import LandingPage from './pages/LandingPage/LandingPage';
 import WelcomePage from './pages/WelcomePage/WelcomePage';
+import RegisterPage from './pages/RegisterPage/RegisterPage';
 
 const App: React.FC = () => {
     return (
@@ -12,6 +13,7 @@ const App: React.FC = () => {
             <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/acceso" element={<WelcomePage />} /> 
+                <Route path="/registro" element={<RegisterPage />} />
             </Routes>
         </div>
     );

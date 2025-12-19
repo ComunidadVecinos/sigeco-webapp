@@ -85,8 +85,12 @@ a{
     color: #515151;;
 }
 
-.btn{
+.acceso{
     box-shadow: 0 4px 12px #0005;
+    padding: 10px;
+    padding-left: 40px;
+    padding-right: 40px;
+    color: #2172e3;
 }
 
 /* ----- REGISTRO VIVIENDA ------ */
@@ -125,10 +129,4 @@ h4{
 .ubi, .datos{
     padding-top: 20px;
     padding-left: 20px;
-}
-
-.btn{
-    padding: 10px;
-    padding-left: 40px;
-    padding-right: 40px;
 }
