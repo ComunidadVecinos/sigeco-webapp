@@ -7,7 +7,7 @@
 
 /* ----- HEADER -----*/
 header {
-    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.06);
     position: fixed;
     top: 0;
     width: 100%;
@@ -15,12 +15,18 @@ header {
     background-color: #fff;
 }
 
+
 .img-logo {
     width: 200px;
 }
 
 .btn {
     font-size: 25px;
+}
+
+.btn-forgot{
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    width: auto;
 }
 
 /* ----- MAIN -----*/
@@ -117,4 +123,9 @@ footer {
     padding: 1.5rem;
     text-align: center;
     width: 100%;
+}
+
+.register-footer{
+    background-color: #fff;
+    font-size: 1.2rem;
 }

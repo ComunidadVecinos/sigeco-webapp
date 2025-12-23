@@ -4,6 +4,7 @@ import React from "react";
 
 import imgSD from '../../assets/images/SwingingDoodle.png'
 import logo from '../../assets/images/6.png'
+import {Link} from 'react-router-dom';
 
 const WelcomePage: React.FC = () => {
     return (
@@ -23,8 +24,12 @@ const WelcomePage: React.FC = () => {
                 </div>
             
                 <div className="text-center mt-5 mb-5 ">
-                    <a type="button" className="btn btn-primary btn-lg mx-5" href="registro.html">Registrarme</a>
-                    <a type="button" className="btn btn-primary btn-lg mx-5" href="inicio-sesion.html">Iniciar Sesión</a>
+                    <Link to="/registro" className="btn btn-primary btn-lg mx-5">
+                            <strong>Registrarme</strong>
+                    </Link>
+                    <Link to="/inicio-sesion" className="btn btn-primary btn-lg mx-5">
+                            <strong>Iniciar Sesión</strong>
+                    </Link>
                 </div>
                     
                 <div className="text-center">
