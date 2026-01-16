@@ -2,9 +2,10 @@
 
 import React from 'react';
 
-import Header from '../../components/common/Header/Header';
 import Footer from '../../components/common/Footer/Footer';
 import FeatureCard from '../../components/ui/FeatureCard/FeatureCard';  
+import logo from '../../assets/images/1.png';
+import {Link} from 'react-router-dom';
 
 import vecindarioImg from '../../assets/images/vecindario.png';
 import touchIcon from '../../assets/images/touch.png';
@@ -12,7 +13,22 @@ import touchIcon from '../../assets/images/touch.png';
 const LandingPage: React.FC = () =>{
     return (
         <>
-            <Header />
+            <header>
+                <nav className="navbar bg-body-tertiary">
+                    <div className="container-fluid">
+                        <Link to="/" className="navbar-brand">
+                            <img src={logo} alt="Sigeco" className="img-logo" />
+                        </Link>
+
+                        <form className="d-flex">
+                            <Link to="/acceso" className="btn acceso">
+                                <strong>Acceso</strong>
+                            </Link>
+                        </form>
+                    </div>
+                </nav>  
+            </header>
+
             <main> 
                 <div className="container mb-5">
                     <div className="row">

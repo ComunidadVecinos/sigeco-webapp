@@ -8,6 +8,7 @@ import WelcomePage from './pages/WelcomePage/WelcomePage';
 import RegisterPage from './pages/RegisterPage/RegisterPage';
 import LogInPage from './pages/LogInPage/LogInPage';
 import ForgotPassword from './pages/ForgotPassword/ForgotPassword';
+import ProfilePage from './pages/ProfilePage/ProfilePage';
 
 
 const App: React.FC = () => {
@@ -19,6 +20,7 @@ const App: React.FC = () => {
                 <Route path="/registro" element={<RegisterPage />} />
                 <Route path="/inicio-sesion" element={<LogInPage />} />
                 <Route path="/olvido-contraseña" element={<ForgotPassword />} />
+                <Route path='/perfil' element={<ProfilePage />} />
             </Routes>
         </div>
     );

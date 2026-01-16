@@ -15,7 +15,7 @@ const LogInPage: React.FC = () => {
                 <nav className="navbar bg-white">
                     <div className="container-fluid">
                         <Link to="/" className="navbar-brand">
-                            <img src={logo} alt="Sigeco" className="img-logo1" />
+                            <img src={logo} alt="Sigeco" className="img-logo" />
                         </Link>
                     </div>
                 </nav>
@@ -59,7 +59,7 @@ const LogInPage: React.FC = () => {
                 </Link>
                 <div className='mt-3'>
                     Si tienes un código pero todavía no te has registrado, <Link to="/registro">hazlo aquí</Link>
-            </div>
+                </div>
             </footer>
         </div>
     );

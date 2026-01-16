@@ -25,7 +25,7 @@ const ForgotPassword: React.FC = () => {
                 <h1 className="text-center"><strong>Olvidé mi contraseña</strong></h1>
                 <hr className="mx-auto w-26 hr-grueso" />
                 <div className=" row d-flex justify-content-center mt-3">
-                    <h4 className="sub-title text-center mb-5">Introduce tu email y te enviaremos una nueva contraseña temporal con la que acceder. <br />Recomendamos que cambies la contraseña una vez que hatas podido acceder desde tu perfil </h4>
+                    <h4 className="sub-title text-center mb-5">Introduce tu email y te enviaremos una nueva contraseña temporal con la que acceder. <br />Recomendamos que cambies la contraseña una vez que hayas podido acceder desde tu perfil </h4>
                     <div className="row">
                         <div className="formulario mb-3 mt-2">
                             <label htmlFor="" className='form-label'>Introduce email</label> <br />

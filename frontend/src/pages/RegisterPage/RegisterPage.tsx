@@ -10,6 +10,7 @@ const RegisterPage: React.FC = () => {
     };
 
     return (
+        
         <div>
             <header>
                 <nav className="navbar bg-white">
@@ -81,7 +82,7 @@ const RegisterPage: React.FC = () => {
             </main>
 
             <footer className='register-footer'>
-                <Link to="/registro" className="btn btn-primary mb-3">
+                <Link to="/perfil" className="btn btn-primary mb-3">
                     <strong>Registrarme</strong>
                 </Link>
                 <div className='mt-3'>
