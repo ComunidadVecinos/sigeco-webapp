@@ -15,7 +15,7 @@ const LogInPage: React.FC = () => {
                 <nav className="navbar bg-white">
                     <div className="container-fluid">
                         <Link to="/" className="navbar-brand">
-                            <img src={logo} alt="Sigeco" className="img-logo" />
+                            <img src={logo} alt="Sigeco" className="img-logo1" />
                         </Link>
                     </div>
                 </nav>
@@ -24,7 +24,7 @@ const LogInPage: React.FC = () => {
             <main className="container">
                 <h1 className="text-center"><strong>Iniciar Sesión</strong></h1>
                 <hr className="mx-auto w-26 hr-grueso" />
-                <div className=" row d-flex justify-content-center mt-3">
+                <div className="contorno row d-flex justify-content-center mt-3">
                     <h4 className="sub-title text-center mb-5">¡Bienvenido/a de nuevo! Accede con tu email/teléfono y contraseña para continuar donde lo dejaste.</h4>
                     <div className="row">
                         <div className="formulario mb-3 mt-2">
@@ -48,7 +48,7 @@ const LogInPage: React.FC = () => {
                         </div>
                     </div>
                     <div className='row mt-4'>
-                        <Link to="/olvido-contraseña">¿Olvidaste tu contraseña?</Link>
+                        <Link className='mb-5' to="/olvido-contraseña">¿Olvidaste tu contraseña?</Link>
                     </div>
                 </div>
             </main>

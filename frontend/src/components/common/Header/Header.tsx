@@ -31,7 +31,7 @@ const Header: React.FC = () =>{
 
                     </div>
 
-                    <hr className="w-100" />
+                    <hr className="w-100 me-5" />
 
                     <div className="d-flex w-100 justify-content-start ms-5">
                         <ul className="navbar-nav flex-row">
