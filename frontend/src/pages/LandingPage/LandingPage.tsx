@@ -21,7 +21,7 @@ const LandingPage: React.FC = () =>{
                         </Link>
 
                         <form className="d-flex">
-                            <Link to="/acceso" className="btn acceso">
+                            <Link to="/access" className="btn acceso">
                                 <strong>Acceso</strong>
                             </Link>
                         </form>

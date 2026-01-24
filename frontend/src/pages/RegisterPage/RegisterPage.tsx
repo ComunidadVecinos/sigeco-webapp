@@ -82,11 +82,11 @@ const RegisterPage: React.FC = () => {
             </main>
 
             <footer className='register-footer'>
-                <Link to="/perfil" className="btn btn-primary mb-3">
+                <Link to="/api/auth/me" className="btn btn-primary mb-3">
                     <strong>Registrarme</strong>
                 </Link>
                 <div className='mt-3'>
-                    Si ya tienes cuenta, <Link to="/inicio-sesion">inicia sesión aquí</Link>
+                    Si ya tienes cuenta, <Link to="/api/auth/login">inicia sesión aquí</Link>
                 </div>
             </footer>
         </div>

@@ -12,7 +12,9 @@ const WelcomePage: React.FC = () => {
             <header>
                 <nav className="navbar bg-white">
                     <div className="container-fluid">
-                        <a className="navbar-brand"><img className="img-logo1" src={logo} alt="Sigeco"/> </a>
+                        <Link to="/" className="navbar-brand">
+                            <img src={logo} alt="Sigeco" className="img-logo1" />
+                        </Link>
                     </div>
                 </nav>
             </header>
@@ -24,10 +26,10 @@ const WelcomePage: React.FC = () => {
                 </div>
             
                 <div className="text-center mt-5 mb-5 ">
-                    <Link to="/registro" className="btn btn-primary btn-lg mx-5">
+                    <Link to="/api/auth/register" className="btn btn-primary btn-lg mx-5">
                             <strong>Registrarme</strong>
                     </Link>
-                    <Link to="/inicio-sesion" className="btn btn-primary btn-lg mx-5">
+                    <Link to="/api/auth/login" className="btn btn-primary btn-lg mx-5">
                             <strong>Iniciar Sesión</strong>
                     </Link>
                 </div>

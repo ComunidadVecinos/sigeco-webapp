@@ -7,7 +7,12 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 const ProfilePage: React.FC = () =>{
     return (
         <div>
-            <Header />
+            <Header
+                navLinks={[
+                    {label: "Nueva Comunidad", path: "/new-community"},
+                    {label: "Ayuda", path: "/help"}
+                ]}
+             />
 
             <main className="container">
                 <h2 className='titulo-perfil'>Mi Perfil</h2>

@@ -40,7 +40,7 @@ const ForgotPassword: React.FC = () => {
 
             <footer className='register-footer'>
                 <div className='mt-3'>
-                    Si tienes un código pero todavía no te has registrado, <Link to="/registro">hazlo aquí</Link>
+                    Si tienes un código pero todavía no te has registrado, <Link to="/api/auth/register">hazlo aquí</Link>
                 </div>
             </footer>
         </div>

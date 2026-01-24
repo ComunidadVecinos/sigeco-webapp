@@ -48,17 +48,17 @@ const LogInPage: React.FC = () => {
                         </div>
                     </div>
                     <div className='row mt-4'>
-                        <Link className='mb-5' to="/olvido-contraseña">¿Olvidaste tu contraseña?</Link>
+                        <Link className='mb-5' to="/api/auth/reset-password">¿Olvidaste tu contraseña?</Link>
                     </div>
                 </div>
             </main>
 
             <footer className='register-footer'>
-                <Link to="/registro" className="btn btn-primary mb-3">
+                <Link to="/api/auth/forum" className="btn btn-primary mb-3">
                     <strong>Iniciar Sesión</strong>
                 </Link>
                 <div className='mt-3'>
-                    Si tienes un código pero todavía no te has registrado, <Link to="/registro">hazlo aquí</Link>
+                    Si tienes un código pero todavía no te has registrado, <Link to="/api/auth/register">hazlo aquí</Link>
                 </div>
             </footer>
         </div>
