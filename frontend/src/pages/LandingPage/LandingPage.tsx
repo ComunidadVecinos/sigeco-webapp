@@ -36,12 +36,12 @@ const LandingPage: React.FC = () =>{
                             <h1 className="title mb-4">
                                 <strong>De la puerta del portal, ¡al portal digital!</strong>
                             </h1>
-                            <p className="parrafo-inicial">
+                            <p className="parrafo parrafo-inicial">
                                 El <em>ágora</em> digital diseñada para todos. Simplifica la convivencia con SIGECO, el Sistema de Gestión de Comunidades que permite desde el parte de averías, 
                                 hasta la gestión del día a día. <br /> <br />
                                 Conecta con tu comunidad y centraliza incidencias, anuncios, foros, reservas, votaciones y documentos en un entorno seguro.
                             </p>
-                            <p className="sub-parrafo">
+                            <p className="parrafo sub-parrafo">
                                 <strong>La Gestion Comunitaria, al alcance de todos</strong>
                             </p>
                         </div>
@@ -74,12 +74,12 @@ const LandingPage: React.FC = () =>{
 
                 <div className="container3 text-center mt-5">
                     <h2><strong>¿Por qué SIGECO?</strong></h2>
-                    <p>Porque la gestión de comunidades modernas necesita algo más que correos y hojas de cálculo.</p>
-                    <p>SIGECO reúne comunicación, decisiones y documentación en un entorno claro, trazable y seguro.
+                    <p className='parrafo'>Porque la gestión de comunidades modernas necesita algo más que correos y hojas de cálculo.</p>
+                    <p className='parrafo'>SIGECO reúne comunicación, decisiones y documentación en un entorno claro, trazable y seguro.
                         Vecinos y administradores comparten la misma información, con permisos, históricos y procesos que transforman cada acción en
                         transparencia.
                     </p>
-                    <p><strong>Menos tiempo, menos conflictos, más comunidad.</strong></p>  
+                    <p className='parrafo'><strong>Menos tiempo, menos conflictos, más comunidad.</strong></p>  
                 </div>
 
                 <div className="text-center mt-5 mb-5">

@@ -23,10 +23,13 @@ img {
     max-width: 400px;
 }
 
-p{
+
+.parrafo {
     color: #515151;
     font-size: 25px;
 }
+
+
 
 .hr-grueso{
     background-color: #000000;
@@ -35,7 +38,7 @@ p{
 }
 
 .contorno {
-    border: 1px solid #0002;
+    border: 2px solid #0002;
     border-radius: 20px;
 }
 
@@ -61,11 +64,6 @@ p{
     flex-grow: 1;
 }
 
-h3{
-    color: #0009;
-    padding: 20px;
-    padding-left: 20px;
-}
 
 .p-cont{
     font-size: 20px;

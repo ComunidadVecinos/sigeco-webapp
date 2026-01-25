@@ -10,6 +10,7 @@ import LogInPage from './pages/LogInPage/LogInPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage/ForgotPasswordPage';
 import ProfilePage from './pages/ProfilePage/ProfilePage';
 import ForumPage from './pages/ForumPage/ForumPage';
+import NewCommunityPage from './pages/NewCommunityPage/NewCommunityPage';
 
 
 const App: React.FC = () => {
@@ -26,6 +27,7 @@ const App: React.FC = () => {
                 <Route path="/api/auth/forum" element={<ForumPage />} />
                 <Route path="api/auth/logout" />
                 <Route path="api/auth/delete-account" />
+                <Route path="api/auth/new-community" element={<NewCommunityPage />}/>
             </Routes>
         </div>
     );

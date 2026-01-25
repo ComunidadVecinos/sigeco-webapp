@@ -1,6 +1,6 @@
 import React from 'react';
 import Header from '../../components/common/Header/Header';
-import imgSD from '../../assets/images/SwingingDoodle.png'
+import imagen_generica from '../../assets/images/perfil_generico.png'
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 
@@ -9,14 +9,14 @@ const ProfilePage: React.FC = () =>{
         <div>
             <Header
                 navLinks={[
-                    {label: "Nueva Comunidad", path: "/new-community"},
+                    {label: "Nueva Comunidad", path: "/api/auth/new-community"},
                     {label: "Ayuda", path: "/help"}
                 ]}
              />
 
             <main className="container">
                 <h2 className='titulo-perfil'>Mi Perfil</h2>
-                <p>Gestiona tu información personal, de tus comunidades y la configuración de tu cuenta.</p>
+                <p className='parrafo-perfil'>Gestiona tu información personal, de tus comunidades y la configuración de tu cuenta.</p>
 
                 <div className="contorno row d-flex justify-content-center mt-5 p-3">
                     <div className="col-6">
@@ -30,9 +30,9 @@ const ProfilePage: React.FC = () =>{
 
                     <div className="row align-items-center mt-3">
                         <div className="col-6">
-                            <div className=" text-center mt-4 ">
+                            <div className=" text-start mt-4 ms-5 pb-3">
                                 <div className="position-relative d-inline-block">
-                                    <img className="imagenPerfil" src={imgSD} alt="Imagen del perfil"/>
+                                    <img className="imagenPerfil" src={imagen_generica} alt="Imagen del perfil"/>
                                     <button className="cambiarFoto btn btn-primary position-absolute bottom-0 end-0 rounded-circel d-flex align-items-center justify-content-center p-2">
                                         <i className="bi bi-camera-fill"></i>
                                     </button>

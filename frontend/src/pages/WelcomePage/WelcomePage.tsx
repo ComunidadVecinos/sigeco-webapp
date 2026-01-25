@@ -35,7 +35,7 @@ const WelcomePage: React.FC = () => {
                 </div>
                     
                 <div className="text-center">
-                    <p>El Sistema de Gestion Comunitaria que digitaliza la comunicación, la documentación y la toma de decisiones.</p>
+                    <p className="parrafo">El Sistema de Gestion Comunitaria que digitaliza la comunicación, la documentación y la toma de decisiones.</p>
                 </div>
                 
             </main>

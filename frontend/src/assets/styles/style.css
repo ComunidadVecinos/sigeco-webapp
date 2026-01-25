@@ -115,9 +115,6 @@ main {
     font-size: 14px;
 }
 
-h3 {
-    color: #104084;
-}
 
 .circle {
     width: 150px;
@@ -129,9 +126,6 @@ h3 {
     background-color: #F9F8FE;
 }
 
-h2 {
-    font-size: 50px;
-}
 
 .container3>p {
     font-size: 20px;
@@ -170,6 +164,8 @@ footer {
 .imagenPerfil{
     border-radius: 50%;
     border: 1px solid #000;
+    width: 250px;
+    height: 250px;
 }
 
 .cambiarFoto{
@@ -185,4 +181,24 @@ footer {
 .btnAñadirComunidad{
     width: 45px;
     height: 45px;
+}
+
+/*NUEVA COMUNIDAD*/
+.subtitle-com{
+    color: #6a6e73;
+}
+
+.parrafo-com{
+    font-size: 18px;
+}
+
+.radio-custom{
+    width: 20px;
+    height: 20px;
+    border: 2px solid grey;
+    border-radius: 50%;
+    float: right;
+    cursor: pointer;
+    margin-bottom: 10px;
+    accent-color: grey;
 }
