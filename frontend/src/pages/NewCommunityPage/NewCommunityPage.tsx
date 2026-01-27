@@ -11,7 +11,6 @@ const [opcion, setOpcion] = useState('');
         <div>
             <Header
                 navLinks={[
-                    {label: "Nueva Comunidad", path: "/new-community"},
                     {label: "Ayuda", path: "/help"}
                 ]}
              />
@@ -44,12 +43,136 @@ const [opcion, setOpcion] = useState('');
 
                         <div className='mb-3 ms-5 me-5'>
                             <label htmlFor="codigo" className='form-label fw-semibold'>Introduce tu código de registro</label>
-                            <input type="text" className='form-control' id='codigo' />
+                            <input type="text" className='form-control' id='codigo'/>
                         </div>
 
-                        <button className='btn btn-secondary d-block mx-auto mt-5 mb-5'>Validar</button>
+                        <button className='btn btn-secondary d-block mx-auto mt-5 mb-5' onClick={() => setOpcion('registro-vivienda')}>Validar</button>
                         
                     </div>
+                )}
+
+                {opcion === 'crear' && (
+                    <div className="contorno mt-5">
+                        <h3 className='fw-bold ms-5 mt-5'>Datos de la comunidad</h3>
+                        <p className='p-info-comunidad ms-5'>Por favor, introduzca los datos de su comunidad de vecinos.</p>
+
+                        <div className="ms-5 me-5 mb-4">
+                            <div className="row">
+                                <div className="mb-3 col-7">
+                                    <label htmlFor="nombre" className="form-label">Nombre de la comunidad</label>
+                                    <input type="text" className="form-control" id="nombre"/>
+                                </div>
+                                <div className="mb-3 col-4">
+                                    <label htmlFor="cif" className="form-label">C.I.F.</label>
+                                    <input type="text" className="form-control" id='cif'/>
+                                </div>
+                            </div>
+
+                            <h5 className="fw-bold mt-4">Ubicación</h5>
+
+                            <div className="row">
+                                <div className="mb-3 col-3">
+                                    <label htmlFor="pais" className="form-label">País</label>
+                                    <input type="text" className="form-control" id='pais' />
+                                </div>
+                                <div className="mb-3 col-3">
+                                    <label htmlFor="provincia" className="form-label">Provincia</label>
+                                    <input type="text" className="form-control" id='provincia' />
+                                </div>
+                                <div className="mb-3 col-5">
+                                    <label htmlFor="municipio" className="form-label">Municipio</label>
+                                    <input type="text" className="form-control" id='municipio' />
+                                </div>
+                            </div>
+
+                            <div className="row">
+                                <div className="mb-3 col-6">
+                                    <label htmlFor="tipo-via" className="form-label">Tipo de vía</label>
+                                    <input type="text" className="form-control" id='tipo-via' />
+                                </div>
+                                <div className="mb-3 col-5">
+                                    <label htmlFor="nombre-via" className="form-label">Nombre de la vía</label>
+                                    <input type="text" className="form-control" id='nombre-via' />
+                                </div>
+                            </div>
+
+                            <div className="row">
+                                <div className="mb-3 col-3">
+                                    <label htmlFor="cp" className="form-label">Código Postal</label>
+                                    <input type="text" className="form-control" id='cp' />
+                                </div>
+                                <div className="mb-3 col-3">
+                                    <label htmlFor="numero" className="form-label">Número</label>
+                                    <input type="text" className="form-control" id='numero' />
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <button className='btn btn-secondary d-block mx-auto mt-5 mb-5' onClick={() => setOpcion('registro-vivienda')}>Validar</button>
+                        
+                    </div>
+                )}
+
+                {opcion === 'registro-vivienda' && (
+                    <div className="contorno mt-5">
+                        <h3 className="fw-bold ms-5 mt-5">Datos de tu domicilio</h3>
+                        <p className='p-info-comunidad ms-5'>Introduce los datos de tu vivienda perteneciente a la comunidad anterior.</p>
+
+                        <div className="ms-5 me-5 mb-4">
+                            <div className="row">
+                                 <div className="mb-3 col-3">
+                                    <label htmlFor="pais" className="form-label">País</label>
+                                    <input type="text" className="form-control" id="pais"/>
+                                </div>
+                                <div className="mb-3 col-3">
+                                    <label htmlFor="provincia" className="form-label">Provincia</label>
+                                    <input type="text" className="form-control" id='provincia'/>
+                                </div>
+                                <div className="mb-3 col-6">
+                                    <label htmlFor="municipio" className="form-label">Municipio</label>
+                                    <input type="text" className="form-control" id='municipio'/>
+                                </div>
+                            </div>
+
+                            <div className="row">
+                                <div className="mb-3 col-6">
+                                    <label htmlFor="tipo-via" className="form-label">Tipo de vía</label>
+                                    <input type="text" className="form-control" id='tipo-via'/>
+                                </div>
+                                <div className="mb-3 col-6">
+                                    <label htmlFor="nombre-via" className="form-label">Nombre de la vía</label>
+                                    <input type="text" className="form-control" id='nombre-via'/>
+                                </div>
+                            </div>
+
+                            <div className="row">
+                                <div className="mb-3 col-2">
+                                    <label htmlFor="cp" className="form-label">C.P.</label>
+                                    <input type="text" className="form-control" id='cp'/>
+                                </div>
+                                <div className="mb-3 col-2">
+                                    <label htmlFor="numero" className="form-label">Nº</label>
+                                    <input type="text" className="form-control" id='numero'/>
+                                </div>
+                                <div className="mb-3 col-2">
+                                    <label htmlFor="bloque" className="form-label">Bloque</label>
+                                    <input type="text" className="form-control" id='bloque'/>
+                                </div>
+                                <div className="mb-3 col-3">
+                                    <label htmlFor="planta" className="form-label">Planta</label>
+                                    <input type="text" className="form-control" id='planta'/>
+                                </div>
+                                <div className="mb-3 col-3">
+                                    <label htmlFor="puerta" className="form-label">Puerta</label>
+                                    <input type="text" className="form-control" id='puerta'/>
+                                </div>
+                            </div>
+                        </div>
+                        <button className='btn btn-secondary d-block mx-auto mt-5 mb-5'>Confirmar</button>
+                    </div>
+
+                    
                 )}
 
             </main>
