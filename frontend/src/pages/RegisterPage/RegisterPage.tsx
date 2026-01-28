@@ -25,25 +25,25 @@ const RegisterPage: React.FC = () => {
             <main className="container">
                 <h1 className="text-center"><strong>Registrar una nueva cuenta</strong></h1>
                 <hr className="mx-auto w-26 hr-grueso" />
-                <div className="contorno row d-flex justify-content-center mt-5">
+                <div className="contorno row d-flex justify-content-center">
                     <h5 className="sub-title text-center">¡Unete ahora! Crea tu cuenta en segundos y descubre todo lo que tenemos para ti</h5>
                     
                     <div className="row">
-                        <div className="formulario mb-3 mt-5 col-5">
+                        <div className="formulario mb-3 mt-5 col-12 col-md-5">
                             <label htmlFor="" className='form-label'>Nombre</label> <br />
                             <input type="text" className='form-control' id='nombre' placeholder='María'/>
                         </div>
-                        <div className="formulario mb-3 mt-5 col-7">
+                        <div className="formulario mb-3 mt-5 col-12 col-md-7">
                             <label htmlFor="" className='form-label'>Apellidos</label> <br />
                             <input type="text" className='form-control' id='apellidos' placeholder='Pérez Gómez'/>
                         </div>
                     </div>
                     <div className="row">
-                        <div className="formulario mb-3 mt-2 col-8">
+                        <div className="formulario mb-3 mt-2 col-12 col-md-8">
                             <label htmlFor="" className='form-label'>Correo electrónico</label> <br />
                             <input type="text" className='form-control' id='email' placeholder='correo@ucm.es'/>
                         </div>
-                        <div className="formulario mb-3 mt-2 col-4">
+                        <div className="formulario mb-3 mt-2 col-12 col-md-4">
                             <label htmlFor="" className='form-label'>Teléfono</label> <br />
                             <input type="text" className='form-control' id='telefono' placeholder='+34 '/>
                         </div>

@@ -16,9 +16,12 @@ header {
     background-color: #fff;
 }
 
+.header-common{
+    height: 50px;
+}
 
 .img-logo {
-    width: 200px;
+    width: 150px;
 }
 
 .btn {
@@ -80,12 +83,13 @@ main {
 
 /*FeatureCard*/
 .feature-card {
-    background-color: #EBF4FF;
+    background-color: #ffffff;
     border-radius: 12px;
     padding: 1.5rem;
     width: 350px;
     min-height: 150px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+    border: 2px #104084 solid;
 }
 
 .feature-card-header{
@@ -202,3 +206,6 @@ footer {
     margin-bottom: 10px;
     accent-color: grey;
 }
+
+
+/*FORO*/

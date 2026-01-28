@@ -11,7 +11,7 @@ header{
 }
 
 .img-logo1 {
-    width: 100px;
+    width: 60px;
 }
 
 /* ----- MAIN -----*/
@@ -44,7 +44,7 @@ img {
 
 .sub-title{
     color: #000a;
-    padding-top: 60px;
+    padding-top: 30px;
     padding-left: 50px;
 }
 
@@ -127,4 +127,26 @@ h4{
 .ubi, .datos{
     padding-top: 20px;
     padding-left: 20px;
+}
+
+/*MOVILE FIRST*/
+
+@media (max-width: 768px){
+    h1{
+        font-size: 28px;
+    }
+
+    .sub-contorno{
+        width: 100%;
+        height: auto;
+        margin: 20px 0;
+    }
+
+    .sub-title{
+        padding: 20px 15px;
+    }
+
+    .formulario{
+        padding-left: 10px;
+    }
 }

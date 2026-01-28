@@ -20,12 +20,12 @@ const WelcomePage: React.FC = () => {
             </header>
 
             <main>
-                <h1 className="text-center mt-4"><strong>¡Bienvenido/a a SIGECO!</strong></h1>
-                <div className="imagen text-center mt-4">
+                <h1 className="text-center"><strong>¡Bienvenido/a a SIGECO!</strong></h1>
+                <div className="imagen text-center">
                     <img src={imgSD} alt="ilustracion-bienvenida"/>
                 </div>
             
-                <div className="text-center mt-5 mb-5 ">
+                <div className="text-center mt-2 mb-2 ">
                     <Link to="/api/auth/register" className="btn btn-primary btn-lg mx-5">
                             <strong>Registrarme</strong>
                     </Link>

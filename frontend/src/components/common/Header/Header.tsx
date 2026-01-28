@@ -5,8 +5,9 @@ import logo from '../../../assets/images/2.png';
 import {Link} from 'react-router-dom';
 
 interface HeaderLink {
-    label: string;
+    label: React.ReactNode;
     path: string;
+    onClick?: () => void;
 }
 
 interface HeaderProps{
@@ -52,9 +53,15 @@ const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}
                         <ul className="navbar-nav flex-row">
                             {navLinks.map((link, index) => (
                                 <li key={index} className='nav-item me-3'>
-                                    <Link to={link.path} className='navbar-brand enlaces-navbar'>
-                                        {link.label}
-                                    </Link>
+                                    {link.onClick ? (
+                                        <span onClick={link.onClick} className="navbar-brand enlaces-navbar">
+                                            {link.label}
+                                        </span>
+                                        ):(<Link to={link.path} className='navbar-brand enlaces-navbar'>
+                                            {link.label}
+                                        </Link>
+                                    )}
+                                    
                                 </li>
                             ))}
                         </ul>
