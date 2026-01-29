@@ -18,10 +18,14 @@ const ForumPage: React.FC = () => {
                     {label: "Ayuda", path: "/help"}
                 ]}
             />
-
-            <main>
+            
                 <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}></Sidebar>
-            </main>
+
+                <main className='container'>
+                    <h1 className='fw-bold text-center mt-5'>Foro Comunitario</h1>
+
+                </main>
+            
         </div>
     );
 
