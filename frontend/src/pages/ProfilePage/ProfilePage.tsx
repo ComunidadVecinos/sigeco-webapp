@@ -1,11 +1,13 @@
 import React, {useState} from 'react';
-import {Link} from 'react-router-dom';
+import {Link, useNavigate}  from 'react-router-dom';
 import Header from '../../components/common/Header/Header';
 import imagen_generica from '../../assets/images/perfil_generico.png'
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import EditProfileModal from '../../components/ui/EditProfileModal/EditProfileModal';
 import EditPhotoModal from '../../components/ui/EditPhotoModal/EditPhotoModal';
 import EditPasswordModal from '../../components/ui/EditPasswordModal/EditPasswordModal';
+import LogoutModal from '../../components/ui/LogoutModal/LogoutModal';
+import DeleteAccountModal from '../../components/ui/DeleteAccountModal/DeleteAccountModal';
 
 
 const ProfilePage: React.FC = () =>{
@@ -27,7 +29,16 @@ const ProfilePage: React.FC = () =>{
     const [passwordModalOpen, setPasswordModalOpen] = useState(false);
     const [userPassword, setUserPassword] = useState('123456');
 
+    //Atributos modal cerrar sesion
+    const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+
+    //Atributos modal eliminar cuenta
+    const [deleteAccountModalopen, setDeleteAccountModalOpen] = useState(false);
+
+    const navigate = useNavigate();
+
     return (
+
         <div>
             <Header
                 navLinks={[
@@ -134,6 +145,14 @@ const ProfilePage: React.FC = () =>{
                     </div>
                 </div>
 
+                <div>
+                    <h4 className='fw-bold'>Acciones rápidas</h4>
+                    <div className="row">
+                        <button className='btn btn-action text-start ms-5' onClick={() => setLogoutModalOpen(true)}><i className='bi bi-box-arrow-left me-2'></i>Cerrar Sesión</button>
+                        <button className='btn btn-action text-start ms-5' onClick={() => setDeleteAccountModalOpen(true)}><i className='bi bi-trash me-2'></i>Eliminar permanentemente mi cuenta</button>
+                    </div>
+                </div>
+                
             </main>
 
 
@@ -158,6 +177,24 @@ const ProfilePage: React.FC = () =>{
                     onSave={(newPassword) => {
                         setUserPassword(newPassword);
                         alert('Contraseña cambiada correctamente');
+                    }}
+                />
+
+                <LogoutModal
+                    isOpen={logoutModalOpen}
+                    onClose={() => setLogoutModalOpen(false)}
+                    onConfirm={() => {
+                        setLogoutModalOpen(false);
+                        navigate('/');
+                    }}
+                />
+
+                <DeleteAccountModal
+                    isOpen={deleteAccountModalopen}
+                    onClose={() => setDeleteAccountModalOpen(false)}
+                    onConfirm={() => {
+                        setDeleteAccountModalOpen(false);
+                        navigate('/');
                     }}
                 />
 

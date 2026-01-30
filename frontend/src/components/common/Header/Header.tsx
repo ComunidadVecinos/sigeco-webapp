@@ -1,8 +1,11 @@
 //La barra de navegacion con el logo y el boton de acceso
 
-import React from 'react';
+import React, {useState} from 'react';
 import logo from '../../../assets/images/2.png';
-import {Link} from 'react-router-dom';
+import {Link, useNavigate} from 'react-router-dom';
+import ProfileDropdown from '../../ui/ProfileDropdown/ProfileDropdown';
+import LogoutModal from '../../ui/LogoutModal/LogoutModal';
+import CommunitiesDropdown from '../../ui/CommunitiesDropdown/CommunitiesDropdown';
 
 interface HeaderLink {
     label: React.ReactNode;
@@ -16,6 +19,19 @@ interface HeaderProps{
 }
 
 const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}) =>{
+
+    const [profileDropdownOpen, setProfileDropdownopen] = useState(false);
+    const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+    const navigate = useNavigate();
+
+    const [communitiesDropdownOpen, setCommunitiesDropdownOpen] = useState(false);
+    const [activeCommunityId, setActiveCommunityId] = useState(1);
+    const [communities] = useState([
+        {id: 1, name: 'Los Robledales'},
+        {id: 2, name: 'Residencial Norte'}
+    ]);
+
+
     return(
         <header className="header-common">
             <nav className="navbar bg-body-tertiary flex-column">
@@ -36,13 +52,32 @@ const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}
 
                         <div className="ms-auto d-flex align-items-center">
                             {showCommunutySwitcher && (
-                                <button className='btn btn-perfil me-3'>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="#104084" className="bi bi-building-fill" viewBox="0 0 16 16"><path d="M3 0a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h3v-3.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V16h3a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1zm1 2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5M4 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM7.5 5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5m2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM4.5 8h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5m2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5"/></svg>
-                                </button>
+                                <div className="position-relative">
+                                    <button className='btn btn-perfil me-3' onClick={() => setCommunitiesDropdownOpen(!communitiesDropdownOpen)}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="#104084" className="bi bi-building-fill" viewBox="0 0 16 16"><path d="M3 0a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h3v-3.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V16h3a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1zm1 2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5M4 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM7.5 5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5m2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM4.5 8h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5m2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5"/></svg>
+                                    </button>
+                                    <CommunitiesDropdown
+                                        isOpen={communitiesDropdownOpen}
+                                        onClose={() => setCommunitiesDropdownOpen(false)}
+                                        communities={communities}
+                                        activeCommunityId={activeCommunityId}
+                                        onSelectCommunity={(id) => setActiveCommunityId(id)}
+                                    />
+                                </div>
                             )}
-                            <Link to="/api/auth/me" className="btn btn-perfil me-5">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="#104084" className="bi bi-person-circle" viewBox="0 0 16 16"><path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/><path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/></svg>
-                            </Link>
+                            <div className="position-relative">
+                                <button className="btn btn-perfil me-5" onClick={() => setProfileDropdownopen(!profileDropdownOpen)}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="#104084" className="bi bi-person-circle" viewBox="0 0 16 16"><path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/><path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/></svg>
+                                </button>
+                                <ProfileDropdown
+                                    isOpen={profileDropdownOpen}
+                                    onClose={() => setProfileDropdownopen(false)}
+                                    onLogout={() => {
+                                        setProfileDropdownopen(false);
+                                        setLogoutModalOpen(true);
+                                    }}
+                                />
+                            </div>
                         </div>
 
                     </div>
@@ -68,6 +103,15 @@ const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}
                     </div>
                 </div>
             </nav>
+
+            <LogoutModal
+                isOpen={logoutModalOpen}
+                onClose={() => setLogoutModalOpen(false)}
+                onConfirm={() => {
+                    setLogoutModalOpen(false);
+                    navigate('/');
+                }}
+            />
         </header>
     );
 };

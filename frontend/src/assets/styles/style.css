@@ -187,6 +187,18 @@ footer {
     height: 45px;
 }
 
+.btn-action{
+    background: transparent;
+    color: #6c757d;
+    transition: all 0.2s ease;
+    border: none;
+} 
+
+.btn-action:hover {
+    color: #495057;
+}
+
+
 /*NUEVA COMUNIDAD*/
 .subtitle-com{
     color: #6a6e73;
