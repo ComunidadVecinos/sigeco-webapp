@@ -19,11 +19,12 @@
     padding: 8px 0;
 }
 
-.dropdown-item{
+.profile-dropdown-item{
     display: block;
     width: 100%;
     padding: 10px 16px;
     background: none;
+    border: none;
     border-bottom: 1px solid #eee;
     color: #6c757d;
     text-align: left;
@@ -31,10 +32,10 @@
     transition: background 0.2s;
 }
 
-.dropdown-item:last-child{
+.profile-dropdown-item:last-child{
     border-bottom: none;
 }
 
-.dropdown-item:hover{
+.profile-dropdown-item:hover{
     background: #f8f9fa;
 }

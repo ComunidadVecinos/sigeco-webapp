@@ -22,7 +22,7 @@ const CommunitiesDropdown: React.FC<CommunitiesDropdownProps> = ({isOpen, onClos
             <div className="dropdown-overlay" onClick={onClose}></div>
             <div className="communities-dropdown">
                 <div className="dropdown-header">
-                    <span className="text-muted small">Mis comunidades</span>
+                    <span className="text-muted small ms-3">Mis comunidades</span>
                 </div>
                 {communities.map((community) => (
                     <button key={community.id} className={`community-item ${community.id === activeCommunityId ? 'active' : ''}`} onClick={() => {onSelectCommunity(community.id); onClose();}}>

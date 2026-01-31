@@ -1,0 +1,111 @@
+.post-card{
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition:box-shadow 0.2s;
+}
+
+.post-card:hover{
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.post-header{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.post-avatar{
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.post-avatar img{
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+}
+
+.post-avatar i {
+    font-size: 28px;
+    color: #adb5bd;
+}
+
+.post-author-info{
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.post-author-name{
+    font-weight: 600;
+    color: #212529;
+}
+
+.post-timestamp{
+    font-size: 12px;
+    color: #adb5bd;
+}
+
+.post-category{
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.category-pregunta{
+    background: #e7f1ff;
+    color: #104084;
+}
+.category-encuesta {
+    background: #fff3cd;
+    color: #856404;
+}
+.category-anuncio {
+    background: #d4edda;
+    color: #155724;
+}
+.category-solicitud {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.post-content{
+    margin-bottom: 12px;
+}
+
+.post-content p{
+    margin: 0;
+    color: #212529;
+    line-height: 1.5;
+}
+
+.post-stats{
+    display: flex;
+    gap: 20px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f3f4;
+}
+
+.post-stat{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.post-stat i{
+    font-size: 16px;
+}
