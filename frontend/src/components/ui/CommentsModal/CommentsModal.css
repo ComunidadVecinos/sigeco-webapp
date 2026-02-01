@@ -1,0 +1,140 @@
+.comments-modal{
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 1001;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.comments-modal-header{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.comments-modal-header h5{
+    margin: 0;
+    font-weight: 600;
+}
+
+.btn-close-modal{
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #6c757d;
+    cursor: pointer;
+}
+
+.comments-modal-post{
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #eee;
+}
+
+.comments-modal-post .post-author{
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.comments-modal-post p {
+    margin: 8px 0 0;
+    font-size: 14px;
+    color: #495057;
+}
+
+.comments-list{
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+}
+
+.no-comments{
+    text-align: center;
+    color: #adb5bd;
+    font-size: 14px;
+}
+
+.comment-item{
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.comment-avatar{
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.comment-avatar img{
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+}
+
+.comment-avatar i {
+    font-size: 24px;
+    color: #adb5bd;
+}
+
+.comment-content{
+    flex: 1;
+}
+
+.comment-header{
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.comment-author{
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.comment-time{
+    font-size: 12px;
+    color: #adb5bd;
+}
+
+.comment-content p{
+    margin: 0;
+    font-size: 14px;
+}
+
+.comments-modal-footer{
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid #eee;
+}
+
+.comments-modal-footer input{
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid #e9ecef;
+    border-radius: 20px;
+    font-size: 14px;
+}
+
+.comments-modal-footer input:focus{
+    outline: none;
+    border-color: #104084;
+}

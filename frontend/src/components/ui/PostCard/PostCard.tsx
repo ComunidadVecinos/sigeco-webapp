@@ -1,7 +1,13 @@
-import React from "react";
+import React, {useState} from "react";
 import './PostCard.css';
 
 type PostCategory = 'pregunta' | 'encuesta' | 'anuncio' | 'solicitud';
+
+
+interface PollOption {
+    text: string;
+    votes: number;
+}
 
 interface PostCardProps{
     authorName: string;
@@ -12,8 +18,10 @@ interface PostCardProps{
     likes: number;
     views: number;
     comments: number;
-    onPostClick: () => void;
+    pollOptions?: PollOption[];
+    onCommentsClick: () => void;
 }
+
 
 const categoryLabels = {
     pregunta: {emoji: '❓', label: 'Pregunta'},
@@ -31,10 +39,52 @@ const PostCard: React.FC<PostCardProps> = ({
     likes,
     views,
     comments,
-    onPostClick
+    pollOptions,
+    onCommentsClick
 }) =>{
+
+    const [voted, setVoted] = useState<number | null>(null);
+    const [localPollOptions, setLocalPollOptions] = useState(pollOptions || []);
+
+    const totalVotes = localPollOptions.reduce((sum, opt) => sum + opt.votes, 0);
+
+    const handleVote = (index: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if(voted === null){
+            const newOptions = [...localPollOptions];
+            newOptions[index] = {...newOptions[index], votes: newOptions[index].votes + 1};
+            setLocalPollOptions(newOptions);
+            setVoted(index);
+        }
+    };
+
+    const getPercentage = (votes: number) => {
+        if(totalVotes === 0) return 0;
+        return Math.round((votes / totalVotes) * 100);
+    };
+
+    const [liked, setLiked] = useState(false);
+    const [localLikes, setLocalLikes] = useState(likes);
+
+    const handleLike = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if(!liked){
+            setLocalLikes(localLikes + 1);
+            setLiked(true);
+        }
+        else{
+            setLocalLikes(localLikes - 1);
+            setLiked(false);
+        }
+    };
+
+    const handleCommentsClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onCommentsClick();
+    };
+
     return(
-        <div className="post-card" onClick={onPostClick}>
+        <div className="post-card">
             <div className="post-header">
                 <div className="post-avatar">
                     {authorAvatar ? (
@@ -56,14 +106,29 @@ const PostCard: React.FC<PostCardProps> = ({
                 <p>{content}</p>
             </div>
 
+            {category === 'encuesta' && localPollOptions.length > 0 && (
+                <div className="poll-container">
+                    {localPollOptions.map((option, index) => (
+                        <div key={index} className={`poll-option-vote ${voted !== null ? 'voted' : ''} ${voted === index ? 'selected' : ''}`} onClick={(e) => handleVote(index, e)}>
+                            <div className="poll-bar" style={{ width: voted != null ? `${getPercentage(option.votes)}%` : '0%'}}></div>
+                            <span className="poll-text">{option.text}</span>
+                            {voted != null && (
+                                <span className="poll-percentage">{getPercentage(option.votes)}%</span>
+                            )}
+                        </div>
+                    ))}
+                    <span className="poll-total">{totalVotes} votos</span>
+                </div>
+            )}
+
             <div className="post-stats">
-                <span className="post-start">
-                    <i className="bi bi-heart"></i> {likes}
+                <span className={`post-stat ${liked ? 'liked' : ''}`} onClick={handleLike}>
+                    <i className={`bi ${liked ? 'bi-heart-fill' : 'bi-heart'}`}></i> {localLikes}
                 </span>
-                <span className="post-start">
+                <span className="post-stat">
                     <i className="bi bi-eye"></i> {views}
                 </span>
-                <span className="post-start">
+                <span className="post-stat clickable" onClick={handleCommentsClick}>
                     <i className="bi bi-chat"></i> {comments}
                 </span>
             </div>

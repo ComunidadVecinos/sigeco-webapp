@@ -3,10 +3,19 @@ import Header from '../../components/common/Header/Header';
 import Sidebar from '../../components/ui/Sidebar/Sidebar';
 import CreatePost from '../../components/ui/CreatePost/CreatePost';
 import PostCard from '../../components/ui/PostCard/PostCard';
+import CommentsModal from '../../components/ui/CommentsModal/CommentsModal';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './ForumPage.css';
 
 type PostCategory = 'pregunta' | 'encuesta' | 'anuncio' | 'solicitud';
+
+interface Comment{
+    id: number;
+    authorName: string;
+    authorAvatar?: string;
+    content: string;
+    timestamp: string;
+}
 
 interface Post{
     id: number;
@@ -18,6 +27,8 @@ interface Post{
     likes: number;
     views: number;
     comments: number;
+    pollOptions?: {text: string; votes: number }[];
+    commentsList: Comment[];
 }
 
 
@@ -32,7 +43,10 @@ const ForumPage: React.FC = () => {
             category: 'pregunta',
             likes: 5,
             views: 23,
-            comments: 3
+            comments: 3,
+            commentsList: [{ id: 1, authorName: 'Pedro Ruiz', content: 'Creo que pasa los martes por la mañana', timestamp: 'Hace 1 hora' },
+            { id: 2, authorName: 'Ana López', content: 'Sí, sobre las 10:00', timestamp: 'Hace 30 min' }
+    ]
         },
         {
             id: 2,
@@ -42,11 +56,31 @@ const ForumPage: React.FC = () => {
             category: 'anuncio',
             likes: 50,
             views: 230,
-            comments: 31
+            comments: 31,
+            commentsList: []
         },
+        {
+            id: 3,
+            authorName: 'Carlos Ruiz',
+            content: '¿Qué día preferís para la próxima junta?',
+            timestamp: 'Hace 1 día',
+            category: 'encuesta',
+            likes: 8,
+            views: 67,
+            comments: 4,
+            commentsList: [],
+            pollOptions: [
+                { text: 'Lunes', votes: 5 },
+                { text: 'Miércoles', votes: 12 },
+                { text: 'Viernes', votes: 3 },
+                
+            ]
+        }
     ]);
 
-    const handleNewPost = (content: string, category: PostCategory) => {
+    const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
+    const handleNewPost = (content: string, category: PostCategory, pollOptions?: string[]) => {
         const newPost: Post = {
             id: Date.now(),
             authorName: 'Tú',
@@ -55,15 +89,33 @@ const ForumPage: React.FC = () => {
             category,
             likes: 0,
             views: 0,
-            comments: 0
+            comments: 0,
+            commentsList: [],
+            pollOptions: pollOptions ? pollOptions.map(opt => ({text:opt, votes:0})): undefined
         };
         setPosts([newPost, ...posts]);
     };
 
-    const handlePostClick = (postId: number) => {
-        console.log('Post clicked:', postId);
+    const handlePostClick = (post: Post) => {
+        setSelectedPost(post);
     };
     
+    const handleAddComment = (content: string) => {
+        if(selectedPost) {
+            const newComment: Comment = {
+                id: Date.now(),
+                authorName: 'Tú',
+                content,
+                timestamp: 'Ahora'
+            };
+
+            const updatedPosts = posts.map(post =>
+                post.id === selectedPost.id ? {...post, comments: post.comments + 1, commentsList: [...post.commentsList, newComment]}: post);
+                setPosts(updatedPosts);
+                setSelectedPost({...selectedPost, commentsList: [...selectedPost.commentsList, newComment]});
+        }
+    };
+
     return (
         <div>
             
@@ -95,12 +147,20 @@ const ForumPage: React.FC = () => {
                                 likes={post.likes}
                                 views={post.views}
                                 comments={post.comments}
-                                onPostClick={() => handlePostClick(post.id)}
+                                pollOptions={post.pollOptions}
+                                onCommentsClick={() => handlePostClick(post)}
                             />
                         ))}
                     </div>
                 </main>
-            
+            <CommentsModal
+                isOpen={selectedPost !== null}
+                onClose={() => setSelectedPost(null)}
+                postContent={selectedPost?.content || ''}
+                postAuthor={selectedPost?.authorName || ''}
+                comments={selectedPost?.commentsList || []}
+                onAddComment={handleAddComment}
+            />
         </div>
     );
 

@@ -75,5 +75,49 @@
     font-size: 14px;
 }
 
+.poll-options{
+    margin-top: 12px;
+}
 
+.poll-option-row{
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
 
+.poll-option-row input{
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.poll-option-row input:focus{
+    outline: none;
+    border-color: #104084;
+}
+
+.btn-remove-option{
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    padding: 0 8px;
+}
+
+.btn-add-option{
+    background: none;
+    border: 1px dashed #adb5bd;
+    color: #6c757d;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 14px;
+}
+
+.btn-add-option:hover{
+    border-color: #104084;
+    color: #104084;
+}

@@ -109,3 +109,77 @@
 .post-stat i{
     font-size: 16px;
 }
+
+.poll-container{
+    margin: 12px 0;
+}
+
+.poll-option-vote{
+    position: relative;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.2s;
+}
+
+.poll-option-vote:hover:not(.voted){
+    border-color: #104084;
+    background: #f8f9fa;
+}
+
+.poll-option-vote:hover:not.voted{
+    border-color: #104084;
+    background: #f8f9fa;
+}
+
+.poll-option-vote.selected{
+    border-color: #104084;
+}
+
+.poll-bar{
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: #e7f1ff;
+    transition: width 0.5s ease;
+    z-index: 0;
+}
+
+.poll-text{
+    position: relative;
+    z-index: 1;
+    font-weight: 500;
+}
+
+.poll-percentage{
+    position: relative;
+    z-index: 1;
+    float: right;
+    font-weight: 600;
+    color: #104084; 
+}
+
+.poll-total{
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.post-stat.liked{
+    color: #dc3545;
+}
+
+.post-stat.liked i {
+    color: #dc3545;
+}
+
+.post-stat.clickable{
+    cursor: pointer;
+}
+
+.post-stat.clickable:hover{
+    color: #104084;
+}
