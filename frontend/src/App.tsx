@@ -25,9 +25,9 @@ const App: React.FC = () => {
                 <Route path="api/auth/change-password" />
                 <Route path="/api/auth/me" element={<ProfilePage />} />
                 <Route path="/api/auth/forum" element={<ForumPage />} />
-                <Route path="api/auth/logout" />
-                <Route path="api/auth/delete-account" />
-                <Route path="api/auth/new-community" element={<NewCommunityPage />}/>
+                <Route path="/api/auth/logout" />
+                <Route path="/api/auth/delete-account" />
+                <Route path="/api/auth/new-community" element={<NewCommunityPage />}/>
             </Routes>
         </div>
     );

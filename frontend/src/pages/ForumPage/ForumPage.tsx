@@ -130,8 +130,8 @@ const ForumPage: React.FC = () => {
             
                 <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}></Sidebar>
 
-                <main className='container'>
-                    <h1 className='fw-bold text-center mt-4 mb-4'>Foro comunitario</h1>
+                <main className='container forum-container'>
+                    <h1 className='forum-title text-center'>Foro comunitario</h1>
 
                     <CreatePost onSubmit={handleNewPost} />
 

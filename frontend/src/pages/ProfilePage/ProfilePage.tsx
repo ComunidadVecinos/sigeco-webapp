@@ -8,7 +8,7 @@ import EditPhotoModal from '../../components/ui/EditPhotoModal/EditPhotoModal';
 import EditPasswordModal from '../../components/ui/EditPasswordModal/EditPasswordModal';
 import LogoutModal from '../../components/ui/LogoutModal/LogoutModal';
 import DeleteAccountModal from '../../components/ui/DeleteAccountModal/DeleteAccountModal';
-
+import './ProfilePage.css';
 
 const ProfilePage: React.FC = () =>{
 
@@ -115,41 +115,43 @@ const ProfilePage: React.FC = () =>{
 
                 </div>
 
-                <div className="contorno row d-flex justify-content-center mt-5 p-3">
-                    <div>
-                        <h4 className='fw-bold'>Configuración de la cuenta</h4>
-                    </div>
+                <div className="contorno row d-flex justify-content-center mt-5 p-4">
 
-                    <p className='p-info-comunidad ps-5'>Cambia tu contraseña y gestiona tus notificaciones</p>
+                    <h4 className='fw-bold mb-3'>Configuración de la cuenta</h4>
+
+                    <p className='p-info-comunidad mb-4'>Cambia tu contraseña y gestiona tus notificaciones</p>
                     
-                    <div className="row align-items-center ms-5 me-5 mb-3">
-                        <div className="col-6">
-                            <h5 className='pt-3 ps-5 fw-bold'>Cambiar contraseña</h5>
-                            <p className='p-info-comunidad ps-5'>Se recomienda actualizar la contraseña periódicamente.</p>
+                    <div className="config-item">
+                        <div>
+                            <h5 className='fw-bold'>Cambiar contraseña</h5>
+                            <p>Se recomienda actualizar la contraseña periódicamente.</p>
                         </div>
-                        <div className="col-6">
-                            <button onClick={() => setPasswordModalOpen(true)} className='btn btn-outline-primary'>
-                                <i className="bi bi-chevron-right"></i>
-                            </button>
+                        
+                        <button onClick={() => setPasswordModalOpen(true)} className='btn btn-outline-primary'>
+                            <i className="bi bi-chevron-right"></i>
+                        </button>
+
+                        <div className="config-item">
+                            <div>
+                                <h5 className='fw-bold'>Gestionar notificaciones</h5>
+                                <p>Modificar tus preferencias para recibir notificaciones.</p>
+                            </div>
                         </div>
-                        <div className="col-6">
-                            <h5 className='pt-3 ps-5 fw-bold'>Gestionar notificaciones</h5>
-                            <p className='p-info-comunidad ps-5'>Modificar tus preferencias para recibir notificaciones.</p>
-                        </div>
-                        <div className="col-6">
-                            <button className='btn btn-outline-primary'>
-                                <i className="bi bi-chevron-right"></i>
-                            </button>
-                        </div>
+
+                        <button className='btn btn-outline-primary'>
+                            <i className="bi bi-chevron-right"></i>
+                        </button>
                         
                     </div>
                 </div>
 
-                <div>
-                    <h4 className='fw-bold'>Acciones rápidas</h4>
-                    <div className="row">
-                        <button className='btn btn-action text-start ms-5' onClick={() => setLogoutModalOpen(true)}><i className='bi bi-box-arrow-left me-2'></i>Cerrar Sesión</button>
-                        <button className='btn btn-action text-start ms-5' onClick={() => setDeleteAccountModalOpen(true)}><i className='bi bi-trash me-2'></i>Eliminar permanentemente mi cuenta</button>
+                <div className='mt-5 mb-5'>
+                    <h4 className='fw-bold mb-3'>Acciones rápidas</h4>
+                    <div className="d-flex flex-column gap-2">
+                        <div className="row">
+                            <button className='btn btn-action text-start' onClick={() => setLogoutModalOpen(true)}><i className='bi bi-box-arrow-left me-2'></i>Cerrar Sesión</button>
+                            <button className='btn btn-action text-start text-danger' onClick={() => setDeleteAccountModalOpen(true)}><i className='bi bi-trash me-2'></i>Eliminar permanentemente mi cuenta</button>
+                        </div>
                     </div>
                 </div>
                 

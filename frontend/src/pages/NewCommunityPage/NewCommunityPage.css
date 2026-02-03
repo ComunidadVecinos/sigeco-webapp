@@ -1,0 +1,92 @@
+.titulo-perfil{
+    margin-top: 250px;
+}
+
+.option-card{
+    border: 2px solid #e9ecef;
+    border-radius: 16px;
+    padding: 25px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.option-card:hover{
+    border-color: #104048;
+    box-shadow: 0 4px 12px rgba(16,64,132,0.1);
+}
+
+.option-card:selected{
+    border-color: #104048;
+    background: #f8faff;
+}
+
+.subtitle-com{
+    color: #212529;
+    font-size: 18px;
+}
+
+.parrafo-com{
+    font-size: 15px;
+    color: #6c757d;
+    line-height: 1.6;
+}
+
+.radio-custom{
+    width: 22px;
+    height: 22px;
+    accent-color: #104084;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    cursor: pointer;
+}
+
+.section-title{
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.section-subtitle{
+    font-size: 15px;
+    color: #6c757d;
+    margin-bottom: 24px;
+}
+
+.form-section{
+    padding: 30px;
+}
+
+.form-section .form-label{
+    font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.form-section .form-control{
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid #dee2e6;
+}
+
+.form-section .form-control:focus{
+    border-color: #104048;
+    box-shadow: 0 0 0 3px rgba(16,64,132,0.1);
+}
+
+.btn-valide{
+    padding: 12px 40px;
+    font-weight: 600;
+    border-radius: 10px;
+}
+
+.new-community-section{
+    margin-bottom: 50px;
+}
+
+@media (max-width: 768px){
+    .option-card{
+        margin-bottom: 15px;
+    }
+}

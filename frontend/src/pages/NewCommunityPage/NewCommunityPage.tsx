@@ -2,7 +2,7 @@ import React from 'react';
 import Header from '../../components/common/Header/Header';
 import { useState } from 'react';
 
-
+import './NewCommunityPage.css';
 
 const NewCommunityPage: React.FC = () => {
 const [opcion, setOpcion] = useState('');
@@ -17,27 +17,27 @@ const [opcion, setOpcion] = useState('');
 
             <main className="container">
                 <h2 className='titulo-perfil'>Nueva Comunidad</h2>
-                <div className="contorno mt-5">
+                <div className="contorno new-community-section mt-5">
                     <div className="row">
                         <h3 className='fw-bold ms-5 mt-5'>¿Cómo vas a conectar?</h3>
                         <p className='p-info-comunidad ms-5'>Selecciona una de las dos opciones.</p>
 
-                        <div className="contorno col-5 ms-5 mt-3 mb-5 text-start">
-                            <h5 className='subtitle-com fw-bold m-3'>Unete a una comunidad existente</h5>
-                            <p className='parrafo parrafo-com m-3'>Introduce el código de invitación proporcionado por el presidente de la comunidad para formar parte de ella de inmediato.</p>
-                            <input type="radio" className='radio-custom' name='opcionComunidad' checked={opcion === 'unete'} onChange={() => setOpcion('unete')} />
+                        <div className={`option-card col-5 ms-5 mt-3 mb-5 ${opcion === 'unete' ? 'selected' : ''}`} onClick={() => setOpcion('unete')}>
+                            <h5 className="subtitle-com fw-bold">Únete a una comunidad existente</h5>
+                            <p className="parrafo-com">Introduce el código de iinvitación proporcionado por el presidente de la comunidad para formar parte d ella de inmediato.</p>
+                            <input type="radio" className="radio-custom" checked={opcion === 'unete'} readOnly/>
                         </div>
 
-                        <div className="contorno col-5 ms-5 mt-3 mb-5 text-start">
-                            <h5 className='subtitle-com fw-bold m-3'>Crea una nueva comunidad</h5>
-                            <p className='parrafo parrafo-com m-3'>Inicia una nueva comunidad desde cero. Configura sus detalles y conviértete en su presidente para invitar a otros miembros.</p>
-                            <input type="radio" className='radio-custom' name='opcionComunidad' checked={opcion === 'crear'} onChange={() => setOpcion('crear')}/>
+                        <div className={`option-card col-5 ms-5 mt-3 mb-5 ${opcion === 'crear' ? 'selected' : ''}`} onClick={() => setOpcion('crear')}>
+                            <h5 className="subtitle-com fw-bold">Crea una nueva comunidad</h5>
+                            <p className="parrafo-com">Inicia una comunidad desde cero. Configura sus detalles y conviertete en su presidente para invitar a otros miembros.</p>
+                            <input type="radio" className="radio-custom" checked={opcion === 'crear'} readOnly/>
                         </div>
                     </div>
                 </div>
 
                 {opcion === 'unete' && (
-                    <div className="contorno mt-5">
+                    <div className="contorno new-community-section mt-5">
                         <h3 className='fw-bold ms-5 mt-5'>Código de Registro</h3>
                         <p className='p-info-comunidad ms-5'>Por favor, contacta con tu presidente y/o administrador y obtén tu código de registro.</p>
 
@@ -46,13 +46,13 @@ const [opcion, setOpcion] = useState('');
                             <input type="text" className='form-control' id='codigo'/>
                         </div>
 
-                        <button className='btn btn-secondary d-block mx-auto mt-5 mb-5' onClick={() => setOpcion('registro-vivienda')}>Validar</button>
+                        <button className='btn btn-secondary btn-validate d-block mx-auto mt-5 mb-5' onClick={() => setOpcion('registro-vivienda')}>Validar</button>
                         
                     </div>
                 )}
 
                 {opcion === 'crear' && (
-                    <div className="contorno mt-5">
+                    <div className="contorno new-community-section mt-5">
                         <h3 className='fw-bold ms-5 mt-5'>Datos de la comunidad</h3>
                         <p className='p-info-comunidad ms-5'>Por favor, introduzca los datos de su comunidad de vecinos.</p>
 
@@ -109,13 +109,13 @@ const [opcion, setOpcion] = useState('');
 
                         </div>
 
-                        <button className='btn btn-secondary d-block mx-auto mt-5 mb-5' onClick={() => setOpcion('registro-vivienda')}>Validar</button>
+                        <button className='btn btn-secondary btn-validate d-block mx-auto mt-5 mb-5' onClick={() => setOpcion('registro-vivienda')}>Validar</button>
                         
                     </div>
                 )}
 
                 {opcion === 'registro-vivienda' && (
-                    <div className="contorno mt-5">
+                    <div className="contorno new-community-section mt-5">
                         <h3 className="fw-bold ms-5 mt-5">Datos de tu domicilio</h3>
                         <p className='p-info-comunidad ms-5'>Introduce los datos de tu vivienda perteneciente a la comunidad anterior.</p>
 

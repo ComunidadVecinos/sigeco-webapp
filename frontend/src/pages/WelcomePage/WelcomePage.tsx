@@ -5,39 +5,34 @@ import React from "react";
 import imgSD from '../../assets/images/SwingingDoodle.png'
 import logo from '../../assets/images/6.png'
 import {Link} from 'react-router-dom';
+import './WelcomePage.css';
 
 const WelcomePage: React.FC = () => {
     return (
         <div>
-            <header>
-                <nav className="navbar bg-white">
-                    <div className="container-fluid">
-                        <Link to="/" className="navbar-brand">
-                            <img src={logo} alt="Sigeco" className="img-logo1" />
-                        </Link>
-                    </div>
-                </nav>
-            </header>
+
 
             <main>
-                <h1 className="text-center"><strong>¡Bienvenido/a a SIGECO!</strong></h1>
-                <div className="imagen text-center">
-                    <img src={imgSD} alt="ilustracion-bienvenida"/>
-                </div>
-            
-                <div className="text-center mt-2 mb-2 ">
-                    <Link to="/api/auth/register" className="btn btn-primary btn-lg mx-5">
-                            <strong>Registrarme</strong>
-                    </Link>
-                    <Link to="/api/auth/login" className="btn btn-primary btn-lg mx-5">
-                            <strong>Iniciar Sesión</strong>
-                    </Link>
-                </div>
-                    
-                <div className="text-center">
-                    <p className="parrafo">El Sistema de Gestion Comunitaria que digitaliza la comunicación, la documentación y la toma de decisiones.</p>
-                </div>
+                <div className="welcome-container">
+                    <h1 className="welcome-title">¡Bienvenido/a a SIGECO!</h1>
+
+                    <div className="welcome-image">
+                        <img src={imgSD} alt="ilustracion-bienvenida"/>
+                    </div>
                 
+                    <div className="welcome-buttons">
+                        <Link to="/api/auth/register" className="btn btn-primary">
+                            Registrarme
+                        </Link>
+                        <Link to="/api/auth/login" className="btn btn-primary">
+                            Iniciar Sesión
+                        </Link>
+                    </div>
+                        
+                    <p className="welcome-description">
+                        El Sistema de Gestion Comunitaria que digitaliza la comunicación, la documentación y la toma de decisiones.
+                    </p>
+                </div>
             </main>
 
         </div>

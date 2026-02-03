@@ -4,8 +4,7 @@ import App from './App';
 import {BrowserRouter} from 'react-router-dom';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './assets/styles/acceso.css';
-import './assets/styles/style.css';
+import './assets/styles/global.css';
 
 const rootElement = document.getElementById('root');
 
