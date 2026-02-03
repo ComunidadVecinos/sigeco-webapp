@@ -13,7 +13,7 @@ const Sidebar: React.FC<SidebarProps> = ({isOpen, onClose}) => {
             <div className={`sidebar-overlay ${isOpen ? 'active' : ''}`} onClick={onClose} />
 
             <div className={`sidebar ${isOpen ? 'open' : ''}`}>
-                <SidebarContent />
+                <SidebarContent onClose={onClose}/>
             </div>
         </>
     );
