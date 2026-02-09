@@ -19,23 +19,45 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
     const handleSubmit = () => {
         setError('');
 
+        //Validar contraseña actual
         if(!currentPasswordCheck(currentPassword)){
             setError('La contraseña actual no es correcta');
             return;
         }
 
-        if(newPassword !== confirmPassword){
-            setError('Las contraseñas nuevas no coinciden');
-            return;
-        }
-
-        if(newPassword !== confirmPassword){
+        //Validar que la nueva no se igual que la actual
+        if(newPassword === currentPassword){
             setError('La nueva contraseña no puede ser igual a la actual');
             return;
         }
 
-        if(newPassword.length < 6){
-            setError('La contraseña debe tener al menos 6 caracteres');
+        //Validar longittud minima 
+        if(newPassword.length < 8){
+            setError('La contraseña debe tener al menos 8 caracteres');
+            return;
+        }
+
+        //Validar mayuscula
+        if(!/[A-Z]/.test(newPassword)){
+            setError('La contraseña debe tener al menos una mayúscula');
+            return;
+        }
+
+        //Validar número
+        if(!/[0-9]/.test(newPassword)){
+            setError('La contraseña debe tener al menos un número');
+            return;
+        }
+
+        //Validar carácter especial
+        if(!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)){
+            setError('La contraseña debe tener al menos un carácter especial (!@#$%^&*(),.?":{}|<>');
+            return;
+        }
+
+        //Validar que coinciden
+        if(newPassword !== confirmPassword){
+            setError('Las contraseñas nuevas no coinciden');
             return;
         }
 
