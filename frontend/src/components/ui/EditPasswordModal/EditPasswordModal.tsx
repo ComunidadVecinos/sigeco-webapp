@@ -99,7 +99,7 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
                     </div>
                 </div>
                 <div className="change-password-modal-footer">
-                    <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
+                    <button className="btn btn-secondary" onClick={handleClose}>Cerrar</button>
                     <button className="btn btn-primary" onClick={handleSubmit}>Guardar</button>
                 </div>
             </div>

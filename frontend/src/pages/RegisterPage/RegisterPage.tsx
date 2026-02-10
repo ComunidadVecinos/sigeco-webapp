@@ -127,7 +127,7 @@ const RegisterPage: React.FC = () => {
         }
     }
 
-    const isFormValid = validateForm.length === 0 &&
+    const isFormValid =
         !validateNombre(formData.nombre) && 
         !validateApellidos(formData.apellidos) && 
         !validateEmail(formData.email) && 

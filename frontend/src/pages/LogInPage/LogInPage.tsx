@@ -15,7 +15,7 @@ const LogInPage: React.FC = () => {
 
     //Validar email
     const validateEmail = (value: string): string | undefined => {
-        if(!value.trim()) return 'El email es requirido';
+        if(!value.trim()) return 'El email es requerido';
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if(!emailRegex.test(value)) return 'Formato de email inválido';
         return undefined;

@@ -12,6 +12,7 @@ const ForgotPassword: React.FC = () => {
     const validateEmail = (value: string): string | undefined => {
         if(!value.trim()) return 'El email es requerido';
         if(!value.endsWith('@ucm.es')) return 'El email debe ser @ucm.es';
+        return undefined;
     };
 
     //Manejar blur
@@ -42,7 +43,7 @@ const ForgotPassword: React.FC = () => {
                 <div className="forgot-card text-center">
                     <h1 className="forgot-title">¡Email enviado!</h1>
                     <p className="forgot-subtitle">Hemos enviado una contraseña temporal a <strong>{email}</strong>. <br /> Revisa tu bandeja de entrada.</p>
-                    <Link to="/api/auth/login" className="btn btn-primary forgot.btn">Volver a iniciar sesión</Link>
+                    <Link to="/api/auth/login" className="btn btn-primary forgot-btn">Volver a iniciar sesión</Link>
                 </div>
             </div>
         );
@@ -53,7 +54,7 @@ const ForgotPassword: React.FC = () => {
             <div className="forgot-card">
                 <h1 className="forgot-title">Olvidé mi contraseña</h1>
                 <p className="forgot-subtitle">
-                    Introduce tu email y te enviaremos una contrasela temporal.
+                    Introduce tu email y te enviaremos una contraseña temporal.
                     Te recomendamos cambiarla desde tu perfil una vez que accedas.
                 </p>
 
