@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import './RegisterPage.css';
+import {register} from '../../services/authServices';
 
 interface FormData {
     nombre: string;
@@ -114,7 +115,7 @@ const RegisterPage: React.FC = () => {
         setErrors({...errors, [field]: validators[field](formData[field])});
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         const allTouched: Record<string, boolean> = {};
@@ -122,10 +123,15 @@ const RegisterPage: React.FC = () => {
         setTouched(allTouched);
 
         if(validateForm()) {
-            console.log('Registro válido:', formData);
-            navigate('/api/auth/me');
+            try {
+                await register(formData.nombre, formData.apellidos, formData.email, formData.telefono, formData.password);
+                navigate('/api/auth/me');
+            }
+            catch (error: any){
+                setErrors({email: error.response?.data?.message || 'Error al registrar'});
+            } 
         }
-    }
+    };
 
     const isFormValid =
         !validateNombre(formData.nombre) && 

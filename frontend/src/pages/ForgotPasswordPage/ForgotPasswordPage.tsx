@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {Link} from 'react-router-dom';
 import './ForgotPasswordPage.css';
+import { resetPassword } from '../../services/authServices';
 
 const ForgotPassword: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -22,7 +23,7 @@ const ForgotPassword: React.FC = () => {
     };
 
     //Manejar submit
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setTouched(true);
 
@@ -30,8 +31,13 @@ const ForgotPassword: React.FC = () => {
         setError(emailError);
 
         if(!emailError){
-            console.log('Email enviado a:', email);
-            setEnviado(true);
+            try{
+                await resetPassword(email);
+                setEnviado(true);
+            }
+            catch (error: any) {
+                setError(error.response?.data?.message || 'Error al enviar el email');
+            }
         }
     };
 

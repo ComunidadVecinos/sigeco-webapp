@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
-import logo from '../../assets/images/6.png';
 import './LogInPage.css'
+import { useAuth } from '../../context/authContext';
 
 
 const LogInPage: React.FC = () => {
@@ -47,12 +47,20 @@ const LogInPage: React.FC = () => {
     };
 
     //Manejar envio
-    const handleSubmit = (e: React.FormEvent) => {
+    const {login} = useAuth();
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setTouched({email: true, password: true});
 
         if(validateForm()){
-            navigate('/api/auth/forum');
+            try{
+                await login(email, password);
+                navigate('/api/auth/forum');
+            }
+            catch(error: any){
+                setErrors({email: 'Credenciales incorrectas'});
+            }
         }
     };
 

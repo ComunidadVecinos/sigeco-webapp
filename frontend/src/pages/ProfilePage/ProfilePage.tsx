@@ -9,17 +9,15 @@ import EditPasswordModal from '../../components/ui/EditPasswordModal/EditPasswor
 import LogoutModal from '../../components/ui/LogoutModal/LogoutModal';
 import DeleteAccountModal from '../../components/ui/DeleteAccountModal/DeleteAccountModal';
 import './ProfilePage.css';
+import { useAuth } from '../../context/authContext';
+import { changePassword } from '../../services/authServices';
 
 const ProfilePage: React.FC = () =>{
 
+    const {user, logout, refreshUser} = useAuth();
+
     //Atributos modal de editar perfil
     const [modalOpen, setModalOpen] = useState(false);
-    const [userData, setUserData] = useState({
-        nombre: 'Antonio',
-        apellidos: 'Rodriguez Pinedo',
-        telefono: '+34 612 345 678',
-        email: 'arodrinedo@email.com'
-    });
 
     //Atributos modal de editar photo
     const [photoModalOpen, setPhotoModalOpen] = useState(false);
@@ -27,7 +25,6 @@ const ProfilePage: React.FC = () =>{
 
     //Atributos de cambiar contraseña
     const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-    const [userPassword, setUserPassword] = useState('123456');
 
     //Atributos modal cerrar sesion
     const [logoutModalOpen, setLogoutModalOpen] = useState(false);
@@ -75,11 +72,11 @@ const ProfilePage: React.FC = () =>{
                         </div>
                         <div className="col-6">
                             <div className="row">
-                                <div className="col-6"><h6 className='fw-bold'>Nombre</h6> Antonio Rodriguez Pinedo</div>
-                                <div className="col-6"><h6 className='fw-bold'>Telefono</h6>+34 612 345 678</div>
+                                <div className="col-6"><h6 className='fw-bold'>Nombre</h6>{user?.firstName}</div>
+                                <div className="col-6"><h6 className='fw-bold'>Telefono</h6>{user?.phone}</div>
                             </div>
                             <div className="row mt-3">
-                                <div className="col-6"><h6 className='fw-bold'>Correo electrónico</h6> arodrinedo@email.com</div>
+                                <div className="col-6"><h6 className='fw-bold'>Correo electrónico</h6>{user?.email}</div>
                             </div>
                         </div>
                     </div>
@@ -161,8 +158,15 @@ const ProfilePage: React.FC = () =>{
                 <EditProfileModal
                     isOpen={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    initialData={userData}
-                    onSave={(data) => setUserData(data)}
+                    initialData={{
+                        nombre: user?.firstName || '',
+                        apellidos: user?.lastName || '',
+                        telefono: user?.phone || '',
+                        email: user?.email || ''
+                    }}
+                    onSave={async (data) =>{
+                        await refreshUser();
+                    }}
                 />
 
                 <EditPhotoModal
@@ -175,18 +179,24 @@ const ProfilePage: React.FC = () =>{
                 <EditPasswordModal
                     isOpen={passwordModalOpen}
                     onClose={() => setPasswordModalOpen(false)}
-                    currentPasswordCheck={(password) => password === userPassword}
-                    onSave={(newPassword) => {
-                        setUserPassword(newPassword);
-                        alert('Contraseña cambiada correctamente');
+                    currentPasswordCheck={() => true}
+                    onSave={async (newPassword) => {
+                        try{
+                            await changePassword('', newPassword, newPassword);
+                            alert('Contraseña cambiada correctamente');
+                        }
+                        catch(error: any){
+                            alert(error.response?.data?.message || 'Error al cambiar la contraseña');
+                        }
+                        
                     }}
                 />
 
                 <LogoutModal
                     isOpen={logoutModalOpen}
                     onClose={() => setLogoutModalOpen(false)}
-                    onConfirm={() => {
-                        setLogoutModalOpen(false);
+                    onConfirm={async() => {
+                        await logout();
                         navigate('/');
                     }}
                 />

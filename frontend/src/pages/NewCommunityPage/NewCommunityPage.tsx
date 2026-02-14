@@ -1,8 +1,11 @@
 import React, {useState} from 'react';
 import Header from '../../components/common/Header/Header';
 import './NewCommunityPage.css';
+import { joinCommunity, createCommunity } from '../../services/communityServices';
+import { useNavigate } from 'react-router-dom';
 
 const NewCommunityPage: React.FC = () => {
+    const navigate = useNavigate();
     const [opcion, setOpcion] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -148,10 +151,42 @@ const NewCommunityPage: React.FC = () => {
         }
     };
 
-    const handleConfirmarDomicilio = () => {
+    const handleConfirmarDomicilio = async () => {
         if(validarDomicilio()) {
-            console.log('Datos confirmados:', {codigo, comunidad,domicilio});
-            alert('¡Comunidad registrada correctamente!');
+            try{
+                if(opcion === 'unirse'){
+                    await joinCommunity(codigo, {
+                        country: domicilio.pais,
+                        province: domicilio.provincia,
+                        municipality: domicilio.municipio,
+                        streetType: domicilio.tipoVia,
+                        streetName: domicilio.nombreVia,
+                        postalCode: domicilio.cp,
+                        number: domicilio.numero,
+                        block: domicilio.bloque || undefined,
+                        floor: domicilio.planta|| undefined,
+                        door: domicilio.puerta || undefined
+                    });
+                }
+                else{
+                    await createCommunity({
+                        name: comunidad.nombre,
+                        cif: comunidad.cif,
+                        country: domicilio.pais,
+                        province: domicilio.provincia,
+                        municipality: domicilio.municipio,
+                        streetType: domicilio.tipoVia,
+                        streetName: domicilio.nombreVia,
+                        postalCode: domicilio.cp,
+                        number: domicilio.numero
+                    });
+                }
+                alert('¡Comunidad registrada correctamente!');
+                navigate('/api/auth/me');
+            }
+            catch (error: any){
+                alert(error.response?.data?.message || 'Error al registrar');
+            }
         }
     };
 
