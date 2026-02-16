@@ -1,26 +1,54 @@
+require('dotenv').config();
+
 const express = require('express');
+const morgan = require('morgan');
+const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const swaggerUi = require('swagger-ui-express');
 
 const authRoutes = require('./modules/auth/auth.routes');
-const itemsRoutes = require('./modules/items/items.routes');
+const requestId = require('./lib/middleware/requestId');
+const logger = require('./lib/logger');
+const errorHandler = require('./lib/middleware/errorHandler');
+const notFound = require('./lib/middleware/notFound');
+const openApiSpec = require('./openapi');
 
 const app = express();
+const corsOrigins = String(process.env.CORS_ORIGIN || 'http://localhost')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(requestId);
+
+app.use(
+  morgan('combined', {
+    stream: {
+      write: (message) => {
+        logger.info(message.trim());
+      }
+    }
+  })
+);
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(
+  cors({
+    credentials: true,
+    origin: corsOrigins
+  })
+);
 
-// Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', message: 'Backend is alive' });
 });
 
-// Modular routes
 app.use('/api/auth', authRoutes);
-app.use('/api/items', itemsRoutes);
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
-// Fallback
-app.get('/', (req, res) => {
-  res.send('Backend is running');
-});
+app.use(notFound);
+app.use(errorHandler);
 
 module.exports = app;

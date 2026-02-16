@@ -1,21 +1,52 @@
-const jwt = require('jsonwebtoken');
+const AppError = require('../../lib/errors/AppError');
+const sessionService = require('../../lib/session/session.service');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
+function getCookieConfig() {
+  const sameSiteRaw = String(process.env.SESSION_SAMESITE || 'lax').toLowerCase();
+  const sameSite = ['lax', 'strict', 'none'].includes(sameSiteRaw) ? sameSiteRaw : 'lax';
+  const secure = String(process.env.SESSION_SECURE || 'false').toLowerCase() === 'true';
 
-function requireAuth(req, res, next) {
-  const token = req.cookies.token;
+  return {
+    httpOnly: true,
+    sameSite,
+    path: '/',
+    secure
+  };
+}
 
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized: no token provided' });
+async function requireAuth(req, res, next) {
+  const sid = req.cookies?.sid;
+
+  if (!sid) {
+    return next(new AppError('Missing session cookie', 401, 'UNAUTHORIZED'));
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload; // { sub, email, iat, exp }
-    next();
-  } catch (err) {
-    console.error('JWT verification error:', err);
-    return res.status(401).json({ error: 'Unauthorized: invalid token' });
+    const session = await sessionService.getValidSession(sid);
+
+    if (!session || !session.user) {
+      // Remove stale client cookie when session is expired/revoked/not found.
+      res.cookie('sid', '', {
+        ...getCookieConfig(),
+        maxAge: 0
+      });
+      return next(new AppError('Invalid or expired session', 401, 'UNAUTHORIZED'));
+    }
+
+    req.user = {
+      id: session.user.id,
+      firstName: session.user.firstName,
+      lastName: session.user.lastName,
+      email: session.user.email,
+      phone: session.user.phone
+    };
+    req.sessionId = session.id;
+
+    await sessionService.touchSession(session.id);
+
+    return next();
+  } catch (error) {
+    return next(new AppError('Internal error', 500, 'INTERNAL_ERROR'));
   }
 }
 

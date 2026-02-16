@@ -15,7 +15,7 @@ COPY tsconfig.json ./
 RUN npm run build
 
 # Serve static build with 'serve'
-RUN npm install -g serve
+RUN npm install -g serve@14.2.4
 
 EXPOSE 3000
 

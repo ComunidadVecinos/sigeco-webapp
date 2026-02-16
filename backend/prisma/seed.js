@@ -1,43 +1,62 @@
 const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // Clear existing data
-  await prisma.item.deleteMany();
-  await prisma.user.deleteMany();
+  console.log('Seeding database...');
 
-  const passwordHash = await bcrypt.hash('password123', 10);
+  const password = 'Sigeco-2026';
+  const passwordHash = await bcrypt.hash(password, 10);
 
-  const user = await prisma.user.create({
-    data: {
-      email: 'test@example.com',
-      password: passwordHash
+  await prisma.user.upsert({
+    where: { email: 'demo1@ucm.es' },
+    update: {
+      firstName: 'Demo',
+      lastName: 'UserOne',
+      passwordHash,
+      phone: '+34600000001',
+      imageUrl: '/uploads/profiles/demo1.png',
+      isActive: true
+    },
+    create: {
+      firstName: 'Demo',
+      lastName: 'UserOne',
+      email: 'demo1@ucm.es',
+      passwordHash,
+      phone: '+34600000001',
+      imageUrl: '/uploads/profiles/demo1.png',
+      isActive: true
     }
   });
 
-  await prisma.item.createMany({
-    data: [
-      {
-        name: 'User item 1',
-        description: 'First item belonging to the seeded user',
-        userId: user.id
-      },
-      {
-        name: 'User item 2',
-        description: 'Second item belonging to the seeded user',
-        userId: user.id
-      }
-    ]
+  await prisma.user.upsert({
+    where: { email: 'demo2@ucm.es' },
+    update: {
+      firstName: 'Demo',
+      lastName: 'UserTwo',
+      passwordHash,
+      phone: '+34600000002',
+      imageUrl: '/uploads/profiles/demo2.png',
+      isActive: true
+    },
+    create: {
+      firstName: 'Demo',
+      lastName: 'UserTwo',
+      email: 'demo2@ucm.es',
+      passwordHash,
+      phone: '+34600000002',
+      imageUrl: '/uploads/profiles/demo2.png',
+      isActive: true
+    }
   });
 
-  console.log('Seeded user test@example.com / password123 with items.');
+  console.log('Seed completado');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Error en seed: ', e);
     process.exit(1);
   })
   .finally(async () => {

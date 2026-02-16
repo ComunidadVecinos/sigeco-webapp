@@ -2,24 +2,21 @@ FROM node:20-bookworm
 
 WORKDIR /app
 
-# Install dependencies (including devDeps for Prisma CLI)
-COPY package*.json ./
-RUN npm install
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Copy Prisma files and generate client at build time
+COPY package*.json ./
+RUN npm ci
+
 COPY prisma ./prisma
 RUN npx prisma generate
 
-# Copy source
 COPY src ./src
+COPY scripts ./scripts
 
-ENV NODE_ENV=production
+ENV NODE_ENV=development
 ENV PORT=4000
 
 EXPOSE 4000
 
-# Install OpenSSL
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-
 # Run migrations, seed, then start server
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && node src/index.js"]
+CMD ["node", "src/index.js"]

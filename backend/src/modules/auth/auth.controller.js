@@ -1,90 +1,112 @@
-const jwt = require('jsonwebtoken');
-const { createUser, validateUser } = require('./auth.service');
+const authService = require('./auth.service');
+const sessionService = require('../../lib/session/session.service');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
-const JWT_EXPIRES_IN = '1h';
+function getCookieConfig() {
+  const sameSiteRaw = String(process.env.SESSION_SAMESITE || 'lax').toLowerCase();
+  const sameSite = ['lax', 'strict', 'none'].includes(sameSiteRaw) ? sameSiteRaw : 'lax';
+  const secure = String(process.env.SESSION_SECURE || 'false').toLowerCase() === 'true';
 
-function signToken(user) {
-  return jwt.sign(
-    {
-      sub: user.id,
-      email: user.email
-    },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
+  return {
+    httpOnly: true,
+    sameSite,
+    path: '/',
+    secure
+  };
 }
 
-// POST /api/auth/register
-async function register(req, res) {
+function setSessionCookie(res, sid) {
+  res.cookie('sid', sid, {
+    ...getCookieConfig(),
+    maxAge: sessionService.getSessionTtlMs()
+  });
+}
+
+async function register(req, res, next) {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    const user = await createUser(email, password);
-    const token = signToken(user);
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: false, // true in HTTPS production
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 1000
+    const { sid, user } = await authService.registerUser(req.body, {
+      ip: req.ip,
+      userAgent: req.get('user-agent')
     });
 
-    res.status(201).json({
-      id: user.id,
-      email: user.email
-    });
-  } catch (err) {
-    console.error('Register error:', err);
-    res.status(400).json({ error: err.message || 'Registration failed' });
+    setSessionCookie(res, sid);
+
+    return res.status(201).json(user);
+  } catch (error) {
+    return next(error);
   }
 }
 
-// POST /api/auth/login
-async function login(req, res) {
+async function login(req, res, next) {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    const user = await validateUser(email, password);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const token = signToken(user);
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: false, // true in HTTPS production
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 1000
+    const { sid, user } = await authService.loginUser(req.body, {
+      ip: req.ip,
+      userAgent: req.get('user-agent')
     });
 
-    res.json({
-      id: user.id,
-      email: user.email
-    });
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed' });
+    setSessionCookie(res, sid);
+
+    return res.status(200).json(user);
+  } catch (error) {
+    return next(error);
   }
 }
 
-// POST /api/auth/logout
-function logout(req, res) {
-  res.clearCookie('token');
-  res.json({ message: 'Logged out' });
+async function logout(req, res, next) {
+  try {
+    const result = await authService.logoutUser(req.cookies?.sid);
+
+    res.cookie('sid', '', {
+      ...getCookieConfig(),
+      maxAge: 0
+    });
+
+    return res.status(200).json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function me(req, res, next) {
+  try {
+    return res.status(200).json(req.user);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function changePassword(req, res, next) {
+  try {
+    const result = await authService.changePassword(
+      req.user.id,
+      req.body.currentPassword,
+      req.body.newPassword
+    );
+
+    res.cookie('sid', '', {
+      ...getCookieConfig(),
+      maxAge: 0
+    });
+
+    return res.status(200).json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function forgotPassword(req, res, next) {
+  try {
+    const result = await authService.forgotPassword(req.body.email);
+    return res.status(200).json(result);
+  } catch (error) {
+    return next(error);
+  }
 }
 
 module.exports = {
   register,
   login,
-  logout
+  logout,
+  me,
+  changePassword,
+  forgotPassword
 };
