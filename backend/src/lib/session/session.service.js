@@ -1,6 +1,14 @@
 const crypto = require('crypto');
 
-const prisma = require('../../config/prisma');
+function getSessionSecret() {
+  const secret = process.env.SESSION_SECRET;
+
+  if (!secret) {
+    throw new Error('SESSION_SECRET is required');
+  }
+
+  return secret;
+}
 
 function getSessionTtlDays() {
   const raw = process.env.SESSION_TTL_DAYS;
@@ -13,98 +21,103 @@ function getSessionTtlMs() {
   return getSessionTtlDays() * 24 * 60 * 60 * 1000;
 }
 
-function generateSessionId() {
-  return crypto.randomBytes(32).toString('base64url');
+function getCookieConfig() {
+  const sameSiteRaw = String(process.env.SESSION_SAMESITE || 'lax').toLowerCase();
+  const sameSite = ['lax', 'strict', 'none'].includes(sameSiteRaw) ? sameSiteRaw : 'lax';
+  const secure = String(process.env.SESSION_SECURE || 'false').toLowerCase() === 'true';
+
+  return {
+    httpOnly: true,
+    sameSite,
+    path: '/',
+    secure
+  };
 }
 
-async function createSession(userId, context = {}, ttlMs = getSessionTtlMs()) {
-  const id = generateSessionId();
-  const expiresAt = new Date(Date.now() + ttlMs);
-  const now = new Date();
-
-  await prisma.session.create({
-    data: {
-      id,
-      userId,
-      expiresAt,
-      ip: context.ip ?? null,
-      userAgent: context.userAgent ?? null,
-      lastSeenAt: now
-    }
-  });
-
-  return { id, expiresAt };
+function signValue(value) {
+  return crypto.createHmac('sha256', getSessionSecret()).update(value).digest('base64url');
 }
 
-async function getValidSession(sid) {
-  if (!sid) return null;
+function hasValidSignature(value, signature) {
+  const expectedSignature = signValue(value);
+  const signatureBuffer = Buffer.from(signature, 'utf8');
+  const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
 
-  return prisma.session.findFirst({
-    where: {
-      id: sid,
-      revokedAt: null,
-      expiresAt: { gt: new Date() }
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true
-        }
-      }
-    }
-  });
+  if (signatureBuffer.length !== expectedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
 }
 
-async function revokeSession(sid) {
-  if (!sid) return { count: 0 };
-
-  return prisma.session.updateMany({
-    where: { id: sid, revokedAt: null },
-    data: { revokedAt: new Date() }
-  });
+function buildPayload({ userId, authVersion, expiresAtMs }) {
+  return Buffer.from(
+    JSON.stringify({
+      uid: userId,
+      ver: authVersion,
+      exp: expiresAtMs
+    }),
+    'utf8'
+  ).toString('base64url');
 }
 
-async function revokeAllUserSessions(userId) {
-  return prisma.session.updateMany({
-    where: { userId, revokedAt: null },
-    data: { revokedAt: new Date() }
-  });
+function parsePayload(payload) {
+  try {
+    const decoded = Buffer.from(payload, 'base64url').toString('utf8');
+    const parsed = JSON.parse(decoded);
+
+    if (!parsed || typeof parsed.uid !== 'string') return null;
+    if (!Number.isInteger(parsed.ver)) return null;
+    if (!Number.isFinite(parsed.exp)) return null;
+
+    return {
+      userId: parsed.uid,
+      authVersion: parsed.ver,
+      expiresAtMs: parsed.exp
+    };
+  } catch (error) {
+    return null;
+  }
 }
 
-async function touchSession(sid) {
-  if (!sid) return { count: 0 };
+function createSessionToken({ userId, authVersion }, ttlMs = getSessionTtlMs()) {
+  const expiresAtMs = Date.now() + ttlMs;
+  const payload = buildPayload({ userId, authVersion, expiresAtMs });
+  const signature = signValue(payload);
 
-  return prisma.session.updateMany({
-    where: { id: sid, revokedAt: null },
-    data: { lastSeenAt: new Date() }
-  });
+  return {
+    token: `${payload}.${signature}`,
+    expiresAt: new Date(expiresAtMs)
+  };
 }
 
-async function cleanupExpiredSessions() {
-  const now = new Date();
-  const result = await prisma.session.deleteMany({
-    where: {
-      OR: [
-        { expiresAt: { lte: now } },
-        { revokedAt: { not: null } }
-      ]
-    }
-  });
+function verifySessionToken(token) {
+  if (!token || typeof token !== 'string') return null;
 
-  return result.count;
+  const separator = token.indexOf('.');
+  if (separator <= 0 || separator === token.length - 1) return null;
+
+  const payload = token.slice(0, separator);
+  const signature = token.slice(separator + 1);
+
+  if (!hasValidSignature(payload, signature)) return null;
+
+  const parsed = parsePayload(payload);
+  if (!parsed) return null;
+  if (parsed.expiresAtMs <= Date.now()) return null;
+
+  return {
+    userId: parsed.userId,
+    authVersion: parsed.authVersion,
+    expiresAt: new Date(parsed.expiresAtMs)
+  };
 }
 
 module.exports = {
+  getSessionSecret,
   getSessionTtlDays,
   getSessionTtlMs,
-  createSession,
-  getValidSession,
-  revokeSession,
-  revokeAllUserSessions,
-  touchSession,
-  cleanupExpiredSessions
+  getCookieConfig,
+  createSessionToken,
+  verifySessionToken
 };

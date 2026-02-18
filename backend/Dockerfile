@@ -11,7 +11,6 @@ COPY prisma ./prisma
 RUN npx prisma generate
 
 COPY src ./src
-COPY scripts ./scripts
 
 ENV NODE_ENV=development
 ENV PORT=4000

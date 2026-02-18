@@ -14,11 +14,11 @@ export const getProfile = () =>
 
 //Recuperar contraseña
 export const resetPassword = (email: string) =>
-    api.put('/api/auth/reset-password', {email});
+    api.post('/api/auth/forgot-password', {email});
 
 //Cambiar contraseña
 export const changePassword = (currentPassword: string, newPassword: string, repeatNewPassword: string) =>
-    api.put('/api/auth/change-password', {currentPassword, newPassword, repeatNewPassword});
+    api.post('/api/auth/change-password', {currentPassword, newPassword, confirmNewPassword: repeatNewPassword});
 
 //Cerrar sesion
 export const logout = () =>

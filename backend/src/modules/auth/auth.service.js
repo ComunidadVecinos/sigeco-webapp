@@ -30,9 +30,9 @@ function buildAuthResponse(user) {
 function buildPhoneCandidates(phone) {
   if (!phone) return [];
 
-  const normalized = phone.replace(/[\s-]/g, '');
-  const local = normalized.startsWith('+34') ? normalized.slice(3) : normalized;
-  return Array.from(new Set([normalized, local].filter(Boolean)));
+  const normalized = phone.replace(/\s/g, '');
+  if (!/^\d{9}$/.test(normalized)) return [];
+  return [normalized];
 }
 
 function generateTemporaryPassword(length = 12) {
@@ -77,14 +77,13 @@ async function registerUser(input, context = {}) {
     passwordHash
   });
 
-  const session = await sessionService.createSession(
-    createdUser.id,
-    { ip: context.ip, userAgent: context.userAgent },
+  const session = sessionService.createSessionToken(
+    { userId: createdUser.id, authVersion: createdUser.authVersion },
     context.ttlMs
   );
 
   return {
-    sid: session.id,
+    sid: session.token,
     user: buildRegisterResponse(createdUser)
   };
 }
@@ -109,23 +108,18 @@ async function loginUser(input, context = {}) {
     throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
   }
 
-  const session = await sessionService.createSession(
-    user.id,
-    { ip: context.ip, userAgent: context.userAgent },
+  const session = sessionService.createSessionToken(
+    { userId: user.id, authVersion: user.authVersion },
     context.ttlMs
   );
 
   return {
-    sid: session.id,
+    sid: session.token,
     user: buildAuthResponse(user)
   };
 }
 
-async function logoutUser(sid) {
-  if (sid) {
-    await sessionService.revokeSession(sid);
-  }
-
+async function logoutUser() {
   return {
     message: 'Logged out successfully'
   };
@@ -149,7 +143,6 @@ async function changePassword(userId, currentPassword, newPassword) {
 
   const newHash = await bcrypt.hash(newPassword, 10);
   await authRepository.updateUserPassword(userId, newHash);
-  await sessionService.revokeAllUserSessions(userId);
 
   return {
     message: 'Password changed successfully. Please sign in again.'
@@ -169,7 +162,6 @@ async function forgotPassword(email) {
   const temporaryPasswordHash = await bcrypt.hash(temporaryPassword, 10);
 
   await authRepository.updateUserPassword(user.id, temporaryPasswordHash);
-  await sessionService.revokeAllUserSessions(user.id);
 
   const appPublicUrl = process.env.APP_PUBLIC_URL || 'http://localhost';
   await mailService.sendMail({

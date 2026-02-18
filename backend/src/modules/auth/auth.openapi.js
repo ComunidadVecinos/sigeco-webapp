@@ -113,7 +113,7 @@ const authOpenApi = {
       post: {
         tags: ['Auth'],
         summary: 'Logout current session',
-        description: 'Revokes current session when present and clears sid cookie.',
+        description: 'Clears sid cookie in the client.',
         responses: {
           200: {
             description: 'Logout successful',
@@ -144,7 +144,7 @@ const authOpenApi = {
       get: {
         tags: ['Auth'],
         summary: 'Get authenticated user',
-        description: 'Validates sid cookie against Session table and returns current user.',
+        description: 'Validates signed sid cookie and returns current user.',
         security: [{ cookieAuth: [] }],
         responses: {
           200: {
@@ -189,7 +189,7 @@ const authOpenApi = {
         },
         responses: {
           200: {
-            description: 'Password changed; all sessions revoked; current cookie cleared',
+            description: 'Password changed; previous signed cookies invalidated; current cookie cleared',
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/AuthMessageResponse' }

@@ -6,10 +6,13 @@ const UCM_EMAIL_DOMAIN = '@ucm.es';
 function normalizePhone(rawPhone) {
   if (!rawPhone) return undefined;
 
-  const compact = rawPhone.replace(/[\s-]/g, '');
+  if (!/^[\d\s]+$/.test(rawPhone)) {
+    return null;
+  }
 
-  if (/^\+34\d{9}$/.test(compact)) return compact;
-  if (/^\d{9}$/.test(compact)) return `+34${compact}`;
+  const compact = rawPhone.replace(/\s/g, '');
+
+  if (/^\d{9}$/.test(compact)) return compact;
 
   return null;
 }
@@ -50,7 +53,7 @@ const registerSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['phone'],
-        message: 'phone must be +34XXXXXXXXX or XXXXXXXXX'
+        message: 'phone must be 9 digits (spaces allowed)'
       });
     }
   })
@@ -84,7 +87,7 @@ const loginSchema = z
         ctx.addIssue({
           code: 'custom',
           path: ['phone'],
-          message: 'phone must be +34XXXXXXXXX or XXXXXXXXX'
+          message: 'phone must be 9 digits (spaces allowed)'
         });
       }
     }

@@ -4,7 +4,7 @@ import './EditPasswordModal.css';
 interface EditPasswordModalProps{
     isOpen: boolean;
     onClose: () => void;
-    onSave: (newPassword: string) => void;
+    onSave: (currentPassword: string, newPassword: string) => void;
     currentPasswordCheck: (password: string) => boolean;
 }
 
@@ -61,7 +61,7 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
             return;
         }
 
-        onSave(newPassword);
+        onSave(currentPassword, newPassword);
         handleClose();
     };
     

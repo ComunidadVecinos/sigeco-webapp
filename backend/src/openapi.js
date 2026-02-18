@@ -5,7 +5,7 @@ const openApiSpec = {
   info: {
     title: 'SIGECO Backend API',
     version: '2.0.0',
-    description: 'Auth based on stateful sessions stored in PostgreSQL and HttpOnly sid cookie.'
+    description: 'Auth based on signed HttpOnly sid cookie (no JWT, no DB session table).'
   },
   tags: [{ name: 'Auth' }],
   paths: {

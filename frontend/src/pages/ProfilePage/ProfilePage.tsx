@@ -39,7 +39,7 @@ const ProfilePage: React.FC = () =>{
         <div>
             <Header
                 navLinks={[
-                    {label: "Nueva Comunidad", path: "/api/auth/new-community"},
+                    {label: "Nueva Comunidad", path: "/auth/new-community"},
                     {label: "Ayuda", path: "/help"}
                 ]}
              />
@@ -104,7 +104,7 @@ const ProfilePage: React.FC = () =>{
 
                     <div className="row mt-4 justify-content-center">
                         <div className="col-auto">
-                            <Link to="/api/auth/new-community" className="btnAñadirComunidad btn btn-dark rounded-circle d-flex align-items-center justify-content-center">
+                            <Link to="/auth/new-community" className="btnAñadirComunidad btn btn-dark rounded-circle d-flex align-items-center justify-content-center">
                                 <i className="bi bi-plus-lg fs-4"></i>
                             </Link>
                         </div>
@@ -179,10 +179,10 @@ const ProfilePage: React.FC = () =>{
                 <EditPasswordModal
                     isOpen={passwordModalOpen}
                     onClose={() => setPasswordModalOpen(false)}
-                    currentPasswordCheck={() => true}
-                    onSave={async (newPassword) => {
+                    currentPasswordCheck={(password) => Boolean(password.trim())}
+                    onSave={async (currentPassword, newPassword) => {
                         try{
-                            await changePassword('', newPassword, newPassword);
+                            await changePassword(currentPassword, newPassword, newPassword);
                             alert('Contraseña cambiada correctamente');
                         }
                         catch(error: any){

@@ -1,18 +1,6 @@
 const AppError = require('../../lib/errors/AppError');
 const sessionService = require('../../lib/session/session.service');
-
-function getCookieConfig() {
-  const sameSiteRaw = String(process.env.SESSION_SAMESITE || 'lax').toLowerCase();
-  const sameSite = ['lax', 'strict', 'none'].includes(sameSiteRaw) ? sameSiteRaw : 'lax';
-  const secure = String(process.env.SESSION_SECURE || 'false').toLowerCase() === 'true';
-
-  return {
-    httpOnly: true,
-    sameSite,
-    path: '/',
-    secure
-  };
-}
+const authRepository = require('./auth.repository');
 
 async function requireAuth(req, res, next) {
   const sid = req.cookies?.sid;
@@ -22,27 +10,32 @@ async function requireAuth(req, res, next) {
   }
 
   try {
-    const session = await sessionService.getValidSession(sid);
+    const session = sessionService.verifySessionToken(sid);
 
-    if (!session || !session.user) {
-      // Remove stale client cookie when session is expired/revoked/not found.
+    if (!session) {
       res.cookie('sid', '', {
-        ...getCookieConfig(),
+        ...sessionService.getCookieConfig(),
+        maxAge: 0
+      });
+      return next(new AppError('Invalid or expired session', 401, 'UNAUTHORIZED'));
+    }
+
+    const user = await authRepository.findUserById(session.userId);
+    if (!user || user.authVersion !== session.authVersion) {
+      res.cookie('sid', '', {
+        ...sessionService.getCookieConfig(),
         maxAge: 0
       });
       return next(new AppError('Invalid or expired session', 401, 'UNAUTHORIZED'));
     }
 
     req.user = {
-      id: session.user.id,
-      firstName: session.user.firstName,
-      lastName: session.user.lastName,
-      email: session.user.email,
-      phone: session.user.phone
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone
     };
-    req.sessionId = session.id;
-
-    await sessionService.touchSession(session.id);
 
     return next();
   } catch (error) {

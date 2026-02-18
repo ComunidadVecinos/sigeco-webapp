@@ -26,7 +26,8 @@ async function findUserById(id) {
       firstName: true,
       lastName: true,
       email: true,
-      phone: true
+      phone: true,
+      authVersion: true
     }
   });
 }
@@ -46,6 +47,7 @@ async function createUser({ firstName, lastName, email, phone, passwordHash }) {
       lastName: true,
       email: true,
       phone: true,
+      authVersion: true,
       createdAt: true
     }
   });
@@ -54,7 +56,10 @@ async function createUser({ firstName, lastName, email, phone, passwordHash }) {
 async function updateUserPassword(userId, passwordHash) {
   return prisma.user.update({
     where: { id: userId },
-    data: { passwordHash },
+    data: {
+      passwordHash,
+      authVersion: { increment: 1 }
+    },
     select: {
       id: true
     }

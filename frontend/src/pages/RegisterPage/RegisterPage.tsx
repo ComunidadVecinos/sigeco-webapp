@@ -58,7 +58,8 @@ const RegisterPage: React.FC = () => {
     //Validacion de telefono
     const validateTelefono = (value: string):string | undefined => {
         if(!value.trim()) return 'El teléfono es requerido';
-        const soloNum = value.replace(/\D/g, '');
+        if(!/^[\d\s]+$/.test(value)) return 'El telefono solo puede contener numeros y espacios';
+        const soloNum = value.replace(/\s/g, '');
         if(soloNum.length !== 9) return 'El teléfono debe tener 9 dígitos';
         return undefined;
     };
@@ -125,7 +126,7 @@ const RegisterPage: React.FC = () => {
         if(validateForm()) {
             try {
                 await register(formData.nombre, formData.apellidos, formData.email, formData.telefono, formData.password);
-                navigate('/api/auth/me');
+                navigate('/auth/me');
             }
             catch (error: any){
                 setErrors({email: error.response?.data?.message || 'Error al registrar'});
@@ -170,7 +171,7 @@ const RegisterPage: React.FC = () => {
                         </div>
                         <div className="col-12 col-md-4 mb-3">
                             <label htmlFor="" className="form-label">Teléfono</label>
-                            <input type="tel" className={`form-control ${touched.telefono ? (errors.telefono ? 'is-invalid' : 'is-valid') : ''}`}   placeholder='+34' value={formData.telefono} onChange={(e) => handleChange('telefono', e.target.value)} onBlur={() => handleBlur('telefono')}/>
+                            <input type="tel" className={`form-control ${touched.telefono ? (errors.telefono ? 'is-invalid' : 'is-valid') : ''}`}   placeholder='600 123 456' value={formData.telefono} onChange={(e) => handleChange('telefono', e.target.value)} onBlur={() => handleBlur('telefono')}/>
                             {touched.telefono && errors.telefono && <div className='invalid-feedback'>{errors.telefono}</div>}
                         </div>
                     </div>
@@ -191,7 +192,7 @@ const RegisterPage: React.FC = () => {
                 </form>
 
                 <p className="register-login">
-                    ¿Ya tienes cuenta? <Link to="/api/auth/login">Inicia sesión aquí</Link>
+                    ¿Ya tienes cuenta? <Link to="/auth/login">Inicia sesión aquí</Link>
                 </p>
             </div>
         </div>

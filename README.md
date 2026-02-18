@@ -35,7 +35,7 @@ This project is academic in nature and intentionally limited in scope.
 
 Included:
 - Local execution using Docker Compose.
-- Stateful authentication based on PostgreSQL sessions.
+- Cookie-based authentication with signed HttpOnly session cookie.
 - Pre-seeded data for functional testing.
 - Development email inbox via MailPit.
 
@@ -97,20 +97,11 @@ Development note: abrir http://localhost:8025 para ver emails de recovery/notifi
 
 ### Authentication and Sessions (Quick Note)
 
-SIGECO uses **stateful sessions** stored in PostgreSQL. Session behavior:
+SIGECO uses signed cookie-based sessions. Session behavior:
 - Cookie name: `sid` (HttpOnly, Path=/, SameSite configurable).
-- Session validity is checked server-side (`revoked_at IS NULL` and `expires_at > now`).
-- On password change/reset, all user sessions are revoked.
+- Session cookie is signed server-side with `SESSION_SECRET` and validated on each request.
+- On password change/reset, previous cookies are invalidated via auth versioning.
 - Frontend requests must include credentials (`credentials: "include"`).
-
-Cleanup:
-- Expired/revoked sessions can be removed with:
-
-```bash
-docker compose exec backend npm run sessions:cleanup
-```
-
-This command is manual by default. If needed, schedule it via cron/job.
 
 ### MailPit and forgot-password flow
 
@@ -203,8 +194,6 @@ docker compose exec backend npm run db:reset
 # Prisma Studio
 docker compose exec backend npm run prisma:studio
 
-# Cleanup expired/revoked sessions
-docker compose exec backend npm run sessions:cleanup
 ```
 
 ### Inspect DB quickly from Docker
@@ -218,7 +207,6 @@ Inside `psql`:
 ```sql
 \dt
 SELECT * FROM users LIMIT 20;
-SELECT * FROM sessions LIMIT 20;
 ```
 
 ---

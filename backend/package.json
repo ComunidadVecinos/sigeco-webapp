@@ -10,7 +10,6 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force && prisma db seed",
-    "sessions:cleanup": "node scripts/cleanup-sessions.js",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
     "test": "node --test tests/*.test.js"

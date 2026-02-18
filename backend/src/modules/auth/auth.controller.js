@@ -1,32 +1,16 @@
 const authService = require('./auth.service');
 const sessionService = require('../../lib/session/session.service');
 
-function getCookieConfig() {
-  const sameSiteRaw = String(process.env.SESSION_SAMESITE || 'lax').toLowerCase();
-  const sameSite = ['lax', 'strict', 'none'].includes(sameSiteRaw) ? sameSiteRaw : 'lax';
-  const secure = String(process.env.SESSION_SECURE || 'false').toLowerCase() === 'true';
-
-  return {
-    httpOnly: true,
-    sameSite,
-    path: '/',
-    secure
-  };
-}
-
 function setSessionCookie(res, sid) {
   res.cookie('sid', sid, {
-    ...getCookieConfig(),
+    ...sessionService.getCookieConfig(),
     maxAge: sessionService.getSessionTtlMs()
   });
 }
 
 async function register(req, res, next) {
   try {
-    const { sid, user } = await authService.registerUser(req.body, {
-      ip: req.ip,
-      userAgent: req.get('user-agent')
-    });
+    const { sid, user } = await authService.registerUser(req.body);
 
     setSessionCookie(res, sid);
 
@@ -38,10 +22,7 @@ async function register(req, res, next) {
 
 async function login(req, res, next) {
   try {
-    const { sid, user } = await authService.loginUser(req.body, {
-      ip: req.ip,
-      userAgent: req.get('user-agent')
-    });
+    const { sid, user } = await authService.loginUser(req.body);
 
     setSessionCookie(res, sid);
 
@@ -53,10 +34,10 @@ async function login(req, res, next) {
 
 async function logout(req, res, next) {
   try {
-    const result = await authService.logoutUser(req.cookies?.sid);
+    const result = await authService.logoutUser();
 
     res.cookie('sid', '', {
-      ...getCookieConfig(),
+      ...sessionService.getCookieConfig(),
       maxAge: 0
     });
 
@@ -83,7 +64,7 @@ async function changePassword(req, res, next) {
     );
 
     res.cookie('sid', '', {
-      ...getCookieConfig(),
+      ...sessionService.getCookieConfig(),
       maxAge: 0
     });
 

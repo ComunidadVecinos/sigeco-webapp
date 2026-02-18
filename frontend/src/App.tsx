@@ -22,15 +22,15 @@ const App: React.FC = () => {
                 <Routes>
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/access" element={<WelcomePage />} /> 
-                    <Route path="/api/auth/register" element={<RegisterPage />} />
-                    <Route path="/api/auth/login" element={<LogInPage />} />
-                    <Route path="/api/auth/reset-password" element={<ForgotPasswordPage />} />
-                    <Route path="api/auth/change-password" />
-                    <Route path="/api/auth/me" element={<ProfilePage />} />
-                    <Route path="/api/auth/forum" element={<ForumPage />} />
-                    <Route path="/api/auth/logout" />
-                    <Route path="/api/auth/delete-account" />
-                    <Route path="/api/auth/new-community" element={<NewCommunityPage />}/>
+                    <Route path="/auth/register" element={<RegisterPage />} />
+                    <Route path="/auth/login" element={<LogInPage />} />
+                    <Route path="/auth/reset-password" element={<ForgotPasswordPage />} />
+                    <Route path="/auth/change-password" />
+                    <Route path="/auth/me" element={<ProfilePage />} />
+                    <Route path="/auth/forum" element={<ForumPage />} />
+                    <Route path="/auth/logout" />
+                    <Route path="/auth/delete-account" />
+                    <Route path="/auth/new-community" element={<NewCommunityPage />}/>
                 </Routes>
             </div>
         </AuthProvider>

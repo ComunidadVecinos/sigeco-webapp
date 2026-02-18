@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode }> = ({children})
     const refreshUser = async () => {
         try{
             const {data} = await getProfile();
-            setUser(data);
+            setUser(data as User);
         } catch {
             setUser(null);
         } finally{
@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode }> = ({children})
 
     const login = async (email: string, password: string) => {
         const {data} = await loginService(email, password);
-        setUser(data);
+        setUser(data as User);
     };
 
     const logout = async () =>{

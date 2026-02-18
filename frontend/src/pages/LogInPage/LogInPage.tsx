@@ -56,7 +56,7 @@ const LogInPage: React.FC = () => {
         if(validateForm()){
             try{
                 await login(email, password);
-                navigate('/api/auth/forum');
+                navigate('/auth/forum');
             }
             catch(error: any){
                 setErrors({email: 'Credenciales incorrectas'});
@@ -86,7 +86,7 @@ const LogInPage: React.FC = () => {
                     </div>
 
                     <div className="login-forgot">
-                        <Link to="/api/auth/reset-password">¿Olvidaste tu contraseña?</Link>
+                        <Link to="/auth/reset-password">¿Olvidaste tu contraseña?</Link>
                     </div>
 
                     <button type='submit' className="btn btn-primary login-btn" disabled={!isFormValid}>Iniciar Sesión</button>
@@ -94,7 +94,7 @@ const LogInPage: React.FC = () => {
                 </form>
 
                 <p className="login-register">
-                    ¿No tienes cuenta? <Link to="/api/auth/register">Regístrate aquí</Link>
+                    ¿No tienes cuenta? <Link to="/auth/register">Regístrate aquí</Link>
                 </p>
             </div>
         </div>

@@ -91,7 +91,7 @@ const LandingPage: React.FC = () =>{
                 </section>
 
                 <section className="cta-section">
-                    <Link to="/api/auth/register" className="btn btn-primary registrarme">
+                    <Link to="/auth/register" className="btn btn-primary registrarme">
                         Registrarme
                     </Link>
                 </section>

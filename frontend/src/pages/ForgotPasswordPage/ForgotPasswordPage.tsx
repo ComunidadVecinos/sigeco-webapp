@@ -49,7 +49,7 @@ const ForgotPassword: React.FC = () => {
                 <div className="forgot-card text-center">
                     <h1 className="forgot-title">¡Email enviado!</h1>
                     <p className="forgot-subtitle">Hemos enviado una contraseña temporal a <strong>{email}</strong>. <br /> Revisa tu bandeja de entrada.</p>
-                    <Link to="/api/auth/login" className="btn btn-primary forgot-btn">Volver a iniciar sesión</Link>
+                    <Link to="/auth/login" className="btn btn-primary forgot-btn">Volver a iniciar sesión</Link>
                 </div>
             </div>
         );
@@ -75,7 +75,7 @@ const ForgotPassword: React.FC = () => {
                 </form>
 
                 <p className="forgot-back">
-                    <Link to="/api/auth/login">Volver a iniciar sesión</Link>
+                    <Link to="/auth/login">Volver a iniciar sesión</Link>
                 </p>
             </div>
         </div>

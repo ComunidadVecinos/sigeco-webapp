@@ -12,8 +12,11 @@ const logger = require('./lib/logger');
 const errorHandler = require('./lib/middleware/errorHandler');
 const notFound = require('./lib/middleware/notFound');
 const openApiSpec = require('./openapi');
+const sessionService = require('./lib/session/session.service');
 
 const app = express();
+sessionService.getSessionSecret();
+
 const corsOrigins = String(process.env.CORS_ORIGIN || 'http://localhost')
   .split(',')
   .map((origin) => origin.trim())

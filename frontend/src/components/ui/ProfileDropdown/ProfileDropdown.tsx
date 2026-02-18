@@ -17,7 +17,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({isOpen, onClose, onLog
         <>
             <div className="dropdown-overlay" onClick={onClose}></div>
             <div className="profile-dropdown">
-                <button className="profile-dropdown-item" onClick={() => {navigate('/api/auth/me'); onClose();}}>
+                <button className="profile-dropdown-item" onClick={() => {navigate('/auth/me'); onClose();}}>
                     Ajustes de perfil
                 </button>
                 <button className="profile-dropdown-item" onClick={onLogout}>

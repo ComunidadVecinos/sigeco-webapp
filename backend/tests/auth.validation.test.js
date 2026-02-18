@@ -18,7 +18,21 @@ test('register schema normalizes email and phone', () => {
   });
 
   assert.equal(parsed.email, 'ana@ucm.es');
-  assert.equal(parsed.phone, '+34600123456');
+  assert.equal(parsed.phone, '600123456');
+});
+
+test('register schema rejects phone with non-digit chars except spaces', () => {
+  assert.throws(
+    () =>
+      registerSchema.parse({
+        firstName: 'Ana',
+        lastName: 'Garcia',
+        email: 'ana@ucm.es',
+        phone: '600-123-456',
+        password: 'Password1'
+      }),
+    /phone must be 9 digits/
+  );
 });
 
 test('login schema requires email or phone', () => {

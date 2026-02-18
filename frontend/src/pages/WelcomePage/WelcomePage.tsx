@@ -21,10 +21,10 @@ const WelcomePage: React.FC = () => {
                     </div>
                 
                     <div className="welcome-buttons">
-                        <Link to="/api/auth/register" className="btn btn-primary">
+                        <Link to="/auth/register" className="btn btn-primary">
                             Registrarme
                         </Link>
-                        <Link to="/api/auth/login" className="btn btn-primary">
+                        <Link to="/auth/login" className="btn btn-primary">
                             Iniciar Sesión
                         </Link>
                     </div>

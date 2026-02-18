@@ -182,7 +182,7 @@ const NewCommunityPage: React.FC = () => {
                     });
                 }
                 alert('¡Comunidad registrada correctamente!');
-                navigate('/api/auth/me');
+                navigate('/auth/me');
             }
             catch (error: any){
                 alert(error.response?.data?.message || 'Error al registrar');
