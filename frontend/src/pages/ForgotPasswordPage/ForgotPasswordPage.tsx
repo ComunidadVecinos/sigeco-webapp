@@ -1,7 +1,9 @@
 import React, {useState} from 'react';
 import {Link} from 'react-router-dom';
-import './ForgotPasswordPage.css';
-import { resetPassword } from '../../services/authServices';
+import { resetPassword } from '@/services/authServices';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const ForgotPassword: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -45,37 +47,40 @@ const ForgotPassword: React.FC = () => {
 
     if(enviado){
         return(
-            <div className="forgot-container">
-                <div className="forgot-card text-center">
-                    <h1 className="forgot-title">¡Email enviado!</h1>
-                    <p className="forgot-subtitle">Hemos enviado una contraseña temporal a <strong>{email}</strong>. <br /> Revisa tu bandeja de entrada.</p>
-                    <Link to="/auth/login" className="btn btn-primary forgot-btn">Volver a iniciar sesión</Link>
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 px-4">
+                <div className="bg-white rounded-2x1 shadow-lg p-10 max-w-md w-full text-center">
+                    <h1 className="text-2x1 font-bold text-gray-900 mb-4">¡Email enviado!</h1>
+                    <p className="text-muted-foreground mb-6">Hemos enviado una contraseña temporal a <strong>{email}</strong>. <br /> Revisa tu bandeja de entrada.</p>
+                    <Button asChild className='w-full'>
+                        <Link to="/auth/login">Volver a iniciar sesión</Link>
+                    </Button>
+                    
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="forgot-container">
-            <div className="forgot-card">
-                <h1 className="forgot-title">Olvidé mi contraseña</h1>
-                <p className="forgot-subtitle">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 px-4">
+            <div className="bg-white rounded-2x1 shadow-lg p-10 max-w-md w-full">
+                <h1 className="text-2x1 font-bold text-gray-900 mb-2">Olvidé mi contraseña</h1>
+                <p className="text-muted-foreground mb-6">
                     Introduce tu email y te enviaremos una contraseña temporal.
                     Te recomendamos cambiarla desde tu perfil una vez que accedas.
                 </p>
 
-                <form action="" className="forgot-form" onSubmit={handleSubmit}>
-                    <div className="mb-3">
-                        <label htmlFor="" className="form-label">Email</label>
-                        <input type="email" className={`form-control ${touched ? (error ? 'is-invalid' : 'is-valid') : ''}` } placeholder='correo@ucm.es' value={email} onChange={(e) => setEmail(e.target.value)} onBlur={handleBlur}/>
-                        {touched && error && <div className='invalid-feedback'>{error}</div>}
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                    <div className="space-y-2">
+                        <Label>Email</Label>
+                        <Input type="email" className={touched ? (error ? 'border-red-500' : 'border-green-500') : ''} placeholder='correo@ucm.es' value={email} onChange={(e) => setEmail(e.target.value)} onBlur={handleBlur}/>
+                        {touched && error && <p className='text-sm text-red-500'>{error}</p>}
                     </div>
 
-                    <button type='submit' className="btn btn-primary forgot-btn" disabled={!isFormValid}>Enviar</button>
+                    <Button type='submit' className="w-full" disabled={!isFormValid}>Enviar</Button>
                 </form>
 
-                <p className="forgot-back">
-                    <Link to="/auth/login">Volver a iniciar sesión</Link>
+                <p className="text-center text-sm text-muted-foreground mt-4">
+                    <Link to="/auth/login" className='text-primary hover:underline'>Volver a iniciar sesión</Link>
                 </p>
             </div>
         </div>

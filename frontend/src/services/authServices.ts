@@ -18,7 +18,7 @@ export const resetPassword = (email: string) =>
 
 //Cambiar contraseña
 export const changePassword = (currentPassword: string, newPassword: string, repeatNewPassword: string) =>
-    api.post('/api/auth/change-password', {currentPassword, newPassword, confirmNewPassword: repeatNewPassword});
+    api.post('/api/auth/change-password', {currentPassword, newPassword, repeatNewPassword});
 
 //Cerrar sesion
 export const logout = () =>

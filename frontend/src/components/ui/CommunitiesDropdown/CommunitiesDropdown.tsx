@@ -1,5 +1,5 @@
 import React from 'react';
-import './CommunitiesDropdown.css';
+import {Check} from 'lucide-react';
 
 interface Community{
     id: number;
@@ -19,15 +19,15 @@ const CommunitiesDropdown: React.FC<CommunitiesDropdownProps> = ({isOpen, onClos
 
     return (
         <>
-            <div className="dropdown-overlay" onClick={onClose}></div>
-            <div className="communities-dropdown">
-                <div className="dropdown-header">
-                    <span className="text-muted small ms-3">Mis comunidades</span>
+            <div className="fixed inset-0 z-[999]" onClick={onClose}></div>
+            <div className="absolute top-full right-0 bg-white rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.15)] z-[1000] min-w-[220px] py-2">
+                <div className="px-4 py-2 border-b border-gray-100">
+                    <span className="text-gray-500 text-sm ml-3">Mis comunidades</span>
                 </div>
                 {communities.map((community) => (
-                    <button key={community.id} className={`community-item ${community.id === activeCommunityId ? 'active' : ''}`} onClick={() => {onSelectCommunity(community.id); onClose();}}>
-                        <span className="community-name">{community.name}</span>
-                        {community.id === activeCommunityId && (<i className='bi bi-check-lg community-check'></i>)}
+                    <button key={community.id} className={`flex items-center justify-between w-full px-4 py-3 bg-transparent border-none border-b border-gray-100 text-gray-500 text-left cursor-pointer transition-colors hover:bg-gray-50 last:border-b-0 ${community.id === activeCommunityId ? 'bg-blue-50' : ''}`} onClick={() => {onSelectCommunity(community.id); onClose();}}>
+                        <span className="font-medium">{community.name}</span>
+                        {community.id === activeCommunityId && (<Check className='h-4 w-4 text-[#104084]'/>)}
                     </button>
                 ))}
             </div>

@@ -4,8 +4,7 @@ import Sidebar from '../../components/ui/Sidebar/Sidebar';
 import CreatePost from '../../components/ui/CreatePost/CreatePost';
 import PostCard from '../../components/ui/PostCard/PostCard';
 import CommentsModal from '../../components/ui/CommentsModal/CommentsModal';
-import 'bootstrap-icons/font/bootstrap-icons.css';
-import './ForumPage.css';
+import {Menu} from 'lucide-react';
 
 type PostCategory = 'pregunta' | 'encuesta' | 'anuncio' | 'solicitud';
 
@@ -122,7 +121,7 @@ const ForumPage: React.FC = () => {
             <Header 
                 showCommunutySwitcher={true}
                 navLinks={[
-                    {label: <><i className="bi bi-list"></i> Comunidad</>, path: "#", onClick: () => setSidebarOpen(true)},
+                    {label: <><Menu className="h-4 w-4 inline mr-1"/> Comunidad</>, path: "#", onClick: () => setSidebarOpen(true)},
                     {label: "Calendario", path: "/calendar"},
                     {label: "Ayuda", path: "/help"}
                 ]}
@@ -130,12 +129,12 @@ const ForumPage: React.FC = () => {
             
                 <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}></Sidebar>
 
-                <main className='container forum-container'>
-                    <h1 className='forum-title text-center'>Foro comunitario</h1>
+                <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px]'>
+                    <h1 className='text-[28px] font-bold mb-7 text-center'>Foro comunitario</h1>
 
                     <CreatePost onSubmit={handleNewPost} />
 
-                    <div className="posts-feed">
+                    <div className="mt-7 flex flex-col gap-5">
                         {posts.map((post) => (
                             <PostCard
                                 key={post.id}

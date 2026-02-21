@@ -1,7 +1,9 @@
 import React, {useState} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
-import './RegisterPage.css';
 import {register} from '../../services/authServices';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';   
 
 interface FormData {
     nombre: string;
@@ -58,7 +60,7 @@ const RegisterPage: React.FC = () => {
     //Validacion de telefono
     const validateTelefono = (value: string):string | undefined => {
         if(!value.trim()) return 'El teléfono es requerido';
-        if(!/^[\d\s]+$/.test(value)) return 'El telefono solo puede contener numeros y espacios';
+        if(!/^[\d\s]+$/.test(value)) return 'El telefono solo puede contener dígitos y espacios';
         const soloNum = value.replace(/\s/g, '');
         if(soloNum.length !== 9) return 'El teléfono debe tener 9 dígitos';
         return undefined;
@@ -144,55 +146,102 @@ const RegisterPage: React.FC = () => {
 
 
     return (
-        <div className="register-container">
-            <div className="register-card">
-                <h1 className="register-title">Registrar una nueva cuenta</h1>
-                <p className="register-subtitle">¡Únete ahora! Crea tu cuenta en segundos</p>
+        <div className="min-h-screen flex items-center justify-center px-5 py-12 bg-gradient-to-br from-gray-50 to-gray-200">
+            <div className="bg-white rounded-2xl shadow-lg p-10 sm:p-6 w-full max-w-xl">
+                <h1 className="text-3xl font-bold text-center mb-2">Registrar una nueva cuenta</h1>
+                <p className="text-sm text-muted-foreground text-center mb-8">¡Únete ahora! Crea tu cuenta en segundos</p>
 
-                <form action="" className="register-form" onSubmit={handleSubmit}>
-                    <div className="row">
-                        <div className="col-12 col-md-5 mb-3">
-                            <label htmlFor="" className="form-label">Nombre</label>
-                            <input type="text" className={`form-control ${touched.nombre ? (errors.nombre ? 'is-invalid' : 'is-valid') : ''}`} placeholder='María' value={formData.nombre} onChange={(e) => handleChange('nombre', e.target.value)} onBlur={() => handleBlur('nombre')}/>
-                            {touched.nombre && errors.nombre && <div className='invalid-feedback'>{errors.nombre}</div>}
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                    <div className="flex flex-col md:flex-row gap-4">
+
+                        <div className="space-y-2 w-full md:w-5/12">
+                            <Label>Nombre</Label>
+                            <Input 
+                                type="text" 
+                                className={touched.nombre ? (errors.nombre ? 'border-red-500' : 'border-green-500') : ''} 
+                                placeholder='María' 
+                                value={formData.nombre} 
+                                onChange={(e) => handleChange('nombre', e.target.value)} 
+                                onBlur={() => handleBlur('nombre')}
+                            />
+                            {touched.nombre && errors.nombre && <div className='text-sm text-red-500'>{errors.nombre}</div>}
                         </div>
-                        <div className="col-12 col-md-7 mb-3">
-                            <label htmlFor="" className="form-label">Apellidos</label>
-                            <input type="text" className={`form-control ${touched.apellidos ? (errors.apellidos ? 'is-invalid' : 'is-valid') : ''}`} placeholder='Pérez Gómez' value={formData.apellidos} onChange={(e) => handleChange('apellidos', e.target.value)} onBlur={() => handleBlur('apellidos')}/>
-                            {touched.apellidos && errors.apellidos && <div className='invalid-feedback'>{errors.apellidos}</div>}
+
+                        <div className="space-y-2 w-full md:w-7/12">
+                            <Label>Apellidos</Label>
+                            <Input 
+                                type="text" 
+                                className={touched.apellidos ? (errors.apellidos ? 'border-red-500' : 'border-green-500') : ''} 
+                                placeholder='Pérez Gómez' 
+                                value={formData.apellidos} 
+                                onChange={(e) => handleChange('apellidos', e.target.value)} 
+                                onBlur={() => handleBlur('apellidos')}
+                            />
+                            {touched.apellidos && errors.apellidos && <div className='text-sm text-red-500'>{errors.apellidos}</div>}
                         </div>
+
                     </div>
 
-                    <div className="row">
-                        <div className="col-12 col-md-8 mb-3">
-                            <label htmlFor="" className="form-label">Correo electrónico</label>
-                            <input type="email" className={`form-control ${touched.email ? (errors.email ? 'is-invalid' : 'is-valid') : ''}`}  placeholder='correo@ucm.es' value={formData.email} onChange={(e) => handleChange('email', e.target.value)} onBlur={() => handleBlur('email')}/>
-                            {touched.email && errors.email && <div className='invalid-feedback'>{errors.email}</div>}
+                    <div className="flex flex-col md:flex-row gap-4">
+
+                        <div className="space-y-2 w-full md:w-8/12">
+                            <Label>Correo electrónico</Label>
+                            <Input 
+                                type="email" 
+                                className={touched.email ? (errors.email ? 'border-red-500' : 'border-green-500') : ''}  
+                                placeholder='correo@ucm.es' 
+                                value={formData.email} 
+                                onChange={(e) => handleChange('email', e.target.value)} 
+                                onBlur={() => handleBlur('email')}
+                            />
+                            {touched.email && errors.email && <div className='text-sm text-red-500'>{errors.email}</div>}
                         </div>
-                        <div className="col-12 col-md-4 mb-3">
-                            <label htmlFor="" className="form-label">Teléfono</label>
-                            <input type="tel" className={`form-control ${touched.telefono ? (errors.telefono ? 'is-invalid' : 'is-valid') : ''}`}   placeholder='600 123 456' value={formData.telefono} onChange={(e) => handleChange('telefono', e.target.value)} onBlur={() => handleBlur('telefono')}/>
-                            {touched.telefono && errors.telefono && <div className='invalid-feedback'>{errors.telefono}</div>}
+
+                        <div className="space-y-2 w-full md:w-4/12">
+                            <Label>Teléfono</Label>
+                            <Input 
+                                type="tel" 
+                                className={touched.telefono ? (errors.telefono ? 'border-red-500' : 'border-green-500') : ''}   
+                                placeholder='600 123 456' 
+                                value={formData.telefono} 
+                                onChange={(e) => handleChange('telefono', e.target.value)} 
+                                onBlur={() => handleBlur('telefono')}
+                            />
+                            {touched.telefono && errors.telefono && <div className='text-sm text-red-500'>{errors.telefono}</div>}
                         </div>
+
                     </div>
 
-                    <div className="mb-3">
-                        <label htmlFor="" className="form-label">Contraseña</label>
-                        <input type="password" className={`form-control ${touched.password ? (errors.password ? 'is-invalid' : 'is-valid') : ''}`}   placeholder='********' value={formData.password} onChange={(e) => handleChange('password', e.target.value)} onBlur={() => handleBlur('password')}/>
-                        {touched.password && errors.password && <div className='invalid-feedback'>{errors.password}</div>}
+                    <div className="space-y-2">
+                        <Label>Contraseña</Label>
+                        <Input 
+                            type="password" 
+                            className={touched.password ? (errors.password ? 'border-red-500' : 'border-green-500') : ''}   
+                            placeholder='********' 
+                            value={formData.password} 
+                            onChange={(e) => handleChange('password', e.target.value)} 
+                            onBlur={() => handleBlur('password')}/>
+                        {touched.password && errors.password && <div className='text-sm text-red-500'>{errors.password}</div>}
                     </div>
 
-                    <div className="mb-3">
-                        <label htmlFor="" className="form-label">Repetir Contraseña</label>
-                        <input type="password" className={`form-control ${touched.confirmPassword ? (errors.confirmPassword ? 'is-invalid' : 'is-valid') : ''}`}   placeholder='********' value={formData.confirmPassword} onChange={(e) => handleChange('confirmPassword', e.target.value)} onBlur={() => handleBlur('confirmPassword')}/>
-                        {touched.confirmPassword && errors.confirmPassword && <div className='invalid-feedback'>{errors.confirmPassword}</div>}
+                    <div className="space-y-2">
+                        <Label>Repetir Contraseña</Label>
+                        <Input 
+                            type="password" 
+                            className={touched.confirmPassword ? (errors.confirmPassword ? 'border-red-500' : 'border-green-500') : ''}   
+                            placeholder='********' 
+                            value={formData.confirmPassword} 
+                            onChange={(e) => handleChange('confirmPassword', e.target.value)} 
+                            onBlur={() => handleBlur('confirmPassword')}
+                        />
+                        {touched.confirmPassword && errors.confirmPassword && <div className='text-sm text-red-500'>{errors.confirmPassword}</div>}
                     </div>
 
-                    <button type='submit' className='btn btn-primary register-btn' disabled={!isFormValid}>Registrarme</button>
+                    <Button type='submit' className='w-full py-6 text-base font-semibold rounded-xl mt-5' disabled={!isFormValid}>Registrarme</Button>
                 </form>
 
-                <p className="register-login">
-                    ¿Ya tienes cuenta? <Link to="/auth/login">Inicia sesión aquí</Link>
+                <p className="text-center text-sm text-muted-foreground mt-5">
+                    ¿Ya tienes cuenta? <Link to="/auth/login" className='text-primary font-medium hover:underline'>Inicia sesión aquí</Link>
                 </p>
             </div>
         </div>

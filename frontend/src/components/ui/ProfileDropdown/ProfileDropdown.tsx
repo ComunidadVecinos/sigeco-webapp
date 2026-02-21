@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import './ProfileDropdown.css';
 
 interface ProfileDropdownProps{
     isOpen: boolean;
@@ -15,12 +14,12 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({isOpen, onClose, onLog
 
     return (
         <>
-            <div className="dropdown-overlay" onClick={onClose}></div>
-            <div className="profile-dropdown">
-                <button className="profile-dropdown-item" onClick={() => {navigate('/auth/me'); onClose();}}>
+            <div className="fixed inset-0 z-[999]" onClick={onClose}></div>
+            <div className="absolute top-full right-0 bg-white rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.15)] z-[1000] min-w-[180px] py-2">
+                <button className="block w-full px-4 py-2.5 bg-transparent border-none border-b border-gray-100 text-gray-500 text-left cursor-pointer transition-colors hover:bg-gray-50" onClick={() => {navigate('/auth/me'); onClose();}}>
                     Ajustes de perfil
                 </button>
-                <button className="profile-dropdown-item" onClick={onLogout}>
+                <button className="block w-full px-4 py-2.5 bg-transparent border-none text-gray-500 text-left cursor-pointer transition-colors hover:bg-gray-50" onClick={onLogout}>
                     Cerrar sesión
                 </button>
             </div>

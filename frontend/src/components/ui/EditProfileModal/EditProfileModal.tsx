@@ -1,5 +1,8 @@
 import React, {useEffect, useState} from "react";
-import './EditProfileModal.css';
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
+import {Button} from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface EditProfileModalProps{
     isOpen: boolean;
@@ -82,38 +85,36 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
     };
 
     return (
-        <>
-            <div className="modal-overlay" onClick={handleClose}></div>
-            <div className="edit-modal">
-                <div className="edit-modal-header">
-                    <h5 className="fw-bold">Editar Información Personal</h5>
-                    <button className="btn-close" onClick={handleClose}></button>
-                </div>
-                <div className="edit-modal-body">
-                    {error && (<div className="alert alert-danger" role="alert">{error}</div>)}
-                    <div className="mb-3">
-                        <label htmlFor="nombre" className="form-label">Nombre</label>
-                        <input type="text" className="form-control" name="nombre" value={formData.nombre} onChange={handleChange} />
+        <Dialog open={isOpen} onOpenChange={(open) => {if(!open) onClose(); }}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Editar Información Personal</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">{error}</div>}
+                    <div className="space-y-2">
+                        <Label>Nombre</Label>
+                        <Input name="nombre" value={formData.nombre} onChange={handleChange}></Input>
                     </div>
-                    <div className="mb-3">
-                        <label htmlFor="apellidos" className="form-label">Apellidos</label>
-                        <input type="text" className="form-control" name="apellidos" value={formData.apellidos} onChange={handleChange} />
+                    <div className="space-y-2">
+                        <Label>Apellidos</Label>
+                        <Input name="apellidos" value={formData.apellidos} onChange={handleChange}></Input>
                     </div>
-                    <div className="mb-3">
-                        <label htmlFor="tel" className="form-label">Teléfono</label>
-                        <input type="tel" className="form-control" name="telefono" value={formData.telefono} onChange={handleChange} />
+                    <div className="space-y-2">
+                        <Label>Teléfono</Label>
+                        <Input type="tel" name="telefono" value={formData.telefono} onChange={handleChange}></Input>
                     </div>
-                    <div className="mb-3">
-                        <label htmlFor="correo" className="form-label">Correo electrónico</label>
-                        <input type="email" className="form-control" name="email" value={formData.email} onChange={handleChange} />
+                    <div className="space-y-2">
+                        <Label>Correo electrónico</Label>
+                        <Input type="email" name="email" value={formData.email} onChange={handleChange}></Input>
                     </div>
                 </div>
-                <div className="edit-modal-footer">
-                    <button className="btn btn-secondary" onClick={handleClose}>Cerrar</button>
-                    <button className="btn btn-primary" onClick={handleSubmit}>Guardar</button>
-                </div>
-            </div>
-        </>
+                <DialogFooter>
+                    <Button variant="secondary" onClick={onClose}>Cerrar</Button>
+                    <Button onClick={handleSubmit}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };
 

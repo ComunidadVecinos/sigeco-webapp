@@ -1,5 +1,7 @@
 import React from 'react';
-import './DeleteAccountModal.css'
+import {Dialog, DialogContent, DialogFooter} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle } from 'lucide-react';
 
 interface DeleteAccountModalProps{
     isOpen: boolean;
@@ -8,26 +10,24 @@ interface DeleteAccountModalProps{
 }
 
 const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({isOpen, onClose, onConfirm}) => {
-    if(!isOpen) return null;
 
     return (
-        <>
-            <div className="modal-overlay" onClick={onClose}></div>
-            <div className="delete-account-modal">
-                <div className="delete-account-modal-body">
-                    <i className="bi bi-exclamation-triangle-fill delete-icon"></i>
-                    <h5 className='fw-bold mt-3'>Eliminar cuenta</h5>
-                    <h6 className="text-muted">Esta acción es irreversible</h6>
-                    <p className="mt-3">
+        <Dialog open={isOpen} onOpenChange={(open) => {if(!open) onClose(); }}>
+            <DialogContent className="sm:max-w-sm">
+                <div className="text-center py-4">
+                    <AlertTriangle className="h-12 w-12 text-red-500 mx-auto"/>
+                    <h5 className='font-bold mt-3'>Eliminar cuenta</h5>
+                    <h6 className="text-muted-foreground text-sm">Esta acción es irreversible</h6>
+                    <p className="mt-3 text-sm">
                         Al eliminar tu cuenta, perderás el acceso a todas tus comunidades y tu información personal será eliminada permanentemente.
                     </p>
                 </div>
-                <div className="delete-account-modal-footer">
-                    <button className="btn btn-secondary btn-sm" onClick={onClose}>No, cancelar</button>
-                    <button className="btn btn-danger btn-sm" onClick={onConfirm}>Sí, eliminar</button>
-                </div>
-            </div>
-        </>
+                <DialogFooter className="justify-center">
+                    <Button variant="secondary" size="sm" onClick={onClose}>No, cancelar</Button>
+                    <Button variant="destructive" size="sm" onClick={onConfirm}>Sí, eliminar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };
 

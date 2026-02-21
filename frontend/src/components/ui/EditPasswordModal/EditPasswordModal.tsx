@@ -1,5 +1,8 @@
 import React, {useState} from "react";
-import './EditPasswordModal.css';
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
 
 interface EditPasswordModalProps{
     isOpen: boolean;
@@ -14,7 +17,6 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
 
-    if(!isOpen) return null;
 
     const handleSubmit = () => {
         setError('');
@@ -74,36 +76,32 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
     }
 
     return (
-        <>
-            <div className="modal-overlay" onClick={handleClose}></div>
-            <div className="change-password-modal">
-                <div className="change-password-modal-header">
-                    <h5 className="fw-bold">Cambiar contraseña</h5>
-                    <button className="btn-close" onClick={handleClose}></button>
-                </div>
-                <div className="change-password-modal-body">
-                    {error && (
-                        <div className="alert alert-danger" role="alert">{error}</div>
-                    )}
-                    <div className="mb-3">
-                        <label className="form-label">Contraseña actual</label>
-                        <input type="password" className="form-control" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Introduce tu contraseña actual"/>
+        <Dialog open={isOpen} onOpenChange={(open) => {if(!open) handleClose(); }}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Cambiar contraseña</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">{error}</div>}
+                    <div className="space-y-2">
+                        <Label>Contraseña actual</Label>
+                        <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Introduce tu contraseña actual"></Input>
                     </div>
-                    <div className="mb-3">
-                        <label className="form-label">Nueva contraseña</label>
-                        <input type="password" className="form-control" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Introduce la nueva contraseña"/>
+                    <div className="space-y-2">
+                        <Label>Nueva contraseña</Label>
+                        <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Introduce la nueva contraseña"></Input>
                     </div>
-                    <div className="mb-3">
-                        <label className="form-label">Confirmar nueva contraseña</label>
-                        <input type="password" className="form-control" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repite la nueva contraseña"/>
+                    <div className="space-y-2">
+                        <Label>Confirmar nueva contraseña</Label>
+                        <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repita la nueva contraseña"></Input>
                     </div>
                 </div>
-                <div className="change-password-modal-footer">
-                    <button className="btn btn-secondary" onClick={handleClose}>Cerrar</button>
-                    <button className="btn btn-primary" onClick={handleSubmit}>Guardar</button>
-                </div>
-            </div>
-        </>
+                <DialogFooter>
+                    <Button variant="secondary" onClick={handleClose}>Cerrar</Button>
+                    <Button onClick={handleSubmit}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };
 

@@ -1,5 +1,9 @@
 import React, {useState} from "react";
-import './CommentsModal.css';
+import {Dialog, DialogContent, DialogHeader, DialogTitle} from '@/components/ui/dialog';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { CircleUserRound, Send } from "lucide-react";
+
 
 interface Comment{
     id: number;
@@ -39,52 +43,56 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
 
     return (
         <>
-            <div className="modal-overlay" onClick={onClose}></div>
-            <div className="comments-modal">
-                <div className="comments-modal-header">
-                    <h5>Comentarios</h5>
-                    <button className="btn-close-modal" onClick={onClose}>
-                        <i className="bi bi-x-lg"></i>
-                    </button>
-                </div>
+            <Dialog open={isOpen} onOpenChange={(open) => {if(!open) onClose();}}>
+                <DialogContent className="sm:max-w-md max-h-[80vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>Comentarios</DialogTitle>
+                    </DialogHeader>
 
-                <div className="comments-modal-post">
-                    <span className="post-author">{postAuthor}</span>
-                    <p>{postContent}</p>
-                </div>
+                    <div className="px-1 py-3 bg-gray-50 rounded-lg border-b border-gray-200">
+                        <span className="font-semibold text-sm">{postAuthor}</span>
+                        <p className="mt-2 text-sm text-gray-600 m-0">{postContent}</p>
+                    </div>
 
-                <div className="comments-list">
+                    <div className="flex-1 overflow-y-auto py-3 space-y-4">
                     {comments.length === 0 ? (
-                        <p className="no-comments">No hay comentarios todavía. ¡Sé el primero!</p>
+                        <p className="text-center text-gray-400 text-sm">No hay comentarios todavía. ¡Sé el primero!</p>
                     ) : (
                         comments.map((comment) => (
-                            <div className="comment-item" key={comment.id}>
-                                <div className="comment-avatar">
+                            <div className="flex gap-3" key={comment.id}>
+                                <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center shrink-0">
                                     {comment.authorAvatar ? (
-                                        <img src={comment.authorAvatar} alt={comment.authorName} />
+                                        <img src={comment.authorAvatar} alt={comment.authorName} className="w-full h-full object-cover" />
                                     ) : (
-                                        <i className="bi bi-person-circle"></i>
+                                        <CircleUserRound className="h-6 w-6 text-gray-400"/>
                                     )}
                                 </div>
-                                <div className="comment-content">
-                                    <div className="comment-header">
-                                        <span className="comment-author">{comment.authorName}</span>
-                                        <span className="comment-time">{comment.timestamp}</span>
+                                <div className="flex-1">
+                                    <div className="flex gap-2 items-center mb-1">
+                                        <span className="font-semibold text-[13px]">{comment.authorName}</span>
+                                        <span className="text-xs text-gray-400">{comment.timestamp}</span>
                                     </div>
-                                    <p>{comment.content}</p>
+                                    <p className="m-0 text-sm">{comment.content}</p>
                                 </div>
                             </div>
                         ))
                     )}
                 </div>
 
-                <div className="comments-modal-footer">
-                    <input type="text" placeholder="Escribe un comentario..." value={newComment} onChange={(e) => setNewCommnet(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSubmit()} />
-                    <button className="btn btn-primary btn-sm" onClick={handleSubmit} disabled={!newComment.trim()}>
-                        <i className="bi bi-send"></i>
-                    </button>
+                <div className="flex gap-2.5 pt-3 border-t border-gray-200">
+                    <Input 
+                        placeholder="Escribe un comentario..." 
+                        value={newComment} 
+                        onChange={(e) => setNewCommnet(e.target.value)} 
+                        onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
+                        className="rounded-full" />
+                    <Button size="sm" onClick={handleSubmit} disabled={!newComment.trim()}>
+                        <Send className="h-4 w-4"/>
+                    </Button>
                 </div>
-            </div>
+
+                </DialogContent>
+            </Dialog>
         </>
     );
 };

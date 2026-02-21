@@ -1,7 +1,9 @@
 import React, {useState} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
-import './LogInPage.css'
 import { useAuth } from '../../context/authContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';   
 
 
 const LogInPage: React.FC = () => {
@@ -67,34 +69,48 @@ const LogInPage: React.FC = () => {
     const isFormValid = !validateEmail(email) && !validatePassword(password);
 
     return (
-        <div className="login-container">
-            <div className="login-card">
-                <h1 className="login-title">Iniciar Sesión</h1>
-                <p className="login-subtitle">¡Bienvenido/a de nuevo!</p>
+        <div className="min-h-screen flex items-center justify-center px-5 py-12 bg-gradient-to-br from-gray-50 to-gray-200">
+            <div className="bg-white rounded-2xl shadow-lg p-10 w-full max-w-md">
+                <h1 className="text-3xl font-bold text-center mb-2">Iniciar Sesión</h1>
+                <p className="text-sm text-muted-foreground text-center mb-8">¡Bienvenido/a de nuevo!</p>
 
-                <form action="" className="login-form" onSubmit={handleSubmit}>
-                    <div className="mb-3">
-                        <label htmlFor="" className="form-label">Email o teléfono</label>
-                        <input type="text" className={`form-control ${touched.email ? (errors.email ? 'is-invalid' : 'is-valid') : ''}`} placeholder='correo@ucm.es' value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => handleBlur('email')} />
-                        {touched.email && errors.email && (<div className='invalid-feedback'>{errors.email}</div>)}
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                    <div className="space-y-2">
+                        <Label>Email o teléfono</Label>
+                        <Input 
+                            type="text" 
+                            className={touched.email ? (errors.email ? 'border-red-500' : 'border-green-500') : ''}
+                            placeholder='correo@ucm.es' 
+                            value={email} 
+                            onChange={(e) => setEmail(e.target.value)} 
+                            onBlur={() => handleBlur('email')} 
+                        />
+                        {touched.email && errors.email && (<div className='text-sm text-red-500'>{errors.email}</div>)}
                     </div>
 
-                    <div className="mb-3">
-                        <label htmlFor="" className="form-label">Contraseña</label>
-                        <input type="password" className={`form-control ${touched.password ? (errors.password ? 'is-invalid' : 'is-valid') : ''}`} placeholder='********' value={password} onChange={(e) => setPassword(e.target.value)} onBlur={() => handleBlur('password')} />
-                        {touched.password && errors.password && (<div className='invalid-feedback'>{errors.password}</div>)}
+                    <div className="space-y-2">
+                        <Label>Contraseña</Label>
+                        <Input 
+                            type="password" 
+                            className={touched.password ? (errors.password ? 'border-red-500' : 'border-green-500') : ''} 
+                            placeholder='********' 
+                            value={password} 
+                            onChange={(e) => setPassword(e.target.value)} 
+                            onBlur={() => handleBlur('password')} 
+                        />
+                        {touched.password && errors.password && (<div className='text-sm text-red-500'>{errors.password}</div>)}
                     </div>
 
-                    <div className="login-forgot">
-                        <Link to="/auth/reset-password">¿Olvidaste tu contraseña?</Link>
+                    <div className="text-right">
+                        <Link to="/auth/reset-password" className='text-sm text-primary hover:underline'>¿Olvidaste tu contraseña?</Link>
                     </div>
 
-                    <button type='submit' className="btn btn-primary login-btn" disabled={!isFormValid}>Iniciar Sesión</button>
+                    <Button type='submit' className="w-full py-6 text-base font-semibold rounded-xl" disabled={!isFormValid}>Iniciar Sesión</Button>
 
                 </form>
 
-                <p className="login-register">
-                    ¿No tienes cuenta? <Link to="/auth/register">Regístrate aquí</Link>
+                <p className="text-center text-sm text-muted-foreground mt-5">
+                    ¿No tienes cuenta? <Link to="/auth/register" className='text-primary font-medium hover:underline'>Regístrate aquí</Link>
                 </p>
             </div>
         </div>

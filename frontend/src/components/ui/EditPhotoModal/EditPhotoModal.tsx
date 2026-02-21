@@ -1,5 +1,7 @@
 import React, {useState, useRef} from "react";
-import './EditPhotoModal.css';
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Upload } from "lucide-react";
 
 interface EditPhotoModalProps{
     isOpen: boolean;
@@ -11,8 +13,6 @@ interface EditPhotoModalProps{
 const EditPhotoModal: React.FC<EditPhotoModalProps> = ({isOpen, onClose, currentPhoto, onSave})=>{
     const [preview, setPreview] = useState<string>(currentPhoto);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    if(!isOpen) return null;
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -35,28 +35,26 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({isOpen, onClose, current
     };
 
     return (
-        <>
-            <div className="modal-overlay" onClick={onClose}></div>
-            <div className="edit-photo-modal">
-                <div className="edit-photo-modal-header">
-                    <h5 className="fw-bold">Cambiar foto de perfil</h5>
-                    <button className="btn-close" onClick={onClose}></button>
-                </div>
-                <div className="edit-photo-modal-body">
-                    <div className="photo-preview-container">
-                        <img src={preview} alt="Vista previa" className="photo-preview"/>
+        <Dialog open={isOpen} onOpenChange={(open) => {if(!open) onClose(); }}>
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Cambiar foto de perfil</DialogTitle>
+                </DialogHeader>
+                <div className="text-center space-y-4">
+                    <div className="flex justify-center">
+                        <img src={preview} alt="Vista previa" className="w-36 h-36 rounded-full object-cover border-3 border-gray-200" />
                     </div>
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{display: 'none'}} />
-                    <button className="btn btn-outline-primary w-100 mt-3" onClick={handleSelectFile}>
-                        <i className="bi bi-upload me-2"></i>Seleccionar nueva foto
-                    </button>
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden"/>
+                    <Button variant="outline" className="w-full" onClick={handleSelectFile}>
+                        <Upload className="h-4 w-4 mr-2" />Seleccionar nueva foto
+                    </Button>
                 </div>
-                <div className="edit-photo-modal-footer">
-                    <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
-                    <button className="btn btn-primary" onClick={handleSave}>Guardar</button>
-                </div>
-            </div>
-        </>
+                <DialogFooter>
+                    <Button variant="secondary" onClick={onClose}>Cerrar</Button>
+                    <Button onClick={handleSave}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };
 
