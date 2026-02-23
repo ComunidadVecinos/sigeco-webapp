@@ -16,6 +16,8 @@ services:
     networks:
       - sigeco_network
     restart: unless-stopped
+    ports: 
+      - "5432:5432"
 
   db_init:
     build: ./backend

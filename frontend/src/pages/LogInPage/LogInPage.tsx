@@ -58,7 +58,7 @@ const LogInPage: React.FC = () => {
         if(validateForm()){
             try{
                 await login(email, password);
-                navigate('/auth/forum');
+                navigate('/auth/me');
             }
             catch(error: any){
                 setErrors({email: 'Credenciales incorrectas'});

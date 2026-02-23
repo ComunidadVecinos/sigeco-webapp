@@ -128,7 +128,7 @@ const RegisterPage: React.FC = () => {
         if(validateForm()) {
             try {
                 await register(formData.nombre, formData.apellidos, formData.email, formData.telefono, formData.password);
-                navigate('/auth/me');
+                navigate('/auth/login');
             }
             catch (error: any){
                 setErrors({email: error.response?.data?.message || 'Error al registrar'});

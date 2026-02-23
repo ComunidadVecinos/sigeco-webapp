@@ -1,7 +1,9 @@
 import React, {createContext, useContext, useState, useEffect} from 'react';
-import {getProfile, login as loginService, logout as logoutService} from '../services/authServices';
+import {login as loginService, logout as logoutService} from '../services/authServices';
+import { getFullProfile } from '../services/userServices';
 
 interface User {
+    id: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -26,7 +28,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode }> = ({children})
 
     const refreshUser = async () => {
         try{
-            const {data} = await getProfile();
+            const {data} = await getFullProfile();
             setUser(data as User);
         } catch {
             setUser(null);
