@@ -6,10 +6,13 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# Copy React app
-COPY public ./public
-COPY src ./src
+# Para Vite:
+COPY index.html ./
+COPY vite.config.ts ./
 COPY tsconfig.json ./
+COPY src ./src
+COPY components.json ./
+
 
 # Build static files
 RUN npm run build
