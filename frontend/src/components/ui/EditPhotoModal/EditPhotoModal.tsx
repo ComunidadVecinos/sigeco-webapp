@@ -2,21 +2,24 @@ import React, {useState, useRef} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
+import { updateAvatar } from "@/services/userServices";
 
 interface EditPhotoModalProps{
     isOpen: boolean;
     onClose: () => void;
     currentPhoto: string;
-    onSave: (newPhoto: string) => void;
+    onSave: (newPhotoUrl: string) => void;
 }
 
 const EditPhotoModal: React.FC<EditPhotoModalProps> = ({isOpen, onClose, currentPhoto, onSave})=>{
     const [preview, setPreview] = useState<string>(currentPhoto);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if(file){
+            setSelectedFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
                 setPreview(reader.result as string);
@@ -29,9 +32,15 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({isOpen, onClose, current
         fileInputRef.current?.click();
     };
 
-    const handleSave = () => {
-        onSave(preview);
-        onClose();
+    const handleSave = async () => {
+        if(!selectedFile) return;
+        try{
+            const {data} = await updateAvatar(selectedFile);
+            onSave(data.imageUrl);
+            onClose();
+        } catch (err){
+            console.error('Error al subir la imagen', err);
+        }
     };
 
     return (

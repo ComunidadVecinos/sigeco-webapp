@@ -166,16 +166,8 @@ const ProfilePage: React.FC = () =>{
                 <EditPasswordModal
                     isOpen={passwordModalOpen}
                     onClose={() => setPasswordModalOpen(false)}
-                    currentPasswordCheck={(password) => Boolean(password.trim())}
                     onSave={async (currentPassword, newPassword) => {
-                        try{
-                            await changePassword(currentPassword, newPassword, newPassword);
-                            alert('Contraseña cambiada correctamente');
-                        }
-                        catch(error: any){
-                            alert(error.response?.data?.message || 'Error al cambiar la contraseña');
-                        }
-                        
+                        await changePassword(currentPassword, newPassword, newPassword);
                     }}
                 />
 
@@ -191,7 +183,8 @@ const ProfilePage: React.FC = () =>{
                 <DeleteAccountModal
                     isOpen={deleteAccountModalopen}
                     onClose={() => setDeleteAccountModalOpen(false)}
-                    onConfirm={() => {
+                    userEmail={user?.email || ''}
+                    onConfirm={async () => {
                         setDeleteAccountModalOpen(false);
                         navigate('/');
                     }}

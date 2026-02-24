@@ -3,6 +3,7 @@ import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/
 import {Button} from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { updateProfile } from "@/services/userServices";
 
 interface EditProfileModalProps{
     isOpen: boolean;
@@ -19,7 +20,7 @@ interface EditProfileModalProps{
         apellidos: string;
         telefono: string;
         email: string;
-    }) => void;
+    }) => Promise<void>;
 }
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, initialData, onSave}) => {
@@ -40,7 +41,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
         setError('');
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
 
         //Validar nombre
         if(formData.nombre !== initialData.nombre){
@@ -75,8 +76,19 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
             }
         }
 
-        onSave(formData);
-        onClose();
+        try{
+            await updateProfile({
+                firstName: formData.nombre,
+                lastName: formData.apellidos,
+                phone: formData.telefono,
+                email: formData.email,
+            });
+            await onSave(formData);
+            onClose();
+        } catch(err: any){
+            const msg = err.response?.data?.error?.message || 'Error al guardar';
+            setError(msg);
+        }
     };
 
     const handleClose = () => {

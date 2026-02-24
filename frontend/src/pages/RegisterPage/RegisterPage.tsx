@@ -71,6 +71,7 @@ const RegisterPage: React.FC = () => {
         if(!value.trim()) return 'El contraseña es requerida';
         if(value.length < 8) return 'Mínimo 8 caracteres';
         if(!/[A-Z]/.test(value)) return 'Debe contener al menos una mayúscula';
+        if(!/[a-z]/.test(value)) return 'Debe contener al menos una minúscula';
         if(!/[0-9]/.test(value)) return 'Debe contener al menos una número';
         if(!/[!@#$%^&*(),.?":{}|<>]/.test(value)) return 'Debe contener un carácter especial (!@#$%^&*...)';
         return undefined;
@@ -131,7 +132,26 @@ const RegisterPage: React.FC = () => {
                 navigate('/auth/login');
             }
             catch (error: any){
-                setErrors({email: error.response?.data?.message || 'Error al registrar'});
+                const details = error.response?.data?.error?.details;
+                if(Array.isArray(details)){
+                    const fieldMap: Record<string, keyof FormErrors> = {
+                        firstName: 'nombre',
+                        lastName: 'apellidos',
+                        email: 'email',
+                        phone: 'telefono',
+                        password: 'password',
+                    };
+                    const newErrors: FormErrors = {};
+                    details.forEach((d: any) => {
+                        const field = fieldMap[d.field];
+                        if(field) newErrors[field] = d.message;
+                    });
+                    setErrors(newErrors);
+                }
+                else{
+                    const msg = error.response?.data?.error?.message || 'Error al registrar';
+                    setErrors({email: msg});
+                }
             } 
         }
     };

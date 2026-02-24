@@ -7,25 +7,18 @@ import {Label} from "@/components/ui/label";
 interface EditPasswordModalProps{
     isOpen: boolean;
     onClose: () => void;
-    onSave: (currentPassword: string, newPassword: string) => void;
-    currentPasswordCheck: (password: string) => boolean;
+    onSave: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
-const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, onSave, currentPasswordCheck}) => {
+const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, onSave}) => {
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
 
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         setError('');
-
-        //Validar contraseña actual
-        if(!currentPasswordCheck(currentPassword)){
-            setError('La contraseña actual no es correcta');
-            return;
-        }
 
         //Validar que la nueva no se igual que la actual
         if(newPassword === currentPassword){
@@ -63,8 +56,12 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
             return;
         }
 
-        onSave(currentPassword, newPassword);
-        handleClose();
+        try{
+            await onSave(currentPassword, newPassword);
+            handleClose();
+        }catch(err:any){
+            setError(err.response?.data?.error?.message || 'Error al cambiar la contraseña');
+        }
     };
     
     const handleClose = () => {
