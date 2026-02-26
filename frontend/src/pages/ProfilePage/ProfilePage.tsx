@@ -37,6 +37,63 @@ const ProfilePage: React.FC = () =>{
 
     const [solicitudes, setSolicitudes] = useState<any[]>([]);
 
+    const mockCommunities = [
+    {
+        id: 1,
+        name: 'Comunidad Residencial Sol',
+        alias: 'Piso 3A - Familia Mourão',
+        role: 'PRESIDENT',
+        avatar: null,
+        streetType: 'Calle',
+        streetName: 'Gran Vía',
+        number: '12',
+        municipality: 'Madrid',
+        province: 'Madrid'
+    },
+    {
+        id: 2,
+        name: 'Edificio Luna',
+        alias: 'Bajo B',
+        role: 'MEMBER',
+        avatar: null,
+        streetType: 'Avenida',
+        streetName: 'de la Constitución',
+        number: '45',
+        municipality: 'Sevilla',
+        province: 'Sevilla'
+    }
+];
+
+const mockSolicitudes = [
+    {
+        id: 1,
+        communityName: 'Comunidad Residencial Sol',
+        status: 'PENDING',
+        type: 'JOIN',
+        alias: 'Piso 3A',
+        createdAt: '2026-02-25T10:00:00Z',
+        adminMessage: null
+    },
+    {
+        id: 2,
+        communityName: 'Edificio Luna',
+        status: 'APPROVED',
+        type: 'JOIN',
+        alias: 'Bajo B',
+        createdAt: '2026-02-20T10:00:00Z',
+        adminMessage: 'Bienvenido!'
+    },
+    {
+        id: 3,
+        communityName: 'Comunidad Residencial Sol',
+        status: 'REJECTED',
+        type: 'PROFILE_CHANGE',
+        alias: null,
+        createdAt: '2026-02-18T10:00:00Z',
+        adminMessage: 'Datos incorrectos, revisa la dirección.'
+    }
+];
+
     const cargarSolicitudes = async () => {
         try{
             const res = await getMyRequests();
@@ -104,7 +161,9 @@ const ProfilePage: React.FC = () =>{
 
                 <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-4 mt-5">
                     <h4 className='font-bold'>Información de tus comunidades</h4>
-                    <div className="border border-gray-200 rounded-2xl mx-4 mt-3 p-4">
+
+                    {(!mockCommunities || mockCommunities.length === 0) ? (
+                        <div className="border border-gray-200 rounded-2xl mx-4 mt-3 p-4">
                         <h5 className='font-bold'>Crea o únete a una comunidad</h5>
                         <p className='text-sm text-gray-500 leading-relaxed mt-2'>¡Esto está muy vacío! Para acceder a todo lo que SIGECO puede ofrecer, solicita unirte o crea tú mismo tu propia comunidad. Para ello, ten en cuenta que: </p>
 
@@ -114,6 +173,29 @@ const ProfilePage: React.FC = () =>{
 
                         <p className='text-sm text-gray-500 leading-relaxed mt-2 ml-8 font-bold'>2.1 Este rol es transferible, por lo que llegado el momento podrás transferir sin problemas la responsabilidad.</p>
                     </div>
+                    ) : (
+                        <>
+                            <p className="text-sm text-gray-500 mb-4">Comunidades a las que perteneces.</p>
+
+                            <div className="space-y-3">
+                                {mockCommunities.map((com: any) => (
+                                    <div key={com.id} className='border border-gray-200 rounded-xl p-4 flex items-center gap-4'>
+                                        <img src={com.avatar || imagen_generica} alt={com.name} className='w-16 h-16 rounded-full object-cover border-2 border-gray-200' />
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <h5 className="font-bold">{com.name}</h5>
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{com.role}</span>
+                                            </div>
+                                            <p className="text-sm text-gray-500 mt-1">Alias: {com.alias}</p>
+                                            <p className="text-sm text-gray-500">
+                                                {com.streetType} {com.streetName}, {com.number} - {com.municipality}, {com.province}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
 
                     <div className="flex justify-center mt-4">
                         <Link to="/auth/new-community" className="bg-gray-900 text-white rounded-full w-12 h-12 flex items-center justify-center hover:scale-110 transition-transform">
@@ -122,37 +204,40 @@ const ProfilePage: React.FC = () =>{
                     </div>
                 </div>
 
-                {solicitudes && solicitudes.length > 0 && (
-                    <div className="border  border-gray-200 rounded-2xl bg-white shadow-sm p-4 mt-5">
-                        <h4 className="font-bold">Mis solicitudes</h4>
-                        <p className="text-sm text-gray-500 mb-4">Historial de tus solicitudes enviadas a comunidades.</p>
+                <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-4 mt-5">
+                    <h4 className="font-bold">Mis solicitudes</h4>
+                    <p className="text-sm text-gray-500 mb-4">Historial de tus solicitudes enviadas a comunidades.</p>
 
+                    {mockSolicitudes.length > 0 ? (
                         <div className="space-y-3">
-                            {solicitudes.map((sol) => (
-                                <div key={sol.id} className="border border-gray-200 rounded-xl p-4 flex justify-between items-start">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold text-sm">{sol.communityName}</span>
-                                            <span className={`text-xs px-2 py-0.5 rounded-full ${sol.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700': sol.status === 'APPROVED' ? 'bg-green-100 text-green-700': 'bg-red-100 text-red-700'}`}>{sol.status === 'PENDING' ? 'Pendiente': sol.status === 'APPROVED' ? 'Aceptada': 'Rechazada'}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm text-gray-500 mt-1">
-                                            {sol.type === 'JOIN' ? 'Solicitud de acceso' : 'Cambio de informacion'}{' . '}{new Date(sol.createdAt).toLocaleDateString('es-ES')}
-                                        </p>
-                                        {sol.alias && <p className='text-sm text-gray-500 mt-1'>Alias: {sol.alias}</p>}
-                                        {sol.adminMessage && (
-                                            <p className='text-sm text-gray-600 mt-1 italic'>Respuesta del admin: {sol.adminMessage}</p>
-                                        )}
+                        {mockSolicitudes.map((sol) => (
+                            <div key={sol.id} className="border border-gray-200 rounded-xl p-4 flex justify-between items-start">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-sm">{sol.communityName}</span>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${sol.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700': sol.status === 'APPROVED' ? 'bg-green-100 text-green-700': 'bg-red-100 text-red-700'}`}>{sol.status === 'PENDING' ? 'Pendiente': sol.status === 'APPROVED' ? 'Aceptada': 'Rechazada'}
+                                        </span>
                                     </div>
-                                    <Button variant="outline" size="sm" onClick={() => handleArchivar(sol.id)}>
-                                        <Archive className='h-4 w-4 mr-1'/>
-                                        {sol.status === 'PENDING' ? 'Cancelar':'Archivar'}
-                                    </Button>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        {sol.type === 'JOIN' ? 'Solicitud de acceso' : 'Cambio de informacion'}{' - '}{new Date(sol.createdAt).toLocaleDateString('es-ES')}
+                                    </p>
+                                    {sol.alias && <p className='text-sm text-gray-500 mt-1'>Alias: {sol.alias}</p>}
+                                    {sol.adminMessage && (
+                                        <p className='text-sm text-gray-600 mt-1 italic'>Respuesta del admin: {sol.adminMessage}</p>
+                                    )}
                                 </div>
-                            ))}
-                        </div>
+                                <Button variant="outline" size="sm" onClick={() => handleArchivar(sol.id)}>
+                                    <Archive className='h-4 w-4 mr-1'/>
+                                    {sol.status === 'PENDING' ? 'Cancelar':'Archivar'}
+                                </Button>
+                            </div>
+                        ))}
                     </div>
-                )}
+                    ):(
+                        <p className="text-sm text-gray-400 text-center py-6">No tienes solicitudes pendientes ni recientes.</p>
+                    )}
+                </div>
+                
 
                 <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-4 mt-5">
 
