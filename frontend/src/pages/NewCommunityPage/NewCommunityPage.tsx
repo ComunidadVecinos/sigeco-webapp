@@ -3,15 +3,20 @@ import Header from '../../components/common/Header/Header';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { joinCommunity, createCommunity } from '../../services/communityServices';
+import { requestJoinCommunity, createCommunity } from '../../services/communityServices';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/authContext';
 
 const NewCommunityPage: React.FC = () => {
     const navigate = useNavigate();
+    const {refreshUser} = useAuth();
+
     const [opcion, setOpcion] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [touched, setTouched] = useState<Record<string, boolean>>({});
     const [codigo, setCodigo] = useState('');
+    const [communityId, setCommunityId] = useState<number | null>(null);
+    const [flujo, setFlujo] = useState<'unete' | 'crear' | ''>('');
     const [comunidad, setComunidad] = useState({
         nombre: '',
         cif: '',
@@ -25,6 +30,8 @@ const NewCommunityPage: React.FC = () => {
     });
 
     const [domicilio, setDomicilio] = useState({
+        alias: '',
+        comentario: '',
         pais: '',
         provincia: '',
         municipio: '',
@@ -43,6 +50,10 @@ const NewCommunityPage: React.FC = () => {
                 if (!value.trim()) return 'El código de registro es requerido';
                 return undefined;
                 
+            case 'alias':
+                if(!value.trim()) return 'El alias es requerido';
+                return undefined;
+
             case 'nombre': 
                 if (!value) return 'El nombre de la comunidad es requerido';
                 return undefined;
@@ -118,7 +129,7 @@ const NewCommunityPage: React.FC = () => {
 
     //Validar domicilio
     const validarDomicilio = (): boolean => {
-        const camposRequeridos = ['pais', 'provincia', 'municipio', 'tipoVia', 'nombreVia', 'cp', 'numero'];
+        const camposRequeridos = ['pais', 'provincia', 'municipio', 'tipoVia', 'nombreVia', 'cp', 'numero', 'alias'];
         const newErrors: Record<string, string> = {};
         const newTouched: Record<string, boolean> = {};
         let valid = true;
@@ -142,6 +153,7 @@ const NewCommunityPage: React.FC = () => {
             setErrors({});
             setTouched({});
             setOpcion('registro-vivienda');
+            setFlujo('unete');
         }
     };
 
@@ -149,6 +161,7 @@ const NewCommunityPage: React.FC = () => {
         if(validarComunidad()){
             setErrors({});
             setTouched({});
+            setFlujo('crear');
             setOpcion('registro-vivienda');
         }
     };
@@ -156,8 +169,32 @@ const NewCommunityPage: React.FC = () => {
     const handleConfirmarDomicilio = async () => {
         if(validarDomicilio()) {
             try{
-                if(opcion === 'unirse'){
-                    await joinCommunity(codigo, {
+                if(flujo === 'unete'){
+                    if(!communityId) return;
+                    await requestJoinCommunity(communityId, {
+                        alias: domicilio.alias,
+                        comment: domicilio.comentario || undefined,
+                        domicile: {
+                            country: domicilio.pais,
+                            province: domicilio.provincia,
+                            municipality: domicilio.municipio,
+                            streetType: domicilio.tipoVia,
+                            streetName: domicilio.nombreVia,
+                            postalCode: domicilio.cp,
+                            number: domicilio.numero,
+                            block: domicilio.bloque || undefined,
+                            floor: domicilio.planta|| undefined,
+                            door: domicilio.puerta || undefined
+                        }
+                    });
+                    alert('Solicitud enviada. Pendiente de aprobación por el administrador.');
+                    navigate('/auth/me');
+                }
+                else{
+                    await createCommunity({
+                        name: comunidad.nombre,
+                        cif: comunidad.cif,
+                        alias: domicilio.alias,
                         country: domicilio.pais,
                         province: domicilio.provincia,
                         municipality: domicilio.municipio,
@@ -165,29 +202,27 @@ const NewCommunityPage: React.FC = () => {
                         streetName: domicilio.nombreVia,
                         postalCode: domicilio.cp,
                         number: domicilio.numero,
-                        block: domicilio.bloque || undefined,
-                        floor: domicilio.planta|| undefined,
-                        door: domicilio.puerta || undefined
+                        domicile: {
+                            country: domicilio.pais,
+                            province: domicilio.provincia,
+                            municipality: domicilio.municipio,
+                            streetType: domicilio.tipoVia,
+                            streetName: domicilio.nombreVia,
+                            postalCode: domicilio.cp,
+                            number: domicilio.numero,
+                            block: domicilio.bloque || undefined,
+                            floor: domicilio.planta|| undefined,
+                            door: domicilio.puerta || undefined
+                        }
                     });
+                    await refreshUser();
+                    alert('¡Comunidad registrada correctamente!');
+                    navigate('/admin');
                 }
-                else{
-                    await createCommunity({
-                        name: comunidad.nombre,
-                        cif: comunidad.cif,
-                        country: domicilio.pais,
-                        province: domicilio.provincia,
-                        municipality: domicilio.municipio,
-                        streetType: domicilio.tipoVia,
-                        streetName: domicilio.nombreVia,
-                        postalCode: domicilio.cp,
-                        number: domicilio.numero
-                    });
-                }
-                alert('¡Comunidad registrada correctamente!');
-                navigate('/auth/me');
+                
             }
             catch (error: any){
-                alert(error.response?.data?.message || 'Error al registrar');
+                alert(error.response?.data?.error?.message || 'Error al registrar');
             }
         }
     };
@@ -308,6 +343,7 @@ const NewCommunityPage: React.FC = () => {
                                     />
                                     {touched.com_cif && errors.com_cif && <p className='text-sm text-red-500'>{errors.com_cif}</p>}
                                 </div>
+
                             </div>
 
                             <h5 className="font-bold mt-6">Ubicación</h5>
@@ -510,6 +546,35 @@ const NewCommunityPage: React.FC = () => {
                                     />
                                 </div>
                             </div>
+
+                            <div className="grid grid-cols-12 gap-4 mt-4">
+                                    <div className="col-span-12 md:col-span-12 space-y-2">
+                                        <Label>Alias en la comunidad</Label>
+                                        <Input
+                                            className={inputClass('dom_alias')}
+                                            value={domicilio.alias}
+                                            onChange={(e) => handleDomicilioChange('alias', e.target.value)}
+                                            onBlur={() => handleDomicilioBlur('alias')}
+                                            placeholder='El alias es el nombre con el que serás conocido en la comunidad'
+                                        />
+                                        {touched.dom_alias && errors.dom_alias && <p className='text-sm text-red-500'>{errors.dom_alias}</p>}
+                                    </div>
+                                </div>
+                                
+                                {flujo === 'unete' && (
+                                    <div className="grid grid-cols-12 gap-4 mt-4">
+                                        <div className="col-span-12 md:col-span-12 space-y-2">
+                                            <Label>Comentario para el administrador (opcional)</Label>
+                                            <textarea
+                                                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                value={domicilio.comentario}
+                                                onChange={(e) => handleDomicilioChange('comentario', e.target.value)}
+                                                placeholder='Mensaje para el presidente...'
+                                                rows={3}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                         </div>
                         <div className="flex justify-center mt-8 mb-5">
                             <Button variant="secondary" onClick={handleConfirmarDomicilio}>Confirmar</Button>

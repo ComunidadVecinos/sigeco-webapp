@@ -10,6 +10,7 @@ interface User {
     phone: string;
     photo?: string;
     communities?: any[];
+    activeCommunityId?: number;
 }
 
 interface AuthContextType{

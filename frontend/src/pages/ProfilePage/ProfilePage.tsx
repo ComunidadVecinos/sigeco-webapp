@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {Link, useNavigate}  from 'react-router-dom';
 import Header from '../../components/common/Header/Header';
 import imagen_generica from '../../assets/images/perfil_generico.png'
@@ -10,7 +10,8 @@ import DeleteAccountModal from '../../components/ui/DeleteAccountModal/DeleteAcc
 import { useAuth } from '../../context/authContext';
 import { changePassword } from '../../services/authServices';
 import { Button } from '@/components/ui/button';
-import {Pencil, Camera, ChevronRight, LogOut, Trash2, Plus} from 'lucide-react';
+import {Pencil, Camera, ChevronRight, LogOut, Trash2, Plus, Archive} from 'lucide-react';
+import { getMyRequests, archiveRequest } from '@/services/communityServices';
 
 const ProfilePage: React.FC = () =>{
 
@@ -33,6 +34,30 @@ const ProfilePage: React.FC = () =>{
     const [deleteAccountModalopen, setDeleteAccountModalOpen] = useState(false);
 
     const navigate = useNavigate();
+
+    const [solicitudes, setSolicitudes] = useState<any[]>([]);
+
+    const cargarSolicitudes = async () => {
+        try{
+            const res = await getMyRequests();
+            setSolicitudes(Array.isArray(res.data) ? res.data : []);
+        }catch(err){
+            console.error('Error al cargar solicitudes', err);
+        }
+    };
+
+    useEffect(() => {
+        cargarSolicitudes();
+    }, []);
+
+    const handleArchivar = async (requestId: number) => {
+        try{
+            await archiveRequest(requestId);
+            await cargarSolicitudes();
+        }catch(err: any){
+            alert(err.response?.data?.error?.message || 'Error al archivar solicitud');
+        }
+    };
 
     return (
 
@@ -96,6 +121,38 @@ const ProfilePage: React.FC = () =>{
                         </Link>
                     </div>
                 </div>
+
+                {solicitudes && solicitudes.length > 0 && (
+                    <div className="border  border-gray-200 rounded-2xl bg-white shadow-sm p-4 mt-5">
+                        <h4 className="font-bold">Mis solicitudes</h4>
+                        <p className="text-sm text-gray-500 mb-4">Historial de tus solicitudes enviadas a comunidades.</p>
+
+                        <div className="space-y-3">
+                            {solicitudes.map((sol) => (
+                                <div key={sol.id} className="border border-gray-200 rounded-xl p-4 flex justify-between items-start">
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-sm">{sol.communityName}</span>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full ${sol.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700': sol.status === 'APPROVED' ? 'bg-green-100 text-green-700': 'bg-red-100 text-red-700'}`}>{sol.status === 'PENDING' ? 'Pendiente': sol.status === 'APPROVED' ? 'Aceptada': 'Rechazada'}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-500 mt-1">
+                                            {sol.type === 'JOIN' ? 'Solicitud de acceso' : 'Cambio de informacion'}{' . '}{new Date(sol.createdAt).toLocaleDateString('es-ES')}
+                                        </p>
+                                        {sol.alias && <p className='text-sm text-gray-500 mt-1'>Alias: {sol.alias}</p>}
+                                        {sol.adminMessage && (
+                                            <p className='text-sm text-gray-600 mt-1 italic'>Respuesta del admin: {sol.adminMessage}</p>
+                                        )}
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={() => handleArchivar(sol.id)}>
+                                        <Archive className='h-4 w-4 mr-1'/>
+                                        {sol.status === 'PENDING' ? 'Cancelar':'Archivar'}
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-4 mt-5">
 

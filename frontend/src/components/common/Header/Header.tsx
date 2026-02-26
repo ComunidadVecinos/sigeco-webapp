@@ -8,6 +8,8 @@ import LogoutModal from '../../ui/LogoutModal/LogoutModal';
 import CommunitiesDropdown from '../../ui/CommunitiesDropdown/CommunitiesDropdown';
 import { Input } from '@/components/ui/input';
 import { Building2, CircleUserRound } from 'lucide-react';
+import { useAuth } from '@/context/authContext';
+import { setActiveCommunity } from '@/services/communityServices';
 
 interface HeaderLink {
     label: React.ReactNode;
@@ -27,12 +29,20 @@ const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}
     const navigate = useNavigate();
 
     const [communitiesDropdownOpen, setCommunitiesDropdownOpen] = useState(false);
-    const [activeCommunityId, setActiveCommunityId] = useState(1);
-    const [communities] = useState([
-        {id: 1, name: 'Los Robledales'},
-        {id: 2, name: 'Residencial Norte'}
-    ]);
 
+    const {user, refreshUser} = useAuth();
+
+    const communities = user?.communities || [];
+    const activeCommunityId = user?.activeCommunityId || 0;
+
+    const handleSelectCommunity = async (id:number) => {
+        try{
+            await setActiveCommunity(id);
+            await refreshUser();
+        }catch(err){
+            console.error('Error al cambiar comunidad', err);
+        }
+    };
 
     return(
         <header className="fixed top-0 w-full z-50 bg-white shadow-sm">
@@ -61,7 +71,7 @@ const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}
                                         onClose={() => setCommunitiesDropdownOpen(false)}
                                         communities={communities}
                                         activeCommunityId={activeCommunityId}
-                                        onSelectCommunity={(id) => setActiveCommunityId(id)}
+                                        onSelectCommunity={handleSelectCommunity}
                                     />
                                 </div>
                             )}
