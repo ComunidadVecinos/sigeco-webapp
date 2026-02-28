@@ -1,4 +1,3 @@
-import { use } from 'react';
 import api from './api';
 
 //Panel de administrador
@@ -71,12 +70,12 @@ export const assignVicepresident = (communityId: number, userId: number) =>
     api.put(`/api/communities/${communityId}/roles/vicepresident/assign`, {userId});
 
 //Transferir presidente
-export const trasnferPresident = (communityId: number, userId: number) =>
-    api.put(`/api/communities/${communityId}/roles/president/transfer`, {userId});
+export const transferPresident = (communityId: number, userId: number) =>
+    api.post(`/api/communities/${communityId}/roles/president/transfer`, {userId});
 
 //Transferir vicepresidente
-export const trasnferVicepresident = (communityId: number, userId: number) =>
-    api.put(`/api/communities/${communityId}/roles/vicepresident/transfer`, {userId});
+export const transferVicepresident = (communityId: number, userId: number) =>
+    api.post(`/api/communities/${communityId}/roles/vicepresident/transfer`, {userId});
 
 //Eliminar comunidad
 export const deleteCommunity = (communityId: number, data: {

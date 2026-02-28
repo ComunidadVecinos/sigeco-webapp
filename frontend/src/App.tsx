@@ -11,6 +11,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage/ForgotPasswordPage';
 import ProfilePage from './pages/ProfilePage/ProfilePage';
 import ForumPage from './pages/ForumPage/ForumPage';
 import NewCommunityPage from './pages/NewCommunityPage/NewCommunityPage';
+import AdminPage from './pages/AdminPage/AdminPage';
 import { AuthProvider } from './context/authContext';
 
 
@@ -31,6 +32,7 @@ const App: React.FC = () => {
                     <Route path="/auth/logout" />
                     <Route path="/auth/delete-account" />
                     <Route path="/auth/new-community" element={<NewCommunityPage />}/>
+                    <Route path='/admin' element={<AdminPage/>}/>
                 </Routes>
             </div>
         </AuthProvider>

@@ -24,6 +24,7 @@ interface HeaderProps{
 
 const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}) =>{
 
+
     const [profileDropdownOpen, setProfileDropdownopen] = useState(false);
     const [logoutModalOpen, setLogoutModalOpen] = useState(false);
     const navigate = useNavigate();
@@ -34,6 +35,8 @@ const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}
 
     const communities = user?.communities || [];
     const activeCommunityId = user?.activeCommunityId || 0;
+    const activeCommunity = communities.find((c: any) => c.id === activeCommunityId);
+    const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICEPRESIDENT';
 
     const handleSelectCommunity = async (id:number) => {
         try{
@@ -96,6 +99,11 @@ const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}
 
                     <div className="flex w-full justify-start ml-5">
                         <ul className="flex flex-row list-none gap-3">
+                            {isAdmin && (
+                                <li>
+                                    <Link to="/admin" className="font-bold text-[#104084] relative hover:after:w-full after:content-[''] after:absolute after:left-0 after:bottom-[-4px] after:w-0 after:h-0.5 after:bg-[#104084] after:transition-all">Administración</Link>
+                                </li>
+                            )}
                             {navLinks.map((link, index) => (
                                 <li key={index} >
                                     {link.onClick ? (
