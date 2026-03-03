@@ -11,7 +11,9 @@ import EditCommunityModal from '@/components/ui/EditCommunityModal/EditCommunity
 import RequestActionModal from '@/components/ui/RequestActionModal/RequestActionModal';
 import SuspendMemberModal from '@/components/ui/SuspendMemberModal/SuspendMemberModal';
 import ExpelMemberModal from '@/components/ui/ExpelMemberModal/ExpelMemberModal';
-import { cancelSuspension, assignVicepresident } from '@/services/adminService';
+import { cancelSuspension, assignVicepresident, transferPresident, transferVicepresident } from '@/services/adminService';
+import TransferRoleModal from '@/components/ui/TransferRoleModal/TransferRoleModal';
+import DeleteCommunityModal from '@/components/ui/DeleteCommunityModal/DeleteCommunityModal';
 
 
 const AdminPage: React.FC = () =>{
@@ -87,6 +89,8 @@ const AdminPage: React.FC = () =>{
     const [requestActionModal, setRequestActionModal] = useState<{open: boolean, action: 'approve' | 'reject', requestId: number}>({open: false, action: 'approve', requestId: 0});
     const [suspendModal, setSuspendModal] = useState<{open: boolean, userId: number, alias: string}>({open: false, userId: 0, alias: ''});
     const [expelModal, setExpelModal] = useState<{open: boolean, userId: number, alias: string}>({open: false, userId: 0, alias: ''});
+    const [transferModal, setTransferModal] = useState<{open: boolean, userId: number, alias: string, type: 'president' | 'vicepresident'}>({open: false, userId: 0, alias: '', type:'president'});
+    const [deleteCommunityModalOpen, setDeleteCommunityModalOpen] = useState(false);
 
     //Cargar dashboard
     const loadSummary = async () =>{
@@ -130,6 +134,7 @@ const AdminPage: React.FC = () =>{
     //Buscar rol del usuario
     const activeCommunity = user?.communities?.find((c: any) => c.id === communityId);
     const role = activeCommunity?.role;
+    //const role = 'VICEPRESIDENT';
 
     const navigate = useNavigate();
     useEffect(() => {
@@ -206,6 +211,11 @@ const AdminPage: React.FC = () =>{
                                 <Button variant="outline" size="sm" onClick={() => setEditCommunityModalOpen(true)}>
                                     <Pencil className='h-4 w-4 mr-1'/> Editar
                                 </Button>
+                                {role === 'PRESIDENT' && (
+                                    <Button variant="outline" size="sm" className='text-red-600 border-red-200' onClick={() => setDeleteCommunityModalOpen(true)}>
+                                        Eliminar comunidad
+                                    </Button>
+                                )}
                             </div>
                         </div>
 
@@ -369,7 +379,17 @@ const AdminPage: React.FC = () =>{
                                                 <Button size="sm" variant="outline" className='text-red-600' onClick={() => setExpelModal({open: true, userId:m.id, alias: m.alias})}>Expulsar</Button>
                                             )}
                                             {role === 'PRESIDENT' && m.role !== 'PRESIDENT' && m.role !== 'VICEPRESIDENT' && (
-                                                <Button size="sm" variant="outline" className='text-blue-600' onClick={() => handleAssingVP(m.id)}>Asignar VP</Button>
+                                                <Button size="sm" variant="outline" className='text-blue-600' onClick={() => handleAssingVP(m.id)}>Asignar vicepresidencia</Button>
+                                            )}
+                                            {role === 'PRESIDENT' && m.role !== 'PRESIDENT' && (
+                                                <Button size="sm" variant="outline" className='text-purple-600' onClick={() => setTransferModal({open: true, userId: m.id, alias: m.alias, type: 'president'})}>
+                                                    Transferir presidencia
+                                                </Button>
+                                            )}
+                                            {role === 'VICEPRESIDENT' && m.role !== 'PRESIDENT' && m.role !== 'VICEPRESIDENT' && (
+                                                <Button size="sm" variant="outline" className='text-purple-600' onClick={() => setTransferModal({open: true, userId: m.id, alias: m.alias, type: 'vicepresident'})}>
+                                                    Transferir vicepresidencia
+                                                </Button>
                                             )}
                                         </div>
                                     </div>
@@ -432,6 +452,24 @@ const AdminPage: React.FC = () =>{
                 userId={expelModal.userId}
                 memberAlias={expelModal.alias}
                 onSuccess={() => {loadMembers(); loadSummary();}} 
+            />
+
+            {/*Modal transferir role*/}
+            <TransferRoleModal
+                isOpen={transferModal.open}
+                onClose={() => setTransferModal({...transferModal, open: false})}
+                communityId={communityId!}
+                userId={transferModal.userId}
+                memberAlias={transferModal.alias}
+                transferType={transferModal.type}
+                onSuccess={() => {loadMembers(); loadSummary();}}
+            />
+
+            <DeleteCommunityModal
+                isOpen={deleteCommunityModalOpen}
+                onClose={() => setDeleteCommunityModalOpen(false)}
+                communityId={communityId!}
+                communityName={summary?.community?.name || ''}
             />
         </div>
     );
