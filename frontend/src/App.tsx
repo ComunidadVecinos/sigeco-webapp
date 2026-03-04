@@ -13,6 +13,7 @@ import ForumPage from './pages/ForumPage/ForumPage';
 import NewCommunityPage from './pages/NewCommunityPage/NewCommunityPage';
 import AdminPage from './pages/AdminPage/AdminPage';
 import { AuthProvider } from './context/authContext';
+import HelpPage from './pages/HelpPage/HelpPage';
 
 
 const App: React.FC = () => {
@@ -33,6 +34,7 @@ const App: React.FC = () => {
                     <Route path="/auth/delete-account" />
                     <Route path="/auth/new-community" element={<NewCommunityPage />}/>
                     <Route path='/admin' element={<AdminPage/>}/>
+                    <Route path='/help' element={<HelpPage/>}></Route>
                 </Routes>
             </div>
         </AuthProvider>
