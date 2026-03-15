@@ -5,6 +5,8 @@ export const getPosts = (communityId: number, filters: {
     page?: number;
     pageSize?: number;
     category?: string;
+    startDate?: string;
+    endDate?: string;
 }) => api.get(`/api/communities/${communityId}/forum/posts`, {params: filters});
 
 //Crear publicacion
@@ -34,7 +36,7 @@ export const getComments = (communityId: number, postId: number, filters: {
 }) => api.get(`/api/communities/${communityId}/forum/posts/${postId}/comments`, {params: filters});
 
 //Añadir comentario
-export const addComent = (communityId: number, postId: number, data: {
+export const addComment = (communityId: number, postId: number, data: {
     content: string;
 }) => api.post(`/api/communities/${communityId}/forum/posts/${postId}/comments`, data);
 
