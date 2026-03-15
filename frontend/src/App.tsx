@@ -14,6 +14,7 @@ import NewCommunityPage from './pages/NewCommunityPage/NewCommunityPage';
 import AdminPage from './pages/AdminPage/AdminPage';
 import { AuthProvider } from './context/authContext';
 import HelpPage from './pages/HelpPage/HelpPage';
+import NewsPage from './pages/NewsPage';
 
 
 const App: React.FC = () => {
@@ -29,12 +30,13 @@ const App: React.FC = () => {
                     <Route path="/auth/reset-password" element={<ForgotPasswordPage />} />
                     <Route path="/auth/change-password" />
                     <Route path="/auth/me" element={<ProfilePage />} />
-                    <Route path="/auth/forum" element={<ForumPage />} />
+                    <Route path="/forum" element={<ForumPage />} />
                     <Route path="/auth/logout" />
                     <Route path="/auth/delete-account" />
                     <Route path="/auth/new-community" element={<NewCommunityPage />}/>
                     <Route path='/admin' element={<AdminPage/>}/>
-                    <Route path='/help' element={<HelpPage/>}></Route>
+                    <Route path='/help' element={<HelpPage/>}/>
+                    <Route path='/news' element={<NewsPage/>}/>
                 </Routes>
             </div>
         </AuthProvider>
