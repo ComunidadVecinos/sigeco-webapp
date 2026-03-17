@@ -1,14 +1,16 @@
 import React, {useState, useEffect} from 'react';
 import Header from '@/components/common/Header/Header';
+import Sidebar from '@/components/ui/Sidebar/Sidebar';
 import { useAuth } from '@/context/authContext';
 import { getGenerealHelp, getComunnityHelp, deleteHelpSection, reorderHelpSections } from '@/services/helpServices';
 import { Button } from '@/components/ui/button';
-import {Plus, Pencil, Trash2, ChevronUp, ChevronDown, HelpCircle, BookOpen} from 'lucide-react';
+import {Plus, Pencil, Trash2, ChevronUp, ChevronDown, HelpCircle, BookOpen, Menu} from 'lucide-react';
 import HelpSectionModal from '@/components/ui/HelpSectionModal/HelpSectionModal';
 
 const HelpPage: React.FC = () =>{
     const {user} = useAuth();
     const communityId = user?.activeCommunityId;
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     //Rol del usuario
     const activeCommunity: any = user?.communities?.find((c: any) => c.id === communityId);
@@ -101,11 +103,20 @@ const HelpPage: React.FC = () =>{
 
     return(
         <div>
-            <Header navLinks={[{label: "Perfil", path: "/auth/me"}, {label: "Foro", path: "/auth/forum"}]}/>
+            <Header
+                showCommunutySwitcher={true}
+                navLinks={[
+                    {label: <><Menu className='h-4 w-4 inline mr-1' /> Comunidad</>, path: "#", onClick: () => setSidebarOpen(true)},
+                    {label: "Calendario", path: "/calendar"},
+                    {label: "Ayuda", path: "/help"}
+                ]}
+            />
 
-            <main className='max-w-5xl mx-auto px-4'>
-                <h2 className='text-3xl font-bold mt-35 text-gray-900'>Ayuda</h2>
-                <p className='text-gray-500 mb-8'>Consulta información útil sobre SIGECO y tu comunidad.</p>
+            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}/>
+
+            <main className='max-w-5xl mx-auto pt-[250px] md:pt-[200px] px-4'>
+                <h2 className='text-3xl font-bold text-gray-900'>Ayuda</h2>
+                <p className='text-gray-500 mt-4 mb-10'>Consulta información útil sobre SIGECO y tu comunidad.</p>
 
                 {/*Ayuda general*/}
                 <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-6 mb-5">
