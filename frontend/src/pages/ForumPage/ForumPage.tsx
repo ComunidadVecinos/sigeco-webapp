@@ -1,4 +1,4 @@
-import React, { use, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from '../../components/common/Header/Header';
 import Sidebar from '../../components/ui/Sidebar/Sidebar';
 import CreatePost from '../../components/ui/CreatePost/CreatePost';
@@ -124,7 +124,7 @@ const ForumPage: React.FC = () => {
         if (!communityId || !confirm('¿Eliminar esta publicación?')) return;
         try {
             await deletePost(communityId, postId);
-            setPosts(posts.filter(p => p.id === postId));
+            setPosts(posts.filter(p => p.id !== postId));
         } catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al eliminar publicación');
         }
@@ -135,7 +135,7 @@ const ForumPage: React.FC = () => {
         if (!communityId) return;
         try {
             const res = await toggleLike(communityId, postId);
-            setPosts(posts.map(p => p.id !== postId ? {
+            setPosts(posts.map(p => p.id === postId ? {
                 ...p,
                 hasLiked: res.data.liked,
                 likes: res.data.liked ? p.likes + 1 : p.likes - 1
@@ -203,7 +203,7 @@ const ForumPage: React.FC = () => {
         if (!communityId || !selectedPost || !confirm('¿Eliminar este comentario?')) return;
         try {
             await deleteComment(communityId, selectedPost.id, commentId);
-            setCommentsList(commentsList.filter(c => c.id === commentId));
+            setCommentsList(commentsList.filter(c => c.id !== commentId));
             setPosts(posts.map(p => p.id === selectedPost.id ? { ...p, commentCount: p.commentCount - 1 } : p));
         } catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al eliminar comentario');

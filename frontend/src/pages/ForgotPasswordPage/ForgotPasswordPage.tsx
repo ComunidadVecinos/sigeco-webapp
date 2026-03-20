@@ -48,8 +48,8 @@ const ForgotPassword: React.FC = () => {
     if(enviado){
         return(
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 px-4">
-                <div className="bg-white rounded-2x1 shadow-lg p-10 max-w-md w-full text-center">
-                    <h1 className="text-2x1 font-bold text-gray-900 mb-4">¡Email enviado!</h1>
+                <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-4">¡Email enviado!</h1>
                     <p className="text-muted-foreground mb-6">Hemos enviado una contraseña temporal a <strong>{email}</strong>. <br /> Revisa tu bandeja de entrada.</p>
                     <Button asChild className='w-full'>
                         <Link to="/auth/login">Volver a iniciar sesión</Link>
@@ -62,8 +62,8 @@ const ForgotPassword: React.FC = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 px-4">
-            <div className="bg-white rounded-2x1 shadow-lg p-10 max-w-md w-full">
-                <h1 className="text-2x1 font-bold text-gray-900 mb-2">Olvidé mi contraseña</h1>
+            <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Olvidé mi contraseña</h1>
                 <p className="text-muted-foreground mb-6">
                     Introduce tu email y te enviaremos una contraseña temporal.
                     Te recomendamos cambiarla desde tu perfil una vez que accedas.

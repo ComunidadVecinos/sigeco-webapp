@@ -14,7 +14,8 @@ import NewCommunityPage from './pages/NewCommunityPage/NewCommunityPage';
 import AdminPage from './pages/AdminPage/AdminPage';
 import { AuthProvider } from './context/authContext';
 import HelpPage from './pages/HelpPage/HelpPage';
-import NewsPage from './pages/NewsPage';
+import NewsPage from './pages/NewsPage/NewsPage';
+import CalendarPage from './pages/CalendarPage/CalendarPage';
 
 
 const App: React.FC = () => {
@@ -37,6 +38,7 @@ const App: React.FC = () => {
                     <Route path='/admin' element={<AdminPage/>}/>
                     <Route path='/help' element={<HelpPage/>}/>
                     <Route path='/news' element={<NewsPage/>}/>
+                    <Route path='/calendar' element={<CalendarPage/>}/>
                 </Routes>
             </div>
         </AuthProvider>
