@@ -1,14 +1,14 @@
 import React, {useEffect, useState} from 'react';
 import Header from '@/components/common/Header/Header';
 import Sidebar from '@/components/ui/Sidebar/Sidebar';
-import {Menu, Plus, Clock, MapPin, Trash2} from 'lucide-react';
+import {Menu, Plus, Clock, Pencil, Trash2} from 'lucide-react';
 import { useAuth } from '@/context/authContext';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { format, isSameDay } from 'date-fns';
 import {es} from 'date-fns/locale';
 import CreateEventCalendarModal from '@/components/ui/CreateEventCalendarModal/CreateEventCalendarModal';
-import { getCalendarEvents, createPersonalEvent, deletePersonalEvent } from '@/services/calendarService';
+import { getCalendarEvents, createPersonalEvent, deletePersonalEvent, updatePersonalEvent } from '@/services/calendarService';
 
 interface CalendarEvent {
     id: number;
@@ -32,6 +32,7 @@ const CalendarPage: React.FC = () => {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [loading, setLoading] = useState(false);
     const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+    const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
     /*PRUEBAS - Borrar cuando conectemos el backend*/
     useEffect(() => {
@@ -75,6 +76,24 @@ const CalendarPage: React.FC = () => {
         } catch(err: any){
             alert(err.response?.data?.error?.message || 'Error al guardar el evento');
         }
+    };
+
+    //Editar evento personal
+    const handleEditEvent = async (eventData: any) => {
+        if(!communityId || !editingEvent) return;
+        try{
+            const res: any = await updatePersonalEvent(communityId, editingEvent.id, eventData);
+            setEvents(events.map(e => e.id === editingEvent.id ? {...e, ...eventData} : e));
+            setEditingEvent(null);
+            setIsEventModalOpen(false);
+        } catch(err: any){
+            alert(err.response?.data?.error?.message || 'Error al editar');
+        }
+    };
+
+    const handleOpenEdit = (event: CalendarEvent) => {
+        setEditingEvent(event);
+        setIsEventModalOpen(true);
     };
 
     //Borrar evento personal
@@ -172,9 +191,14 @@ const CalendarPage: React.FC = () => {
                                     <div key={event.id} className='bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3 hover:border-gray-200 transition-colors group relative'>
 
                                         {event.type === 'personal' && (
-                                            <button onClick={() => handleDeleteEvent(event.id)} className='absolute top-4 right-4 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity' title='Eliminar'>
+                                            <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => handleOpenEdit(event)} className='text-gray-300 hover:text-blue-500' title='Editar'>
+                                                    <Pencil className='w-4 h-4' />
+                                                </button>
+                                                <button onClick={() => handleDeleteEvent(event.id)} className='text-gray-300 hover:text-red-500' title='Eliminar'>
                                                 <Trash2 className='w-4 h-4' />
                                             </button>
+                                            </div>
                                         )}
 
                                         <div className='flex items-center gap-2'>
@@ -201,9 +225,10 @@ const CalendarPage: React.FC = () => {
 
             <CreateEventCalendarModal
                 isOpen={isEventModalOpen}
-                onClose={() => setIsEventModalOpen(false)}
-                onSave={handleCreateEvent}
+                onClose={() => {setIsEventModalOpen(false); setEditingEvent(null);}}
+                onSave={editingEvent ? handleEditEvent : handleCreateEvent}
                 selectedDate={date}
+                editingEvent={editingEvent}
             />
         </div>
     );

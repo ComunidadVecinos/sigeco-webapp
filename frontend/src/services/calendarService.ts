@@ -14,6 +14,13 @@ export const createPersonalEvent = (communityId: number, data: {
     date: string;
 }) => api.post(`/api/communities/${communityId}/calendar/personal`, data);
 
+//Editar evento personal
+export const updatePersonalEvent = (communityId: number, eventId: number, data: {
+    title?: string;
+    time?: string;
+    date?: string;
+}) => api.patch(`/api/communities/${communityId}/calendar/personal/${eventId}`, data);
+
 //Eliminar evento personal
 export const deletePersonalEvent = (communityId: number, eventId: number) =>
     api.delete(`/api/communities/${communityId}/calendar/personal/${eventId}`);

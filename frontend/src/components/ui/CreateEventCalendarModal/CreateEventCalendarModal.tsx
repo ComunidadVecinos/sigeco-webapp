@@ -11,42 +11,46 @@ interface CreateEventCalendarModalProps {
     onClose: () => void;
     onSave: (eventData: any) => void;
     selectedDate: Date | undefined;
+    editingEvent?: {id: number; title: string; time: string} | null;
 }
 
-const CreateEventCalendarModal: React.FC<CreateEventCalendarModalProps> = ({isOpen, onClose, onSave, selectedDate}) => {
+const CreateEventCalendarModal: React.FC<CreateEventCalendarModalProps> = ({isOpen, onClose, onSave, selectedDate, editingEvent}) => {
     const [formData, setFormData] = useState({
         title: '',
         startTime: '10:00',
         endTime: '11:00',
-        location: ''
     });
 
     useEffect(() => {
         if(isOpen){
-            setFormData({title: '', startTime: '10:00', endTime: '11:00', location: ''});
+            if(editingEvent){
+                const [start, end] = editingEvent.time.split(' - ');
+                setFormData({title: editingEvent.title, startTime: start || '10:00', endTime: end || '11:00'});
+            } else {
+                setFormData({title: '', startTime: '10:00', endTime: '11:00'});
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, editingEvent]);
 
     const isValid = !!formData.title.trim();
 
     const handleSave = () => {
         if(!isValid || !selectedDate) return;
 
-        const newEvent = {
+        const eventEvent = {
             title: formData.title,
             time: `${formData.startTime} - ${formData.endTime}`,
-            location: formData.location || '',
             date: selectedDate.toISOString()
         };
 
-        onSave(newEvent);
+        onSave(eventEvent);
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Nuevo Evento Personal</DialogTitle>
+                    <DialogTitle>{editingEvent ? 'Editar Evento Personal' : 'Nuevo Evento Personal'}</DialogTitle>
                     <p className="text-sm text-gray-500 mt-1">
                         Para el dia: <span className="font-bold text-green-600">
                             {selectedDate ? format(selectedDate, "d 'de' MMMM 'de' yyyy", {locale: es}) : ''}
@@ -74,7 +78,7 @@ const CreateEventCalendarModal: React.FC<CreateEventCalendarModalProps> = ({isOp
 
                 <DialogFooter>
                     <Button variant="outline" onClick={onClose}>Cancelar</Button>
-                    <Button onClick={handleSave} disabled={!isValid || !selectedDate}>Guardar</Button>
+                    <Button onClick={handleSave} disabled={!isValid || !selectedDate}>{editingEvent ? 'Guardar Cambios' : 'Guardar'}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
