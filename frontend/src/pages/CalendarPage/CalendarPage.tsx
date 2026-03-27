@@ -23,39 +23,35 @@ const CalendarPage: React.FC = () => {
     const communityId = user?.activeCommunityId;
 
     //Rol del usuario
-    const activeCommunity: any = user?.communities?.find((c: any) => c.id === communityId);
-    const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICEPRESIDENT';
+    const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
+    const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [date, setDate] = useState<Date | undefined>(new Date());
 
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [loading, setLoading] = useState(false);
+    const [featureUnavailable, setFeatureUnavailable] = useState(false);
     const [isEventModalOpen, setIsEventModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-
-    /*PRUEBAS - Borrar cuando conectemos el backend*/
-    useEffect(() => {
-        setEvents([
-            { id: 101, title: "Avería ascensor bloque 3", time: "09:00 - 13:00", type: "community", date: "2026-03-22T10:00:00.000Z" },
-            { id: 102, title: "Pista de Pádel", time: "17:00 - 18:30", type: "reservation", date: "2026-03-23T10:00:00.000Z" },
-            { id: 103, title: "Votación presupuestos 2026", time: "19:00 - 20:00", type: "votes", date: "2026-03-24T10:00:00.000Z" },
-            { id: 104, title: "Viene el fontanero", time: "10:00 - 11:00", type: "personal", date: "2026-03-25T10:00:00.000Z" },
-        ]);
-    }, []);
-
 
     //Cargar eventos
     const loadEvents = async () => {
         if(!communityId) return;
         setLoading(true);
         try{
+            setFeatureUnavailable(false);
             const res : any = await getCalendarEvents(communityId);
             setEvents(res.data.content || []);
-        } catch(error){
+        } catch(error: any){
+            if(error?.response?.status === 404){
+                setFeatureUnavailable(true);
+                setEvents([]);
+            }
             console.error("Error cargando eventos", error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {loadEvents(); }, [communityId]);
@@ -69,6 +65,7 @@ const CalendarPage: React.FC = () => {
     //Crear evento personal
     const handleCreateEvent = async (newEventData: any) => {
         if(!communityId) return;
+        if(featureUnavailable) return;
         try{
             const res: any = await createPersonalEvent(communityId, newEventData);
             setEvents([...events, res.data]);
@@ -81,6 +78,7 @@ const CalendarPage: React.FC = () => {
     //Editar evento personal
     const handleEditEvent = async (eventData: any) => {
         if(!communityId || !editingEvent) return;
+        if(featureUnavailable) return;
         try{
             const res: any = await updatePersonalEvent(communityId, editingEvent.id, eventData);
             setEvents(events.map(e => e.id === editingEvent.id ? {...e, ...eventData} : e));
@@ -99,6 +97,7 @@ const CalendarPage: React.FC = () => {
     //Borrar evento personal
     const handleDeleteEvent = async (eventId: number) => {
         if(!communityId || !confirm("¿Eliminar este evento?")) return;
+        if(featureUnavailable) return;
         try{
             await deletePersonalEvent(communityId, eventId);
             setEvents(events.filter(e => e.id !== eventId));
@@ -123,10 +122,16 @@ const CalendarPage: React.FC = () => {
             <main className='max-w-[1000px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0 pb-12'>
                 <div className='flex justify-between items-center mb-6'>
                     <h1 className='text-[28px] font-bold text-gray-900'>Mi Calendario</h1>
-                    <Button size="sm" className='flex items-center gap-2' onClick={() => setIsEventModalOpen(true)}>
+                    <Button size="sm" className='flex items-center gap-2' onClick={() => setIsEventModalOpen(true)} disabled={featureUnavailable}>
                         <Plus className='h-4 w-4' />Evento Personal
                     </Button>
                 </div>
+
+                {featureUnavailable && (
+                    <div className='bg-white p-6 rounded-2xl border border-amber-200 text-amber-800 mb-6'>
+                        El backend actual no expone todavía el módulo de calendario. La pantalla queda visible, pero sus datos y acciones no están disponibles en esta arquitectura.
+                    </div>
+                )}
 
                 {/* Leyenda de colores */}
                 <div className="flex gap-4 mb-6 text-sm font-medium text-gray-600 border-b border-gray-200 pb-4">

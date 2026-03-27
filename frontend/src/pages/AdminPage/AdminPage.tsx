@@ -1,480 +1,716 @@
-import React, {useState, useEffect} from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+    CalendarDays,
+    Camera,
+    ChevronLeft,
+    ChevronRight,
+    FileText,
+    Pencil,
+    Search,
+    Shield,
+    Users
+} from 'lucide-react';
 import Header from '../../components/common/Header/Header';
+import imagen_generica from '../../assets/images/perfil_generico.png';
 import { useAuth } from '@/context/authContext';
-import { getAdminSummary, getRequests, getMembers } from '@/services/adminService';
+import {
+    assignVicepresident,
+    cancelSuspension,
+    getAdminSummary,
+    getMembers,
+    getRequests,
+    updateCommunityAvatar
+} from '@/services/adminService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import imagen_generica from '../../assets/images/perfil_generico.png';
-import { Pencil, Camera, ChevronLeft, ChevronRight, Search, Users, FileText, Building2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import EditCommunityModal from '@/components/ui/EditCommunityModal/EditCommunityModal';
 import RequestActionModal from '@/components/ui/RequestActionModal/RequestActionModal';
 import SuspendMemberModal from '@/components/ui/SuspendMemberModal/SuspendMemberModal';
 import ExpelMemberModal from '@/components/ui/ExpelMemberModal/ExpelMemberModal';
-import { cancelSuspension, assignVicepresident, transferPresident, transferVicepresident } from '@/services/adminService';
 import TransferRoleModal from '@/components/ui/TransferRoleModal/TransferRoleModal';
 import DeleteCommunityModal from '@/components/ui/DeleteCommunityModal/DeleteCommunityModal';
+import EditPhotoModal from '@/components/ui/EditPhotoModal/EditPhotoModal';
 
+type RequestFilterState = {
+    type: string;
+    page: number;
+    pageSize: number;
+};
 
-const AdminPage: React.FC = () =>{
+type MemberFilterState = {
+    q: string;
+    suspensionStatus: string;
+    joinedAfter: string;
+    joinedBefore: string;
+    page: number;
+    pageSize: number;
+};
 
-/*useEffect(() => {
-    setSummary({
-        community: {
-            name: 'Comunidad Residencial Sol',
-            cif: 'A12345678',
-            avatar: null,
-            streetType: 'Calle',
-            streetName: 'Gran Vía',
-            number: '12',
-            municipality: 'Madrid',
-            province: 'Madrid',
-            country: 'España',
-            postalCode: '28013'
-        },
-        pendingRequests: [
-            { id: 1, userName: 'Juan García', type: 'JOIN', createdAt: '2026-02-27T10:00:00Z' },
-            { id: 2, userName: 'María López', type: 'PROFILE_CHANGE', createdAt: '2026-02-26T14:00:00Z' },
-            { id: 3, userName: 'Pedro Sánchez', type: 'JOIN', createdAt: '2026-02-25T09:00:00Z' }
-        ],
-        totalMembers: 5,
-        members: [
-            { id: 1, alias: 'Piso 3A - Familia García', role: 'PRESIDENT', avatar: null, suspended: false },
-            { id: 2, alias: 'Bajo B - López', role: 'VICEPRESIDENT', avatar: null, suspended: false },
-            { id: 3, alias: 'Piso 1C - Martínez', role: 'MEMBER', avatar: null, suspended: false },
-            { id: 4, alias: 'Piso 2A - Fernández', role: 'MEMBER', avatar: null, suspended: true },
-            { id: 5, alias: 'Ático - Rodríguez', role: 'MEMBER', avatar: null, suspended: false }
-        ]
-    });
+function formatDate(value?: string | null) {
+    if (!value) return '-';
+    return new Date(value).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+}
 
-    setRequests([
-        { id: 1, userName: 'Juan García', status: 'PENDING', type: 'JOIN', alias: 'Piso 4B', createdAt: '2026-02-27T10:00:00Z', comment: 'Soy el nuevo vecino del 4B' },
-        { id: 2, userName: 'María López', status: 'PENDING', type: 'PROFILE_CHANGE', alias: null, createdAt: '2026-02-26T14:00:00Z', comment: null },
-        { id: 3, userName: 'Ana Torres', status: 'APPROVED', type: 'JOIN', alias: 'Piso 1A', createdAt: '2026-02-20T10:00:00Z', comment: null },
-        { id: 4, userName: 'Carlos Ruiz', status: 'REJECTED', type: 'JOIN', alias: 'Piso 5C', createdAt: '2026-02-18T10:00:00Z', comment: 'Hola quiero unirme' }
-    ]);
+function formatRole(role?: string | null) {
+    if (role === 'PRESIDENT') return 'Presidencia';
+    if (role === 'VICE_PRESIDENT') return 'Vicepresidencia';
+    if (role === 'MEMBER') return 'Vecino';
+    return role || '-';
+}
 
-    setMembers([
-        { id: 1, alias: 'Piso 3A - Familia García', role: 'PRESIDENT', userName: 'Admin García', avatar: null, suspended: false, streetType: 'Calle', streetName: 'Gran Vía', number: '12' },
-        { id: 2, alias: 'Bajo B - López', role: 'VICEPRESIDENT', userName: 'María López', avatar: null, suspended: false, streetType: 'Calle', streetName: 'Gran Vía', number: '12' },
-        { id: 3, alias: 'Piso 1C - Martínez', role: 'MEMBER', userName: 'Pedro Martínez', avatar: null, suspended: false, streetType: 'Calle', streetName: 'Gran Vía', number: '12' },
-        { id: 4, alias: 'Piso 2A - Fernández', role: 'MEMBER', userName: 'Laura Fernández', avatar: null, suspended: true, streetType: 'Calle', streetName: 'Gran Vía', number: '12' },
-        { id: 5, alias: 'Ático - Rodríguez', role: 'MEMBER', userName: 'Diego Rodríguez', avatar: null, suspended: false, streetType: 'Calle', streetName: 'Gran Vía', number: '12' }
-    ]);
-}, []);*/
+function formatRequestType(type?: string | null) {
+    return type === 'JOIN' ? 'Solicitud de acceso' : 'Modificación de datos';
+}
 
-
-
-    const {user} = useAuth();
+const AdminPage: React.FC = () => {
+    const navigate = useNavigate();
+    const { user, loading, refreshUser } = useAuth();
     const communityId = user?.activeCommunityId;
+    const activeCommunity = user?.communities?.find((community) => community.communityId === communityId);
+    const role = activeCommunity?.role;
+    const isAdmin = role === 'PRESIDENT' || role === 'VICE_PRESIDENT';
 
-    //Pestaña activa
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'members'>('dashboard');
-
-    //Dashboard
     const [summary, setSummary] = useState<any>(null);
-
-    //Solicitudes
+    const [summaryLoading, setSummaryLoading] = useState(false);
     const [requests, setRequests] = useState<any[]>([]);
-    const [requestFilters, setRequestFilters] = useState({status: 'PENDING', type: '', page:0, pageSize: 10});
+    const [requestsLoading, setRequestsLoading] = useState(false);
+    const [requestFilters, setRequestFilters] = useState<RequestFilterState>({ type: '', page: 1, pageSize: 10 });
+    const [requestTotal, setRequestTotal] = useState(0);
     const [requestTotalPages, setRequestTotalPages] = useState(0);
-
-    //Miembros
     const [members, setMembers] = useState<any[]>([]);
-    const [membersFilters, setMembersFilters] = useState({q: '', suspensionStatus: '', page: 0, pageSize: 10});
+    const [membersLoading, setMembersLoading] = useState(false);
+    const [membersFilters, setMembersFilters] = useState<MemberFilterState>({
+        q: '',
+        suspensionStatus: '',
+        joinedAfter: '',
+        joinedBefore: '',
+        page: 1,
+        pageSize: 10
+    });
     const [memberTotalPages, setMembersTotalPages] = useState(0);
-
-    //Modales
     const [editCommunityModalOpen, setEditCommunityModalOpen] = useState(false);
-    const [requestActionModal, setRequestActionModal] = useState<{open: boolean, action: 'approve' | 'reject', requestId: number}>({open: false, action: 'approve', requestId: 0});
-    const [suspendModal, setSuspendModal] = useState<{open: boolean, userId: number, alias: string}>({open: false, userId: 0, alias: ''});
-    const [expelModal, setExpelModal] = useState<{open: boolean, userId: number, alias: string}>({open: false, userId: 0, alias: ''});
-    const [transferModal, setTransferModal] = useState<{open: boolean, userId: number, alias: string, type: 'president' | 'vicepresident'}>({open: false, userId: 0, alias: '', type:'president'});
+    const [communityAvatarModalOpen, setCommunityAvatarModalOpen] = useState(false);
+    const [requestActionModal, setRequestActionModal] = useState<{ open: boolean; action: 'approve' | 'reject'; requestId: string }>({
+        open: false,
+        action: 'approve',
+        requestId: ''
+    });
+    const [suspendModal, setSuspendModal] = useState({ open: false, userId: '', alias: '' });
+    const [expelModal, setExpelModal] = useState({ open: false, userId: '', alias: '' });
+    const [transferModal, setTransferModal] = useState<{ open: boolean; userId: string; alias: string; type: 'president' | 'vicepresident' }>({
+        open: false,
+        userId: '',
+        alias: '',
+        type: 'president'
+    });
     const [deleteCommunityModalOpen, setDeleteCommunityModalOpen] = useState(false);
 
-    //Cargar dashboard
-    const loadSummary = async () =>{
-        if(!communityId) return;
-        try{
-            const res = await getAdminSummary(communityId);
-            setSummary(res.data);
-        }catch(err){
-            console.error('Error cargando dashboard', err);
-        }
-    };
-
-    //Cargar solicitudes
-    const loadRequests = async () =>{
-        if(!communityId) return;
-        try{
-            const res = await getRequests(communityId, requestFilters);
-            setRequests(res.data.content || []);
-            setRequestTotalPages(res.data.totalPages || 0);
-        }catch(err){
-            console.error('Error cargando solicitudes', err);
-        }
-    };
-
-    //Cargar miembros
-    const loadMembers = async () => {
-        if(!communityId) return;
-        try{
-            const res = await getMembers(communityId, membersFilters);
-            setMembers(res.data.content || []);
-            setMembersTotalPages(res.data.totalPages || 0);
-        }catch(err){
-            console.error('Error cargando miembros', err);
-        }
-    };
-
-    useEffect(() => {loadSummary(); }, [communityId]);
-    useEffect(() => { if (activeTab === 'requests') loadRequests(); }, [activeTab, requestFilters]);
-    useEffect(() => { if (activeTab === 'members') loadMembers(); }, [activeTab, membersFilters]);
-
-    //Buscar rol del usuario
-    const activeCommunity = user?.communities?.find((c: any) => c.id === communityId);
-    const role = activeCommunity?.role;
-    //const role = 'VICEPRESIDENT';
-
-    const navigate = useNavigate();
     useEffect(() => {
-        if(!role || (role !== 'PRESIDENT' && role !== 'VICEPRESIDENT')){
-            navigate('/auth/me');
-        }
-    }, [role]);
+        if (loading) return;
+        if (!communityId || !isAdmin) navigate('/auth/me');
+    }, [communityId, isAdmin, loading, navigate]);
 
-    const handleCancelSuspension = async (userId: number) => {
-        if(!confirm('¿Cancelar la suspensión de este miembro?')) return;
-        try{
-            await cancelSuspension(communityId!, userId);
-            loadMembers();
-            loadSummary();
-        }catch(err: any){
-            alert(err.response?.data?.error?.message || 'Error al cancelar suspensión');
+    useEffect(() => {
+        if (!communityId || !isAdmin) return;
+        let cancelled = false;
+
+        const fetchSummary = async () => {
+            setSummaryLoading(true);
+            try {
+                const res = await getAdminSummary(communityId);
+                if (!cancelled) setSummary(res.data);
+            } catch (err) {
+                console.error('Error cargando el resumen de comunidad', err);
+            } finally {
+                if (!cancelled) setSummaryLoading(false);
+            }
+        };
+
+        fetchSummary();
+        return () => {
+            cancelled = true;
+        };
+    }, [communityId, isAdmin]);
+
+    useEffect(() => {
+        if (!communityId || !isAdmin) return;
+        let cancelled = false;
+
+        const fetchRequests = async () => {
+            setRequestsLoading(true);
+            try {
+                const res = await getRequests(communityId, requestFilters);
+                if (!cancelled) {
+                    setRequests(res.data.items || []);
+                    setRequestTotal(res.data.total || 0);
+                    setRequestTotalPages(Math.max(1, Math.ceil((res.data.total || 0) / requestFilters.pageSize)));
+                }
+            } catch (err) {
+                console.error('Error cargando solicitudes pendientes', err);
+            } finally {
+                if (!cancelled) setRequestsLoading(false);
+            }
+        };
+
+        fetchRequests();
+        return () => {
+            cancelled = true;
+        };
+    }, [communityId, isAdmin, requestFilters]);
+
+    useEffect(() => {
+        if (!communityId || !isAdmin) return;
+        let cancelled = false;
+
+        const fetchMembers = async () => {
+            setMembersLoading(true);
+            try {
+                const res = await getMembers(communityId, membersFilters);
+                if (!cancelled) {
+                    setMembers(res.data.items || []);
+                    setMembersTotalPages(res.data.pagination?.totalPages || 0);
+                }
+            } catch (err) {
+                console.error('Error cargando miembros de la comunidad', err);
+            } finally {
+                if (!cancelled) setMembersLoading(false);
+            }
+        };
+
+        fetchMembers();
+        return () => {
+            cancelled = true;
+        };
+    }, [communityId, isAdmin, membersFilters]);
+
+    const reloadSummary = async () => {
+        if (!communityId) return;
+        const res = await getAdminSummary(communityId);
+        setSummary(res.data);
+    };
+
+    const reloadRequests = async () => {
+        if (!communityId) return;
+        const res = await getRequests(communityId, requestFilters);
+        setRequests(res.data.items || []);
+        setRequestTotal(res.data.total || 0);
+        setRequestTotalPages(Math.max(1, Math.ceil((res.data.total || 0) / requestFilters.pageSize)));
+    };
+
+    const reloadMembers = async () => {
+        if (!communityId) return;
+        const res = await getMembers(communityId, membersFilters);
+        setMembers(res.data.items || []);
+        setMembersTotalPages(res.data.pagination?.totalPages || 0);
+    };
+
+    const refreshAll = async () => {
+        await Promise.all([reloadSummary(), reloadRequests(), reloadMembers()]);
+    };
+
+    const handleCancelSuspension = async (userId: string) => {
+        if (!communityId || !window.confirm('¿Cancelar la suspensión de este miembro?')) return;
+        try {
+            await cancelSuspension(communityId, userId);
+            await Promise.all([reloadMembers(), reloadSummary()]);
+        } catch (err: any) {
+            window.alert(err.response?.data?.error?.message || 'No se ha podido cancelar la suspensión.');
         }
     };
 
-    const handleAssingVP = async (userId: number) => {
-        if(!confirm('Asignar a este miembro como vicepresidente?')) return;
-        try{
-            await assignVicepresident(communityId!, userId);
-            loadMembers();
-            loadSummary();
-        }catch(err: any){
-            alert(err.response?.data?.error?.message || 'Error al asignar vicepresidente');
+    const handleAssignVicepresidency = async (userId: string) => {
+        if (!communityId || !window.confirm('¿Asignar a este miembro como vicepresidente?')) return;
+        try {
+            await assignVicepresident(communityId, userId);
+            await Promise.all([reloadMembers(), reloadSummary(), refreshUser()]);
+        } catch (err: any) {
+            window.alert(err.response?.data?.error?.message || 'No se ha podido asignar la vicepresidencia.');
         }
     };
+
+    if (!communityId || !isAdmin) return null;
 
     return (
         <div>
-            <Header navLinks={[{label: "Perfil", path: "/auth/me"}, {label: "Ayuda", path: "/help"}]}/>
+            <Header navLinks={[{ label: 'Perfil', path: '/auth/me' }, { label: 'Ayuda', path: '/help' }]} />
 
-            <main className="max-w-6xl mx-auto px-4">
-                <h2 className='text-3xl font-bold mt-35 text-gray-900'>Panel de administración</h2>
-                <p className='text-gray-500 mb-8'>Gestiona tu comunidad, solicitudes y miembros.</p>
-
-                {/*Pestañas*/}
-                <div className="flex  gap-2 mb-6">
-                    <Button variant={activeTab === 'dashboard' ? 'default' : 'outline'} onClick={() => setActiveTab('dashboard')}>
-                        <Building2 className='h-4 w-4 mr-2'/> Dashboard
-                    </Button>
-                    <Button variant={activeTab === 'requests' ? 'default' : 'outline'} onClick={() => setActiveTab('requests')}>
-                        <FileText className='h-4 w-4 mr-2'/> Solicitudes
-                    </Button>
-                    <Button variant={activeTab === 'members' ? 'default' : 'outline'} onClick={() => setActiveTab('members')}>
-                        <Users className='h-4 w-4 mr-2'/> Miembros
-                    </Button>
+            <main className="max-w-6xl mx-auto px-4 pb-24">
+                <div className="mt-35 mb-8">
+                    <h2 className="text-4xl font-bold text-gray-900">Administración de la Comunidad</h2>
+                    <p className="text-gray-500 mt-2">
+                        Gestiona la información principal de la comunidad, las solicitudes pendientes y el listado de miembros.
+                    </p>
                 </div>
 
-
-                {/*Dashboard*/}
-                {activeTab === 'dashboard' && summary && (
-                    <>
-                        {/*Tarjeta de informacion de la comunidad*/}
-                        <div className='border border-gray-200 rounded-2xl bg-white shadow-sm p-6 mb-5'>
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-4">
-                                    <div className="relative">
-                                        <img src={summary.community?.avatar || imagen_generica} alt="Comunidad" className='w-20 h-20 rounded-full object-cover border-2 border-gray-200' />
-                                        <button className='absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-1.5 hover:opacity-90 transition-opacity'>
-                                            <Camera className='h-3 w-3'/>
-                                        </button>
-                                    </div>
-                                    <div>
-                                        <h3 className='text-xl font-bold'>{summary.community?.name}</h3>
-                                        <p className="text-sm text-gray-500">CIF: {summary.community?.cif}</p>
-                                        <p className="text-sm text-gray-500">
-                                            {summary.community?.streetType} {summary.community?.streetName}, {summary.community?.number} - {summary.community?.municipality}, {summary.community?.province}
-                                        </p>
-                                    </div>
-                                </div>
+                <section className="border border-gray-200 rounded-[28px] bg-white shadow-sm p-6 md:p-8 mb-8">
+                    <div className="flex flex-col gap-6">
+                        <div className="flex items-start justify-between gap-4">
+                            <h3 className="text-2xl font-bold text-gray-900">Datos de la Comunidad</h3>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
                                 <Button variant="outline" size="sm" onClick={() => setEditCommunityModalOpen(true)}>
-                                    <Pencil className='h-4 w-4 mr-1'/> Editar
+                                    <Pencil className="h-4 w-4 mr-2" />Editar
                                 </Button>
                                 {role === 'PRESIDENT' && (
-                                    <Button variant="outline" size="sm" className='text-red-600 border-red-200' onClick={() => setDeleteCommunityModalOpen(true)}>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-red-600 border-red-200 hover:bg-red-50"
+                                        onClick={() => setDeleteCommunityModalOpen(true)}
+                                    >
                                         Eliminar comunidad
                                     </Button>
                                 )}
                             </div>
                         </div>
 
-                        {/*Tarjetas solicitudes pendientes y miembros*/}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                            <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h4 className="font-bold">Solicitudes pendientes</h4>
-                                    <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">{summary.pendingRequests?.length || 0}</span>
-                                </div>
-                                {summary.pendingRequests?.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {summary.pendingRequests.slice(0, 5).map((req: any) => (
-                                            <div key={req.id} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2">
-                                                <div>
-                                                    <span className='font-medium'>{req.userName}</span>
-                                                    <span className='text-gray-400 ml-2'>{req.type === 'JOIN' ? 'Acceso' : 'Cambio info'}</span>
-                                                </div>
-                                                <span className='text-gray-400'>{new Date(req.createdAt).toLocaleDateString('es-ES')}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-gray-400 text-center py-4">Sin solicitudes pendientes.</p>
-                                )}
-                                <Button variant="link" className='w-full mt-2' onClick={() => setActiveTab('requests')}>Ver todas</Button>
-                            </div>
-
-                            <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-6">
-                                <div className="flex  justify-between items-center mb-4">
-                                    <h4 className="font-bold">Miembros</h4>
-                                    <span className='text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700'>{summary.totalMembers || 0}</span>
-                                </div>
-                                {summary.members?.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {summary.members.slice(0, 8).map((m: any) => (
-                                            <div key={m.id} className='flex items-center gap-3 text-sm border-b border-gray-50 pb-2'>
-                                                <img src={m.avatar || imagen_generica} alt={m.alias} className='w-8 h-8 rounded-full object-cover' />
-                                                <span className='font-medium flex-1'>{m.alias}</span>
-                                                <span className='text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700'>{m.role}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-gray-400 text-center py-4">Sin miembros.</p>
-                                )}
-                                <Button variant="link" className='w-full mt-2' onClick={() => setActiveTab('members')}>Ver todos</Button>
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {/*Solicitudes*/}
-                {activeTab === 'requests' && (
-                    <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-6 mb-5">
-                        <h4 className="font-bold mb-4">Solicitudes</h4>
-
-                        {/*Filtros*/}
-                        <div className="flex flex-wrap gap-3 mb-4">
-                            <select className='border border-gray-200 rounded-lg px-3 py-2 text-sm' value={requestFilters.status} onChange={(e) => setRequestFilters({...requestFilters, status: e.target.value, page: 0})}>
-                                <option value="PENDING">Pendientes</option>
-                                <option value="APPROVED">Aprobadas</option>
-                                <option value="REJECTED">Rechazadas</option>
-                                <option value="">Todas</option>
-                            </select>
-                            <select className='border border-gray-200 rounded-lg px-3 py-2 text-sm' value={requestFilters.type} onChange={(e) => setRequestFilters({...requestFilters, type: e.target.value, page: 0})}>
-                                <option value="">Todos los tipos</option>
-                                <option value="JOIN">Acceso</option>
-                                <option value="PROFILE_CHANGE">Cambio de info</option>
-                            </select>
-                        </div>
-
-                        {/*Lista*/}
-                        {requests.length > 0 ? (
-                            <div className="space-y-3">
-                                {requests.map((req: any) => (
-                                    <div key={req.id} className='border border-gray-200 rounded-xl p-4 flex justify-between items-start'>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <span className='font-bold text-sm'>{req.userName}</span>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full ${req.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : req.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {req.status === 'PENDING' ? 'Pendiente' : req.status === 'APPROVED' ? 'Aprobada': 'Rechazada'}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm text-gray-500 mt-1">
-                                                {req.type === 'JOIN' ? 'Solicitud de acceso' : 'Cambio de información'} - {new Date(req.createdAt).toLocaleDateString('es-ES')}
-                                            </p>
-                                            {req.alias && <p className="text-sm text-gray-500">Alias: {req.alias}</p>}
-                                            {req.comment && <p className='text-sm text-gray-400 italic mt-1'>"{req.comment}"</p>}
-                                        </div>
-                                        {req.status === 'PENDING' && (
-                                            <div className="flex gap-2">
-                                                 <Button size="sm" variant="outline" className='text-green-600 border-green-200 hover:bg-green-50' onClick={() => setRequestActionModal({open: true, action: 'approve', requestId: req.id})}>Aceptar</Button>
-                                                 <Button size="sm" variant="outline" className='text-red-600 border-red-200 hover:bg-red-50' onClick={() => setRequestActionModal({open: true, action: 'reject', requestId: req.id})}>Rechazar</Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
+                        {summaryLoading && !summary ? (
+                            <p className="text-sm text-gray-500">Cargando datos de la comunidad...</p>
                         ) : (
-                            <p className="text-sm text-gray-400 text-center py-6">No hay solicitudes con estos filtros.</p>
-                        )}
+                            <div className="grid grid-cols-1 lg:grid-cols-[240px,1fr] gap-8">
+                                <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
+                                    <div className="relative">
+                                        <img
+                                            src={summary?.community?.avatar || imagen_generica}
+                                            alt={summary?.community?.name || 'Comunidad'}
+                                            className="w-40 h-40 rounded-full object-cover border-4 border-blue-100 shadow-sm"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setCommunityAvatarModalOpen(true)}
+                                            className="absolute bottom-2 right-2 bg-primary text-primary-foreground rounded-full p-3 shadow hover:opacity-90 transition-opacity"
+                                            aria-label="Cambiar avatar de la comunidad"
+                                        >
+                                            <Camera className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                    <div className="mt-5 w-full">
+                                        <p className="text-sm text-slate-500">Nombre</p>
+                                        <p className="text-2xl font-bold text-gray-900 mt-1">{summary?.community?.name || '-'}</p>
+                                    </div>
+                                </div>
 
-                        {/*Paginacion*/}
-                        {requestTotalPages > 1 && (
-                            <div className="flex justify-center items-center gap-4 mt-6">
-                                <Button variant="outline" size="sm" disabled={requestFilters.page === 0} onClick={() => setRequestFilters({...requestFilters, page: requestFilters.page - 1})}>
-                                    <ChevronLeft className='h-4 w-4'/>
-                                </Button>
-                                <span className="text-sm text-gray-500">Página {requestFilters.page + 1} de {requestTotalPages}</span>
-                                <Button variant="outline" size="sm" disabled={requestFilters.page >= requestTotalPages - 1} onClick={() => setRequestFilters({...requestFilters, page: requestFilters.page + 1})}>
-                                    <ChevronRight className='h-4 w-4'/>
-                                </Button>
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    <div className="space-y-1 md:col-span-2">
+                                        <p className="text-sm text-slate-500">Dirección</p>
+                                        <p className="font-semibold text-gray-900">
+                                            {summary?.community?.address?.formatted || 'Sin dirección registrada'}
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-slate-500">C.I.F.</p>
+                                        <p className="font-semibold text-gray-900">{summary?.community?.cif || '-'}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-slate-500">Presidente</p>
+                                        <p className="font-semibold text-gray-900">{summary?.community?.president?.alias || '-'}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-slate-500">Vicepresidente</p>
+                                        <p className="font-semibold text-gray-900">{summary?.community?.vicePresident?.alias || '-'}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-slate-500">Fecha de creación</p>
+                                        <p className="font-semibold text-gray-900">{formatDate(summary?.community?.createdAt)}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-slate-500">Número de vecinos</p>
+                                        <p className="font-semibold text-gray-900">{summary?.community?.neighborsCount ?? 0}</p>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
-                )}
+                </section>
 
-                {/*Miembros*/}
-                {activeTab === 'members' && (
-                    <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-6 mb-5">
-                        <h4 className='font-bold mb-4'>Miembros</h4>
+                <section className="border border-gray-200 rounded-[28px] bg-white shadow-sm p-6 md:p-8 mb-8">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <h3 className="text-2xl font-bold text-gray-900">Solicitudes pendientes</h3>
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                                {requestTotal} Pendientes
+                            </span>
+                        </div>
 
-                        {/*Filtros*/}
-                        <div className="flex flex-wrap gap-3 mb-4">
-                            <div className="relative flex-1 max-w-xs">
-                                <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400'/>
-                                <Input className='pl-9' placeholder='Buscar por alias o dirección...' value={membersFilters.q} onChange={(e) => setMembersFilters({...membersFilters, q: e.target.value, page:0})}/>
+                        <div className="flex items-center gap-3">
+                            <FileText className="h-4 w-4 text-slate-400" />
+                            <select
+                                className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                                value={requestFilters.type}
+                                onChange={(e) => setRequestFilters((prev) => ({ ...prev, type: e.target.value, page: 1 }))}
+                            >
+                                <option value="">Todos los tipos</option>
+                                <option value="JOIN">Solicitud de acceso</option>
+                                <option value="UPDATE_INFO">Modificación de datos</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {requestsLoading && requests.length === 0 ? (
+                        <p className="text-sm text-gray-500 py-8">Cargando solicitudes pendientes...</p>
+                    ) : requests.length > 0 ? (
+                        <div className="space-y-4">
+                            {requests.map((request) => (
+                                <article key={request.id} className="border border-gray-200 rounded-2xl p-5">
+                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                <h4 className="font-bold text-lg text-gray-900">
+                                                    {request.requesterName || request.proposedAlias || 'Solicitud pendiente'}
+                                                </h4>
+                                                <span
+                                                    className={`text-xs px-2 py-1 rounded-full ${
+                                                        request.type === 'JOIN'
+                                                            ? 'bg-blue-100 text-blue-700'
+                                                            : 'bg-yellow-100 text-yellow-700'
+                                                    }`}
+                                                >
+                                                    {formatRequestType(request.type)}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-gray-500">
+                                                Dirección solicitada: {request.proposedAddress?.formatted || 'Sin dirección indicada'}
+                                            </p>
+                                            {request.requestComment && (
+                                                <p className="text-sm text-gray-700 mt-3">{request.requestComment}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-col items-start lg:items-end gap-3">
+                                            <span className="text-sm text-gray-400">{formatDate(request.createdAt)}</span>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="border-green-200 text-green-700 hover:bg-green-50"
+                                                    onClick={() => setRequestActionModal({ open: true, action: 'approve', requestId: request.id })}
+                                                >
+                                                    Aceptar
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="border-red-200 text-red-700 hover:bg-red-50"
+                                                    onClick={() => setRequestActionModal({ open: true, action: 'reject', requestId: request.id })}
+                                                >
+                                                    Rechazar
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-400 text-center py-8">No hay solicitudes pendientes con estos filtros.</p>
+                    )}
+
+                    {requestTotalPages > 1 && (
+                        <div className="flex justify-center items-center gap-4 mt-6">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={requestFilters.page === 1}
+                                onClick={() => setRequestFilters((prev) => ({ ...prev, page: prev.page - 1 }))}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="text-sm text-gray-500">Página {requestFilters.page} de {requestTotalPages}</span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={requestFilters.page >= requestTotalPages}
+                                onClick={() => setRequestFilters((prev) => ({ ...prev, page: prev.page + 1 }))}
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
+                </section>
+
+                <section className="border border-gray-200 rounded-[28px] bg-white shadow-sm p-6 md:p-8">
+                    <div className="flex flex-col gap-4 mb-6">
+                        <div className="flex items-center gap-3">
+                            <h3 className="text-2xl font-bold text-gray-900">Miembros de la Comunidad</h3>
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                                {summary?.community?.neighborsCount ?? members.length} vecinos
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_220px_180px_180px] gap-3">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input
+                                    className="pl-9"
+                                    placeholder="Buscar por alias o dirección..."
+                                    value={membersFilters.q}
+                                    onChange={(e) => setMembersFilters((prev) => ({ ...prev, q: e.target.value, page: 1 }))}
+                                />
                             </div>
-                            <select className='border border-gray-200 rounded-lg px-3 py-2 text-sm' value={membersFilters.suspensionStatus} onChange={(e) => setMembersFilters({...membersFilters, suspensionStatus: e.target.value, page: 0})}>
+                            <select
+                                className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+                                value={membersFilters.suspensionStatus}
+                                onChange={(e) => setMembersFilters((prev) => ({ ...prev, suspensionStatus: e.target.value, page: 1 }))}
+                            >
                                 <option value="">Todos</option>
                                 <option value="ACTIVE">Activos</option>
                                 <option value="INACTIVE">Suspendidos</option>
                             </select>
+                            <Input
+                                type="date"
+                                value={membersFilters.joinedAfter}
+                                onChange={(e) => setMembersFilters((prev) => ({ ...prev, joinedAfter: e.target.value, page: 1 }))}
+                            />
+                            <Input
+                                type="date"
+                                value={membersFilters.joinedBefore}
+                                onChange={(e) => setMembersFilters((prev) => ({ ...prev, joinedBefore: e.target.value, page: 1 }))}
+                            />
                         </div>
+                    </div>
 
-                        {/*Lista*/}
-                        {members.length > 0 ? (
-                            <div className="space-y-3">
-                                {members.map((m: any) => (
-                                    <div key={m.id} className='border border-gray-200 rounded-xl p-4 flex items-center gap-4'>
-                                        <img src={m.avatar || imagen_generica} alt={m.alias} className='w-12 h-12 rounded-full object-cover border-2 border-gray-200' />
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <span className='font-bold text-sm'>{m.alias}</span>
-                                                <span className='text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700'>{m.role}</span>
-                                                {m.suspended && <span className='text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700'>Suspendido</span>}
-                                            </div>
-                                            <p className="text-sm text-gray-500">{m.userName}</p>
-                                            <p className="text-sm text-gray-400">{m.streetType} {m.streetName}, {m.number}</p>
+                    {membersLoading && members.length === 0 ? (
+                        <p className="text-sm text-gray-500 py-8">Cargando miembros de la comunidad...</p>
+                    ) : members.length > 0 ? (
+                        <div className="space-y-4">
+                            {members.map((member) => (
+                                <article
+                                    key={member.membershipId}
+                                    className="border border-gray-200 rounded-2xl p-5 flex flex-col gap-4 xl:flex-row xl:items-start"
+                                >
+                                    <div className="h-12 w-12 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+                                        <Users className="h-5 w-5" />
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                                            <h4 className="font-bold text-lg text-gray-900">{member.alias || 'Sin alias'}</h4>
+                                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                                                {formatRole(member.role)}
+                                            </span>
+                                            {member.suspensionStatus === 'INACTIVE' && (
+                                                <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">
+                                                    Suspendido
+                                                </span>
+                                            )}
                                         </div>
-                                        {/*Botones de accion*/}
-                                        <div className="flex gap-2">
-                                            {m.suspended && (
-                                                <Button size="sm" variant="outline" onClick={() => handleCancelSuspension(m.id)}>Reactivar</Button>
-                                            )}
-                                            {!m.suspended && m.role !== 'PRESIDENT' && (
-                                                <Button size="sm" variant="outline" className='text-yellow-600' onClick={() => setSuspendModal({open: true, userId:m.id, alias: m.alias})}>Suspender</Button>
-                                            )}
-                                            {m.role !== 'PRESIDENT' && (
-                                                <Button size="sm" variant="outline" className='text-red-600' onClick={() => setExpelModal({open: true, userId:m.id, alias: m.alias})}>Expulsar</Button>
-                                            )}
-                                            {role === 'PRESIDENT' && m.role !== 'PRESIDENT' && m.role !== 'VICEPRESIDENT' && (
-                                                <Button size="sm" variant="outline" className='text-blue-600' onClick={() => handleAssingVP(m.id)}>Asignar vicepresidencia</Button>
-                                            )}
-                                            {role === 'PRESIDENT' && m.role !== 'PRESIDENT' && (
-                                                <Button size="sm" variant="outline" className='text-purple-600' onClick={() => setTransferModal({open: true, userId: m.id, alias: m.alias, type: 'president'})}>
-                                                    Transferir presidencia
-                                                </Button>
-                                            )}
-                                            {role === 'VICEPRESIDENT' && m.role !== 'PRESIDENT' && m.role !== 'VICEPRESIDENT' && (
-                                                <Button size="sm" variant="outline" className='text-purple-600' onClick={() => setTransferModal({open: true, userId: m.id, alias: m.alias, type: 'vicepresident'})}>
-                                                    Transferir vicepresidencia
-                                                </Button>
+                                        <p className="text-sm text-gray-500">
+                                            {member.property?.formatted || 'Sin dirección asociada'}
+                                        </p>
+                                        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500">
+                                            <span className="inline-flex items-center gap-2">
+                                                <CalendarDays className="h-4 w-4" />
+                                                Alta: {formatDate(member.createdAt)}
+                                            </span>
+                                            {member.suspensionStatus === 'INACTIVE' && (
+                                                <span className="inline-flex items-center gap-2">
+                                                    <Shield className="h-4 w-4" />
+                                                    Hasta: {formatDate(member.suspendedUntil)}
+                                                </span>
                                             )}
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-gray-400 text-center py-6">No hay miembros con estos filtros.</p>
-                        )}
 
-                        {/*Paginacion*/}
-                        {memberTotalPages > 1 && (
-                            <div className="flex justify-center items-center gap-4 mt-6">
-                                <Button variant="outline" size="sm" disabled={membersFilters.page === 0} onClick={() => setMembersFilters({...membersFilters, page: membersFilters.page - 1})}>
-                                    <ChevronLeft className='h-4 w-4'/>
-                                </Button>
-                                <span className='text-sm text-gray-500'>Página {membersFilters.page + 1} de {memberTotalPages}</span>
-                                <Button variant="outline" size="sm" disabled={membersFilters.page > memberTotalPages - 1} onClick={() => setMembersFilters({...membersFilters, page: membersFilters.page + 1})}>
-                                    <ChevronRight className='h-4 w-4'/>
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                )}
+                                    <div className="flex flex-wrap gap-2 xl:justify-end">
+                                        {member.suspensionStatus === 'INACTIVE' ? (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleCancelSuspension(member.membershipId)}
+                                            >
+                                                Reactivar
+                                            </Button>
+                                        ) : (
+                                            member.role !== 'PRESIDENT' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-yellow-700 border-yellow-200 hover:bg-yellow-50"
+                                                    onClick={() =>
+                                                        setSuspendModal({
+                                                            open: true,
+                                                            userId: member.membershipId,
+                                                            alias: member.alias || 'miembro'
+                                                        })
+                                                    }
+                                                >
+                                                    Suspender
+                                                </Button>
+                                            )
+                                        )}
+
+                                        {member.role !== 'PRESIDENT' && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-red-700 border-red-200 hover:bg-red-50"
+                                                onClick={() =>
+                                                    setExpelModal({
+                                                        open: true,
+                                                        userId: member.membershipId,
+                                                        alias: member.alias || 'miembro'
+                                                    })
+                                                }
+                                            >
+                                                Expulsar
+                                            </Button>
+                                        )}
+
+                                        {role === 'PRESIDENT' && member.role !== 'PRESIDENT' && member.role !== 'VICE_PRESIDENT' && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-blue-700 border-blue-200 hover:bg-blue-50"
+                                                onClick={() => handleAssignVicepresidency(member.membershipId)}
+                                            >
+                                                Asignar vicepresidencia
+                                            </Button>
+                                        )}
+
+                                        {role === 'PRESIDENT' && member.role !== 'PRESIDENT' && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-purple-700 border-purple-200 hover:bg-purple-50"
+                                                onClick={() =>
+                                                    setTransferModal({
+                                                        open: true,
+                                                        userId: member.membershipId,
+                                                        alias: member.alias || 'miembro',
+                                                        type: 'president'
+                                                    })
+                                                }
+                                            >
+                                                Transferir presidencia
+                                            </Button>
+                                        )}
+
+                                        {role === 'VICE_PRESIDENT' &&
+                                            member.role !== 'PRESIDENT' &&
+                                            member.role !== 'VICE_PRESIDENT' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-purple-700 border-purple-200 hover:bg-purple-50"
+                                                    onClick={() =>
+                                                        setTransferModal({
+                                                            open: true,
+                                                            userId: member.membershipId,
+                                                            alias: member.alias || 'miembro',
+                                                            type: 'vicepresident'
+                                                        })
+                                                    }
+                                                >
+                                                    Transferir vicepresidencia
+                                                </Button>
+                                            )}
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-400 text-center py-8">No hay miembros con estos filtros.</p>
+                    )}
+
+                    {memberTotalPages > 1 && (
+                        <div className="flex justify-center items-center gap-4 mt-6">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={membersFilters.page === 1}
+                                onClick={() => setMembersFilters((prev) => ({ ...prev, page: prev.page - 1 }))}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="text-sm text-gray-500">Página {membersFilters.page} de {memberTotalPages}</span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={membersFilters.page >= memberTotalPages}
+                                onClick={() => setMembersFilters((prev) => ({ ...prev, page: prev.page + 1 }))}
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
+                </section>
             </main>
 
-            {/*Modal editar info comunidad*/}
             <EditCommunityModal
                 isOpen={editCommunityModalOpen}
                 onClose={() => setEditCommunityModalOpen(false)}
-                communityId={communityId ?? 0}
+                communityId={communityId}
                 currentData={summary?.community}
-                onSave={() => loadSummary()}
+                onSave={reloadSummary}
             />
 
-            {/*Modal solicitar accion*/}
+            <EditPhotoModal
+                isOpen={communityAvatarModalOpen}
+                onClose={() => setCommunityAvatarModalOpen(false)}
+                currentPhoto={summary?.community?.avatar || imagen_generica}
+                title="Cambiar avatar de la comunidad"
+                selectLabel="Seleccionar nuevo avatar"
+                saveErrorFallback="No se ha podido actualizar el avatar de la comunidad."
+                uploadPhoto={(file) => updateCommunityAvatar(communityId, file)}
+                onSave={async (newPhotoUrl) => {
+                    setSummary((prev: any) => (prev ? { ...prev, community: { ...prev.community, avatar: newPhotoUrl } } : prev));
+                    await reloadSummary();
+                }}
+            />
+
             <RequestActionModal
                 isOpen={requestActionModal.open}
-                onClose={() => setRequestActionModal({...requestActionModal, open: false})}
+                onClose={() => setRequestActionModal((prev) => ({ ...prev, open: false }))}
                 action={requestActionModal.action}
-                communityId={communityId!}
+                communityId={communityId}
                 requestId={requestActionModal.requestId}
-                onSuccess={() => {loadRequests(); loadSummary();}} 
+                onSuccess={() => {
+                    refreshAll();
+                }}
             />
 
-            {/*Modal suspender miembro*/}
             <SuspendMemberModal
                 isOpen={suspendModal.open}
-                onClose={() => setSuspendModal({...suspendModal, open: false})}
-                communityId={communityId!}
+                onClose={() => setSuspendModal((prev) => ({ ...prev, open: false }))}
+                communityId={communityId}
                 userId={suspendModal.userId}
                 memberAlias={suspendModal.alias}
-                onSuccess={() => {loadMembers(); loadSummary();}} 
+                onSuccess={() => {
+                    Promise.all([reloadMembers(), reloadSummary()]);
+                }}
             />
 
-            {/*Modal expuldar miembro*/}
-             <ExpelMemberModal
+            <ExpelMemberModal
                 isOpen={expelModal.open}
-                onClose={() => setExpelModal({...expelModal, open: false})}
-                communityId={communityId!}
+                onClose={() => setExpelModal((prev) => ({ ...prev, open: false }))}
+                communityId={communityId}
                 userId={expelModal.userId}
                 memberAlias={expelModal.alias}
-                onSuccess={() => {loadMembers(); loadSummary();}} 
+                onSuccess={() => {
+                    Promise.all([reloadMembers(), reloadSummary(), refreshUser()]);
+                }}
             />
 
-            {/*Modal transferir role*/}
             <TransferRoleModal
                 isOpen={transferModal.open}
-                onClose={() => setTransferModal({...transferModal, open: false})}
-                communityId={communityId!}
+                onClose={() => setTransferModal((prev) => ({ ...prev, open: false }))}
+                communityId={communityId}
                 userId={transferModal.userId}
                 memberAlias={transferModal.alias}
                 transferType={transferModal.type}
-                onSuccess={() => {loadMembers(); loadSummary();}}
+                onSuccess={() => {
+                    Promise.all([reloadMembers(), reloadSummary(), refreshUser()]);
+                }}
             />
 
             <DeleteCommunityModal
                 isOpen={deleteCommunityModalOpen}
                 onClose={() => setDeleteCommunityModalOpen(false)}
-                communityId={communityId!}
+                communityId={communityId}
                 communityName={summary?.community?.name || ''}
             />
         </div>
     );
-
-
 };
 
 export default AdminPage;

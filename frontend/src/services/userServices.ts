@@ -9,7 +9,7 @@ export const updateProfile = (data: {
     firstName?: string;
     lastName?: string;
     email?: string;
-    phone?: string;
+    phone?: string | null;
 }) => api.patch('/api/users/me', data);
 
 //Cambiar imagen de  perfil
@@ -22,5 +22,5 @@ export const updateAvatar = (file: File) => {
 };
 
 //Eliminar cuenta
-export const deleteAccount = (confirmationText: string) =>
-    api.delete('/api/users/me', {data: {confirmationText}});
+export const deleteAccount = (email: string, confirmationText: string) =>
+    api.delete('/api/users/me', {data: {email, confirmationText}});

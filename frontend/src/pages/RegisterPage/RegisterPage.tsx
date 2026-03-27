@@ -4,6 +4,7 @@ import {register} from '../../services/authServices';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';   
+import { getApiErrorMessage, getApiFieldErrors, hasFieldErrors } from '@/lib/formErrors';
 
 interface FormData {
     nombre: string;
@@ -36,6 +37,7 @@ const RegisterPage: React.FC = () => {
     });
 
     const [errors, setErrors] = useState<FormErrors>({});
+    const [globalError, setGlobalError] = useState('');
     const [touched, setTouched] = useState<Record<string, boolean>>({});
 
     //Validacion de nombre
@@ -59,7 +61,7 @@ const RegisterPage: React.FC = () => {
 
     //Validacion de telefono
     const validateTelefono = (value: string):string | undefined => {
-        if(!value.trim()) return 'El teléfono es requerido';
+        if(!value.trim()) return undefined;
         if(!/^[\d\s]+$/.test(value)) return 'El telefono solo puede contener dígitos y espacios';
         const soloNum = value.replace(/\s/g, '');
         if(soloNum.length !== 9) return 'El teléfono debe tener 9 dígitos';
@@ -95,6 +97,7 @@ const RegisterPage: React.FC = () => {
             confirmPassword: validateConfirmPassword(formData.confirmPassword)
         };
         setErrors(newErrors);
+        setGlobalError('');
         return !Object.values(newErrors).some(error => error !== undefined);
     };
 
@@ -121,6 +124,7 @@ const RegisterPage: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setGlobalError('');
 
         const allTouched: Record<string, boolean> = {};
         Object.keys(formData).forEach(key => allTouched[key] = true);
@@ -128,30 +132,32 @@ const RegisterPage: React.FC = () => {
 
         if(validateForm()) {
             try {
-                await register(formData.nombre, formData.apellidos, formData.email, formData.telefono, formData.password);
+                await register(
+                    formData.nombre,
+                    formData.apellidos,
+                    formData.email,
+                    formData.telefono.trim() || undefined,
+                    formData.password,
+                    formData.confirmPassword
+                );
                 navigate('/auth/login');
             }
             catch (error: any){
-                const details = error.response?.data?.error?.details;
-                if(Array.isArray(details)){
-                    const fieldMap: Record<string, keyof FormErrors> = {
-                        firstName: 'nombre',
-                        lastName: 'apellidos',
-                        email: 'email',
-                        phone: 'telefono',
-                        password: 'password',
-                    };
-                    const newErrors: FormErrors = {};
-                    details.forEach((d: any) => {
-                        const field = fieldMap[d.field];
-                        if(field) newErrors[field] = d.message;
-                    });
-                    setErrors(newErrors);
+                const fieldErrors = getApiFieldErrors(error, {
+                    firstName: 'nombre',
+                    lastName: 'apellidos',
+                    email: 'email',
+                    phone: 'telefono',
+                    password: 'password',
+                    passwordConfirmation: 'confirmPassword'
+                }) as FormErrors;
+
+                if (hasFieldErrors(fieldErrors)) {
+                    setErrors((prev) => ({ ...prev, ...fieldErrors }));
+                    return;
                 }
-                else{
-                    const msg = error.response?.data?.error?.message || 'Error al registrar';
-                    setErrors({email: msg});
-                }
+
+                setGlobalError(getApiErrorMessage(error, 'No se ha podido completar el registro. Revisa los datos e inténtalo de nuevo.'));
             } 
         }
     };
@@ -170,8 +176,9 @@ const RegisterPage: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-lg p-10 sm:p-6 w-full max-w-xl">
                 <h1 className="text-3xl font-bold text-center mb-2">Registrar una nueva cuenta</h1>
                 <p className="text-sm text-muted-foreground text-center mb-8">¡Únete ahora! Crea tu cuenta en segundos</p>
+                {globalError && <div className='bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-5'>{globalError}</div>}
 
-                <form className="space-y-4" onSubmit={handleSubmit}>
+                <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">
                     <div className="flex flex-col md:flex-row gap-4">
 
                         <div className="space-y-2 w-full md:w-5/12">
@@ -205,9 +212,12 @@ const RegisterPage: React.FC = () => {
                     <div className="flex flex-col md:flex-row gap-4">
 
                         <div className="space-y-2 w-full md:w-8/12">
-                            <Label>Correo electrónico</Label>
+                            <Label htmlFor="register-email">Correo electrónico</Label>
                             <Input 
+                                id="register-email"
+                                name="email"
                                 type="email" 
+                                autoComplete="email"
                                 className={touched.email ? (errors.email ? 'border-red-500' : 'border-green-500') : ''}  
                                 placeholder='correo@ucm.es' 
                                 value={formData.email} 
@@ -218,11 +228,14 @@ const RegisterPage: React.FC = () => {
                         </div>
 
                         <div className="space-y-2 w-full md:w-4/12">
-                            <Label>Teléfono</Label>
+                            <Label htmlFor="register-phone">Teléfono</Label>
                             <Input 
+                                id="register-phone"
+                                name="phone"
                                 type="tel" 
+                                autoComplete="tel"
                                 className={touched.telefono ? (errors.telefono ? 'border-red-500' : 'border-green-500') : ''}   
-                                placeholder='600 123 456' 
+                                placeholder='600 123 456 (opcional)' 
                                 value={formData.telefono} 
                                 onChange={(e) => handleChange('telefono', e.target.value)} 
                                 onBlur={() => handleBlur('telefono')}
@@ -233,9 +246,12 @@ const RegisterPage: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Contraseña</Label>
+                        <Label htmlFor="register-password">Contraseña</Label>
                         <Input 
+                            id="register-password"
+                            name="password"
                             type="password" 
+                            autoComplete="new-password"
                             className={touched.password ? (errors.password ? 'border-red-500' : 'border-green-500') : ''}   
                             placeholder='********' 
                             value={formData.password} 
@@ -245,9 +261,12 @@ const RegisterPage: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Repetir Contraseña</Label>
+                        <Label htmlFor="register-confirm-password">Repetir Contraseña</Label>
                         <Input 
+                            id="register-confirm-password"
+                            name="confirmPassword"
                             type="password" 
+                            autoComplete="new-password"
                             className={touched.confirmPassword ? (errors.confirmPassword ? 'border-red-500' : 'border-green-500') : ''}   
                             placeholder='********' 
                             value={formData.confirmPassword} 

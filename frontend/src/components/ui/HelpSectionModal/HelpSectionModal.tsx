@@ -1,15 +1,16 @@
-import React, {useState, useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Button } from '../button';
 import { Label } from '../label';
 import { Input } from '../input';
-import { addHelpSection, updateHelpSection } from '@/services/helpServices';    
+import { addHelpSection, updateHelpSection } from '@/services/helpServices';
+import { getApiErrorMessage, getApiFieldErrors } from '@/lib/formErrors';
 
 interface HelpSectionModalProps{
     isOpen: boolean;
     onClose: () => void;
-    communityId: number;
-    section?: {id: number, title: string; description: string} | null;
+    communityId: string;
+    section?: {id: string, title: string; description: string} | null;
     onSuccess: () => void;
 }
 
@@ -18,27 +19,44 @@ const HelpSectionModal: React.FC<HelpSectionModalProps> = ({isOpen, onClose, com
     const [description, setDescription] = useState('');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const isEdit = !!section;
 
     useEffect(() => {
-        if(section){
+        if (section) {
             setTitle(section.title);
             setDescription(section.description);
-        }
-        else{
+        } else {
             setTitle('');
             setDescription('');
         }
-    }, [section, isOpen]);
+
+        setError('');
+        setSuccess('');
+        setFieldErrors({});
+    }, [isOpen, section]);
 
     const handleSubmit = async () => {
         setError('');
         setSuccess('');
-        if(!title.trim() || !description.trim()){
-            setError('El titulo y la descripción son requeridos.');
+
+        const nextFieldErrors: Record<string, string> = {};
+
+        if (!title.trim()) {
+            nextFieldErrors.title = 'Introduce el título de la sección.';
+        }
+
+        if (!description.trim()) {
+            nextFieldErrors.description = 'Introduce la descripción de la sección.';
+        }
+
+        setFieldErrors(nextFieldErrors);
+
+        if (Object.keys(nextFieldErrors).length > 0) {
             return;
         }
+
         try{
             if(isEdit && section){
                 await updateHelpSection(communityId, section.id, {title, description});
@@ -52,8 +70,17 @@ const HelpSectionModal: React.FC<HelpSectionModalProps> = ({isOpen, onClose, com
             setTimeout(() => { handleClose(); }, 1500);
         }
         catch(err: any){
-            const msg = err.response?.data?.error?.message || 'Error al guardar seccion';
-            setError(msg);
+            const nextFieldErrors = getApiFieldErrors(err, {
+                title: 'title',
+                description: 'description'
+            });
+
+            if (Object.keys(nextFieldErrors).length > 0) {
+                setFieldErrors(nextFieldErrors);
+                return;
+            }
+
+            setError(getApiErrorMessage(err, 'No se ha podido guardar la sección.'));
         }
     };
 
@@ -62,6 +89,7 @@ const HelpSectionModal: React.FC<HelpSectionModalProps> = ({isOpen, onClose, com
         setDescription('');
         setError('');
         setSuccess('');
+        setFieldErrors({});
         onClose();
     };
 
@@ -75,23 +103,32 @@ const HelpSectionModal: React.FC<HelpSectionModalProps> = ({isOpen, onClose, com
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <Label>Título</Label>
-                        <Input 
+                        <Input
                             value={title}
-                            onChange={(e) => setTitle(e.target.value)}
+                            onChange={(e) => {
+                                setTitle(e.target.value);
+                                setFieldErrors((prev) => ({ ...prev, title: '' }));
+                            }}
                             placeholder='Ej: Horarios de recogida de basura'
                         />
+                        {fieldErrors.title && <p className='text-sm text-red-500'>{fieldErrors.title}</p>}
                     </div>
 
                     <div className="space-y-2">
                         <Label>Descripción</Label>
-                        <textarea 
-                            className='flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[120px]'
+                        <textarea
+                            className='flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
                             value={description}
-                            onChange={(e) => setDescription(e.target.value)}
+                            onChange={(e) => {
+                                setDescription(e.target.value);
+                                setFieldErrors((prev) => ({ ...prev, description: '' }));
+                            }}
                             placeholder='Escribe la información de ayuda...'
                             rows={5}
                         />
+                        {fieldErrors.description && <p className='text-sm text-red-500'>{fieldErrors.description}</p>}
                     </div>
+
                     {error && <p className='text-sm text-red-500'>{error}</p>}
                     {success && <p className='text-sm text-green-500'>{success}</p>}
                 </div>
@@ -100,7 +137,6 @@ const HelpSectionModal: React.FC<HelpSectionModalProps> = ({isOpen, onClose, com
                     <Button variant="outline" onClick={handleClose}>Cancelar</Button>
                     <Button onClick={handleSubmit}>{isEdit ? 'Guardar' : 'Añadir'}</Button>
                 </DialogFooter>
-
             </DialogContent>
         </Dialog>
     );

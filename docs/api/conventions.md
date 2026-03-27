@@ -57,17 +57,7 @@ Notes:
 
 ---
 
-## 4. Request correlation
-
-The API supports request correlation via `X-Request-Id`.
-
-- If the client sends `X-Request-Id`, it is reused.
-- If not sent, backend generates one (UUID).
-- Response always includes `X-Request-Id`.
-
----
-
-## 5. CORS and credentials
+## 4. CORS and credentials
 
 CORS is configured with:
 - explicit origins from `CORS_ORIGIN`
@@ -81,7 +71,7 @@ fetch(url, { credentials: 'include' })
 
 ---
 
-## 6. HTTP status codes currently used
+## 5. HTTP status codes currently used
 
 ### Success codes
 
@@ -94,7 +84,7 @@ fetch(url, { credentials: 'include' })
 
 | Code | Used for |
 |---|---|
-| `400 Bad Request` | Validation errors (`VALIDATION_ERROR`) |
+| `422 Unprocessable Entity` | Validation errors (`VALIDATION_ERROR`) |
 | `401 Unauthorized` | Missing/invalid/expired session or invalid credentials |
 | `404 Not Found` | Unknown route or missing resource (`NOT_FOUND`) |
 | `409 Conflict` | Conflict on create/update (`CONFLICT`, e.g. duplicated email) |
@@ -102,7 +92,7 @@ fetch(url, { credentials: 'include' })
 
 ---
 
-## 7. Application error codes currently used
+## 6. Application error codes currently used
 
 | Code | Meaning |
 |---|---|
@@ -115,7 +105,7 @@ fetch(url, { credentials: 'include' })
 
 ---
 
-## 8. OpenAPI reference
+## 7. OpenAPI reference
 
 Interactive docs are available at:
 - `http://localhost/api/docs`

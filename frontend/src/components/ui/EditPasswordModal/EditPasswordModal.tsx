@@ -3,6 +3,7 @@ import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
 import {Label} from "@/components/ui/label";
+import { getApiErrorMessage, getApiFieldErrors } from '@/lib/formErrors';
 
 interface EditPasswordModalProps{
     isOpen: boolean;
@@ -15,44 +16,45 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
-
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const handleSubmit = async () => {
         setError('');
 
-        //Validar que la nueva no se igual que la actual
-        if(newPassword === currentPassword){
-            setError('La nueva contraseña no puede ser igual a la actual');
-            return;
+        const nextFieldErrors: Record<string, string> = {};
+
+        if(!currentPassword){
+            nextFieldErrors.currentPassword = 'Introduce tu contrasena actual.';
         }
 
-        //Validar longittud minima 
-        if(newPassword.length < 8){
-            setError('La contraseña debe tener al menos 8 caracteres');
-            return;
+        if(!newPassword){
+            nextFieldErrors.newPassword = 'Introduce una nueva contrasena.';
+        } 
+        else if(newPassword === currentPassword){
+            nextFieldErrors.newPassword = 'La nueva contrasena no puede ser igual a la actual.';
+        } 
+        else if(newPassword.length < 8){
+            nextFieldErrors.newPassword = 'La contrasena debe tener al menos 8 caracteres.';
+        } 
+        else if(!/[A-Z]/.test(newPassword)){
+            nextFieldErrors.newPassword = 'La contrasena debe tener al menos una mayuscula.';
+        } 
+        else if(!/[0-9]/.test(newPassword)){
+            nextFieldErrors.newPassword = 'La contrasena debe tener al menos un numero.';
+        } 
+        else if(!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)){
+            nextFieldErrors.newPassword = 'La contrasena debe tener al menos un caracter especial.';
         }
 
-        //Validar mayuscula
-        if(!/[A-Z]/.test(newPassword)){
-            setError('La contraseña debe tener al menos una mayúscula');
-            return;
+        if(!confirmPassword){
+            nextFieldErrors.confirmPassword = 'Confirma la nueva contrasena.';
+        } else if(newPassword !== confirmPassword){
+            nextFieldErrors.confirmPassword = 'Las nuevas contrasenas no coinciden.';
         }
 
-        //Validar número
-        if(!/[0-9]/.test(newPassword)){
-            setError('La contraseña debe tener al menos un número');
-            return;
-        }
+        setFieldErrors(nextFieldErrors);
 
-        //Validar carácter especial
-        if(!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)){
-            setError('La contraseña debe tener al menos un carácter especial (!@#$%^&*(),.?":{}|<>');
-            return;
-        }
-
-        //Validar que coinciden
-        if(newPassword !== confirmPassword){
-            setError('Las contraseñas nuevas no coinciden');
+        if(Object.keys(nextFieldErrors).length > 0){
             return;
         }
 
@@ -60,15 +62,27 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
             await onSave(currentPassword, newPassword);
             handleClose();
         }catch(err:any){
-            setError(err.response?.data?.error?.message || 'Error al cambiar la contraseña');
+            const apiFieldErrors = getApiFieldErrors(err, {
+                currentPassword: 'currentPassword',
+                newPassword: 'newPassword',
+                newPasswordConfirmation: 'confirmPassword'
+            });
+
+            if (Object.keys(apiFieldErrors).length > 0) {
+                setFieldErrors(apiFieldErrors);
+                return;
+            }
+
+            setError(getApiErrorMessage(err, 'No se ha podido cambiar la contrasena.'));
         }
     };
-    
+
     const handleClose = () => {
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
         setError('');
+        setFieldErrors({});
         onClose();
     }
 
@@ -76,21 +90,33 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
         <Dialog open={isOpen} onOpenChange={(open) => {if(!open) handleClose(); }}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Cambiar contraseña</DialogTitle>
+                    <DialogTitle>Cambiar contrasena</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                    {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">{error}</div>}
+                    {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
                     <div className="space-y-2">
-                        <Label>Contraseña actual</Label>
-                        <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Introduce tu contraseña actual"></Input>
+                        <Label htmlFor="current-password">Contrasena actual</Label>
+                        <Input id="current-password" name="currentPassword" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => {
+                            setCurrentPassword(e.target.value);
+                            setFieldErrors((prev) => ({ ...prev, currentPassword: '' }));
+                        }} placeholder="Introduce tu contrasena actual"></Input>
+                        {fieldErrors.currentPassword && <p className='text-sm text-red-500'>{fieldErrors.currentPassword}</p>}
                     </div>
                     <div className="space-y-2">
-                        <Label>Nueva contraseña</Label>
-                        <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Introduce la nueva contraseña"></Input>
+                        <Label htmlFor="new-password">Nueva contrasena</Label>
+                        <Input id="new-password" name="newPassword" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => {
+                            setNewPassword(e.target.value);
+                            setFieldErrors((prev) => ({ ...prev, newPassword: '' }));
+                        }} placeholder="Introduce la nueva contrasena"></Input>
+                        {fieldErrors.newPassword && <p className='text-sm text-red-500'>{fieldErrors.newPassword}</p>}
                     </div>
                     <div className="space-y-2">
-                        <Label>Confirmar nueva contraseña</Label>
-                        <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repita la nueva contraseña"></Input>
+                        <Label htmlFor="confirm-new-password">Confirmar nueva contrasena</Label>
+                        <Input id="confirm-new-password" name="confirmPassword" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => {
+                            setConfirmPassword(e.target.value);
+                            setFieldErrors((prev) => ({ ...prev, confirmPassword: '' }));
+                        }} placeholder="Repite la nueva contrasena"></Input>
+                        {fieldErrors.confirmPassword && <p className='text-sm text-red-500'>{fieldErrors.confirmPassword}</p>}
                     </div>
                 </div>
                 <DialogFooter>

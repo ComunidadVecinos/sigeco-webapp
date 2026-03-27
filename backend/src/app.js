@@ -1,55 +1,43 @@
 require('dotenv').config();
 
+// Construye la aplicación Express del backend, sin abrir todavía el puerto HTTP.
 const express = require('express');
-const morgan = require('morgan');
-const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const swaggerUi = require('swagger-ui-express');
 
+const errorHandler = require('./lib/http/errorHandler');
+const notFound = require('./lib/http/notFound');
+const { getUploadsRootPath } = require('./lib/storage/storage');
+const sessionService = require('./lib/session');
 const authRoutes = require('./modules/auth/auth.routes');
-const requestId = require('./lib/middleware/requestId');
-const logger = require('./lib/logger');
-const errorHandler = require('./lib/middleware/errorHandler');
-const notFound = require('./lib/middleware/notFound');
-const openApiSpec = require('./openapi');
-const sessionService = require('./lib/session/session.service');
+const usersRoutes = require('./modules/users/users.routes');
+// Rutas publicas del módulo help, que no requieren contexto de comunidad.
+//   - Las rutas de help dentro de comunidades se montan desde communities.routes.js.
+const helpPublicRoutes = require('./modules/help/help.public.routes');
+const communitiesRoutes = require('./modules/communities/communities.routes');
+const requestsRoutes = require('./modules/requests/requests.routes');
 
 const app = express();
+
+// Valida al arrancar que la configuracion de sesión sea utilizable.
 sessionService.getSessionSecret();
 
-const corsOrigins = String(process.env.CORS_ORIGIN || 'http://localhost')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-app.use(requestId);
-
-app.use(
-  morgan('combined', {
-    stream: {
-      write: (message) => {
-        logger.info(message.trim());
-      }
-    }
-  })
-);
-
+// Parseo base del body JSON y de la cookie de sesión antes de entrar en rutas.
 app.use(express.json());
 app.use(cookieParser());
-app.use(
-  cors({
-    credentials: true,
-    origin: corsOrigins
-  })
-);
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Backend is alive' });
-});
+// Endpoint mínimo de salud para comprobaciones de despliegue y diagnóstico rápido.
+app.get('/api/health', (req, res) => { res.json({ status: 'ok', message: 'Backend is alive' }); });
 
+// Publica el contenido de storage/uploads bajo la URL /uploads.
+//   - "fallthrough: true" hace que un archivo inexistente no cierre la request aquí: continúa hasta notFound/errorHandler (404).
+app.use('/uploads', express.static(getUploadsRootPath(), { fallthrough: true }));
+
+// Montaje de módulos HTTP por dominio funcional.
 app.use('/api/auth', authRoutes);
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
+app.use('/api/users', usersRoutes);
+app.use('/api/help', helpPublicRoutes);
+app.use('/api/communities', communitiesRoutes);
+app.use('/api/requests', requestsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

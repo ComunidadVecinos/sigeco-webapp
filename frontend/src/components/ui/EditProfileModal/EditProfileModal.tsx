@@ -4,6 +4,7 @@ import {Button} from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateProfile } from "@/services/userServices";
+import { getApiErrorMessage, getApiFieldErrors, hasFieldErrors } from "@/lib/formErrors";
 
 interface EditProfileModalProps{
     isOpen: boolean;
@@ -26,11 +27,13 @@ interface EditProfileModalProps{
 const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, initialData, onSave}) => {
     const [formData, setFormData] = useState(initialData);
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if(isOpen){
             setFormData(initialData);
             setError('');
+            setFieldErrors({});
         }
     }, [isOpen, initialData]);
 
@@ -39,6 +42,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value});
         setError('');
+        setFieldErrors((prev) => ({ ...prev, [e.target.name]: '' }));
     };
 
     const handleSubmit = async () => {
@@ -62,7 +66,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
         //Validar telefono
         if(formData.telefono !== initialData.telefono){
             const soloNumeros = formData.telefono.replace(/\D/g, '');
-            if(soloNumeros.length !== 9){
+            if(formData.telefono.trim() && soloNumeros.length !== 9){
                 setError('El telefono debe tener 9 dígitos');
                 return;
             }
@@ -80,19 +84,33 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
             await updateProfile({
                 firstName: formData.nombre,
                 lastName: formData.apellidos,
-                phone: formData.telefono,
+                phone: formData.telefono.trim() || undefined,
                 email: formData.email,
             });
             await onSave(formData);
             onClose();
-        } catch(err: any){
-            const msg = err.response?.data?.error?.message || 'Error al guardar';
+        } 
+        catch(err: any){
+            const mappedFieldErrors = getApiFieldErrors(err, {
+                firstName: 'nombre',
+                lastName: 'apellidos',
+                email: 'email',
+                phone: 'telefono'
+            });
+
+            if (hasFieldErrors(mappedFieldErrors)) {
+                setFieldErrors(mappedFieldErrors);
+                return;
+            }
+
+            const msg = getApiErrorMessage(err, 'No se ha podido guardar la información personal.');
             setError(msg);
         }
     };
 
     const handleClose = () => {
         setError('');
+        setFieldErrors({});
         onClose();
     };
 
@@ -107,18 +125,22 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
                     <div className="space-y-2">
                         <Label>Nombre</Label>
                         <Input name="nombre" value={formData.nombre} onChange={handleChange}></Input>
+                        {fieldErrors.nombre && <div className='text-sm text-red-500'>{fieldErrors.nombre}</div>}
                     </div>
                     <div className="space-y-2">
                         <Label>Apellidos</Label>
                         <Input name="apellidos" value={formData.apellidos} onChange={handleChange}></Input>
+                        {fieldErrors.apellidos && <div className='text-sm text-red-500'>{fieldErrors.apellidos}</div>}
                     </div>
                     <div className="space-y-2">
                         <Label>Teléfono</Label>
                         <Input type="tel" name="telefono" value={formData.telefono} onChange={handleChange}></Input>
+                        {fieldErrors.telefono && <div className='text-sm text-red-500'>{fieldErrors.telefono}</div>}
                     </div>
                     <div className="space-y-2">
                         <Label>Correo electrónico</Label>
                         <Input type="email" name="email" value={formData.email} onChange={handleChange}></Input>
+                        {fieldErrors.email && <div className='text-sm text-red-500'>{fieldErrors.email}</div>}
                     </div>
                 </div>
                 <DialogFooter>

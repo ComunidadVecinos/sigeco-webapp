@@ -4,6 +4,7 @@ import { resetPassword } from '@/services/authServices';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { getApiErrorMessage, getApiFieldErrors } from '@/lib/formErrors';
 
 const ForgotPassword: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -38,7 +39,8 @@ const ForgotPassword: React.FC = () => {
                 setEnviado(true);
             }
             catch (error: any) {
-                setError(error.response?.data?.message || 'Error al enviar el email');
+                const fieldErrors = getApiFieldErrors(error, { email: 'email' });
+                setError(fieldErrors.email || getApiErrorMessage(error, 'No se ha podido enviar la contraseña temporal.'));
             }
         }
     };

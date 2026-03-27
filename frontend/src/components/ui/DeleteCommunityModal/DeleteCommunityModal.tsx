@@ -5,11 +5,13 @@ import { Label } from '../label';
 import { Input } from '../input';
 import { deleteCommunity } from '@/services/adminService';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/authContext';
+import { getApiErrorMessage, getApiFieldErrors } from '@/lib/formErrors';
 
 interface DeleteCommunityModalProps{
     isOpen: boolean;
     onClose: () => void;
-    communityId: number;
+    communityId: string;
     communityName: string;
 }
 
@@ -17,23 +19,44 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({isOpen, onCl
     const [confirmText, setConfirmText] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const navigate = useNavigate();
+    const { refreshUser } = useAuth();
+    const expectedText = 'ELIMINAR COMUNIDAD';
 
     const handleSubmit = async () => {
         setError('');
-        if(confirmText !== communityName){
-            setError('El nombre no coincide.');
-            return;
+
+        const nextFieldErrors: Record<string, string> = {};
+
+        if(confirmText !== expectedText){
+            nextFieldErrors.confirmationText = 'Escribe exactamente el texto de confirmacion indicado.';
         }
+
         if(!password){
-            setError('La contraseña es requerida');
+            nextFieldErrors.currentPassword = 'Introduce tu contrasena actual para confirmar.';
+        }
+
+        setFieldErrors(nextFieldErrors);
+
+        if (Object.keys(nextFieldErrors).length > 0) {
             return;
         }
-        try{
-            await deleteCommunity(communityId, {confirmText, password});
+
+        try {
+            await deleteCommunity(communityId, {confirmationText: confirmText, currentPassword: password});
+            await refreshUser();
             navigate('/auth/me');
-        }catch(err: any){
-            setError(err.response?.data?.error?.message || 'Error al eliminar comunidad');
+        }
+        catch(err: any){
+            const apiFieldErrors = getApiFieldErrors(err, { confirmationText: 'confirmationText', currentPassword: 'currentPassword' });
+
+            if (Object.keys(apiFieldErrors).length > 0) {
+                setFieldErrors(apiFieldErrors);
+                return;
+            }
+
+            setError(getApiErrorMessage(err, 'No se ha podido eliminar la comunidad.'));
         }
     };
 
@@ -41,6 +64,7 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({isOpen, onCl
         setConfirmText('');
         setPassword('');
         setError('');
+        setFieldErrors({});
         onClose();
     };
 
@@ -52,30 +76,38 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({isOpen, onCl
                 </DialogHeader>
 
                 <div className="space-y-4">
-                    <div className='bg-red-50 border border-red-200 rounded-lg p-3'>
-                        <p className="text-sm text-red-700 font-medium">🚨 PELIGRO: Esta acción es permanente e irreversible.</p>
-                        <p className="text-sm text-red-600 mt-1">
-                            Se notificará a todos los miembros, se cancelarán todas las solicitudes,
-                            se revocarán los accesos y se eliminarán todos los datos de la comunidad.
+                    <div className='rounded-lg border border-red-200 bg-red-50 p-3'>
+                        <p className="text-sm font-medium text-red-700">PELIGRO: esta accion es permanente e irreversible.</p>
+                        <p className="mt-1 text-sm text-red-600">
+                            Se notificara a todos los miembros, se cancelaran las solicitudes,
+                            se revocaran los accesos y se eliminaran los datos de la comunidad.
                         </p>
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Escribe el nombre de la comunidad: <strong>{communityName}</strong></Label>
-                        <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder={communityName}></Input>
+                        <Label>Escribe <strong>{expectedText}</strong> para confirmar la eliminacion de <strong>{communityName}</strong></Label>
+                        <Input value={confirmText} onChange={(e) => {
+                            setConfirmText(e.target.value);
+                            setFieldErrors((prev) => ({ ...prev, confirmationText: '' }));
+                        }} placeholder={expectedText}></Input>
+                        {fieldErrors.confirmationText && <p className='text-sm text-red-500'>{fieldErrors.confirmationText}</p>}
                     </div>
 
-                     <div className="space-y-2">
-                        <Label>Confirma tu contraseña</Label>
-                        <Input type='password' value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Tu contraseña"></Input>
+                    <div className="space-y-2">
+                        <Label htmlFor="delete-community-password">Confirma tu contrasena</Label>
+                        <Input id="delete-community-password" name="deleteCommunityPassword" type='password' autoComplete="current-password" value={password} onChange={(e) => {
+                            setPassword(e.target.value);
+                            setFieldErrors((prev) => ({ ...prev, currentPassword: '' }));
+                        }} placeholder="Tu contrasena"></Input>
+                        {fieldErrors.currentPassword && <p className='text-sm text-red-500'>{fieldErrors.currentPassword}</p>}
                     </div>
 
                     {error && <p className='text-sm text-red-500'>{error}</p>}
-                </div> 
+                </div>
 
                 <DialogFooter>
                     <Button variant="outline" onClick={handleClose}>Cancelar</Button>
-                    <Button onClick={handleSubmit} disabled={confirmText !== communityName || !password} className='bg-red-600 hover:bg-red-700'>Eliminar comunidad</Button>
+                    <Button onClick={handleSubmit} className='bg-red-600 hover:bg-red-700'>Eliminar comunidad</Button>
                 </DialogFooter>
 
             </DialogContent>

@@ -5,13 +5,14 @@ import imagen_generica from '../../assets/images/perfil_generico.png'
 import EditProfileModal from '../../components/ui/EditProfileModal/EditProfileModal';
 import EditPhotoModal from '../../components/ui/EditPhotoModal/EditPhotoModal';
 import EditPasswordModal from '../../components/ui/EditPasswordModal/EditPasswordModal';
+import EditCommunityInfoModal from '../../components/ui/EditCommunityInfoModal/EditCommunityInfoModal';
 import LogoutModal from '../../components/ui/LogoutModal/LogoutModal';
 import DeleteAccountModal from '../../components/ui/DeleteAccountModal/DeleteAccountModal';
 import { useAuth } from '../../context/authContext';
 import { changePassword } from '../../services/authServices';
 import { Button } from '@/components/ui/button';
 import {Pencil, Camera, ChevronRight, LogOut, Trash2, Plus, Archive} from 'lucide-react';
-import { getMyRequests, archiveRequest } from '@/services/communityServices';
+import { getMyRequests, archiveRequest, cancelRequest } from '@/services/communityServices';
 
 const ProfilePage: React.FC = () =>{
 
@@ -32,72 +33,19 @@ const ProfilePage: React.FC = () =>{
 
     //Atributos modal eliminar cuenta
     const [deleteAccountModalopen, setDeleteAccountModalOpen] = useState(false);
+    const [communityInfoModal, setCommunityInfoModal] = useState<{open: boolean; community: any | null}>({
+        open: false,
+        community: null
+    });
 
     const navigate = useNavigate();
 
     const [solicitudes, setSolicitudes] = useState<any[]>([]);
 
-    const mockCommunities = [
-    {
-        id: 1,
-        name: 'Comunidad Residencial Sol',
-        alias: 'Piso 3A - Familia Mourão',
-        role: 'PRESIDENT',
-        avatar: null,
-        streetType: 'Calle',
-        streetName: 'Gran Vía',
-        number: '12',
-        municipality: 'Madrid',
-        province: 'Madrid'
-    },
-    {
-        id: 2,
-        name: 'Edificio Luna',
-        alias: 'Bajo B',
-        role: 'MEMBER',
-        avatar: null,
-        streetType: 'Avenida',
-        streetName: 'de la Constitución',
-        number: '45',
-        municipality: 'Sevilla',
-        province: 'Sevilla'
-    }
-];
-
-const mockSolicitudes = [
-    {
-        id: 1,
-        communityName: 'Comunidad Residencial Sol',
-        status: 'PENDING',
-        type: 'JOIN',
-        alias: 'Piso 3A',
-        createdAt: '2026-02-25T10:00:00Z',
-        adminMessage: null
-    },
-    {
-        id: 2,
-        communityName: 'Edificio Luna',
-        status: 'APPROVED',
-        type: 'JOIN',
-        alias: 'Bajo B',
-        createdAt: '2026-02-20T10:00:00Z',
-        adminMessage: 'Bienvenido!'
-    },
-    {
-        id: 3,
-        communityName: 'Comunidad Residencial Sol',
-        status: 'REJECTED',
-        type: 'PROFILE_CHANGE',
-        alias: null,
-        createdAt: '2026-02-18T10:00:00Z',
-        adminMessage: 'Datos incorrectos, revisa la dirección.'
-    }
-];
-
     const cargarSolicitudes = async () => {
         try{
             const res = await getMyRequests();
-            setSolicitudes(Array.isArray(res.data) ? res.data : []);
+            setSolicitudes(res.data.items || []);
         }catch(err){
             console.error('Error al cargar solicitudes', err);
         }
@@ -107,13 +55,38 @@ const mockSolicitudes = [
         cargarSolicitudes();
     }, []);
 
-    const handleArchivar = async (requestId: number) => {
+    useEffect(() => {
+        setProfilePhoto(user?.profileImageUrl || imagen_generica);
+    }, [user?.profileImageUrl]);
+
+    const handleArchivar = async (requestId: string, status: string) => {
         try{
-            await archiveRequest(requestId);
+            if(status === 'PENDING'){
+                await cancelRequest(requestId);
+            } else {
+                await archiveRequest(requestId);
+            }
             await cargarSolicitudes();
         }catch(err: any){
             alert(err.response?.data?.error?.message || 'Error al archivar solicitud');
         }
+    };
+
+    const buildCurrentDomicile = (community: any) => {
+        const details = community?.addressDetails || {};
+
+        return {
+            country: details.country || '',
+            province: details.province || '',
+            municipality: details.municipality || '',
+            streetType: details.streetType || '',
+            streetName: details.streetName || '',
+            postalCode: details.postalCode || '',
+            number: details.streetNumberKm || '',
+            block: details.block || '',
+            floor: details.floor || '',
+            door: details.door || ''
+        };
     };
 
     return (
@@ -162,7 +135,7 @@ const mockSolicitudes = [
                 <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-4 mt-5">
                     <h4 className='font-bold'>Información de tus comunidades</h4>
 
-                    {(!mockCommunities || mockCommunities.length === 0) ? (
+                    {(!user?.communities || user.communities.length === 0) ? (
                         <div className="border border-gray-200 rounded-2xl mx-4 mt-3 p-4">
                         <h5 className='font-bold'>Crea o únete a una comunidad</h5>
                         <p className='text-sm text-gray-500 leading-relaxed mt-2'>¡Esto está muy vacío! Para acceder a todo lo que SIGECO puede ofrecer, solicita unirte o crea tú mismo tu propia comunidad. Para ello, ten en cuenta que: </p>
@@ -178,18 +151,26 @@ const mockSolicitudes = [
                             <p className="text-sm text-gray-500 mb-4">Comunidades a las que perteneces.</p>
 
                             <div className="space-y-3">
-                                {mockCommunities.map((com: any) => (
-                                    <div key={com.id} className='border border-gray-200 rounded-xl p-4 flex items-center gap-4'>
-                                        <img src={com.avatar || imagen_generica} alt={com.name} className='w-16 h-16 rounded-full object-cover border-2 border-gray-200' />
+                                {user.communities.map((com: any) => (
+                                    <div key={com.communityId} className='border border-gray-200 rounded-xl p-4 flex items-center gap-4'>
+                                        <img src={imagen_generica} alt={com.name} className='w-16 h-16 rounded-full object-cover border-2 border-gray-200' />
                                         <div className="flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <h5 className="font-bold">{com.name}</h5>
-                                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{com.role}</span>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex items-center gap-2">
+                                                    <h5 className="font-bold">{com.name}</h5>
+                                                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{com.role}</span>
+                                                </div>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setCommunityInfoModal({ open: true, community: com })}
+                                                >
+                                                    <Pencil className='h-4 w-4 mr-1'/>Editar
+                                                </Button>
                                             </div>
                                             <p className="text-sm text-gray-500 mt-1">Alias: {com.alias}</p>
-                                            <p className="text-sm text-gray-500">
-                                                {com.streetType} {com.streetName}, {com.number} - {com.municipality}, {com.province}
-                                            </p>
+                                            <p className="text-sm text-gray-500">{com.address || 'Sin dirección asociada'}</p>
+                                            <p className="text-sm text-gray-400">Alta: {com.memberSince ? new Date(com.memberSince).toLocaleDateString('es-ES') : '-'}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -208,25 +189,23 @@ const mockSolicitudes = [
                     <h4 className="font-bold">Mis solicitudes</h4>
                     <p className="text-sm text-gray-500 mb-4">Historial de tus solicitudes enviadas a comunidades.</p>
 
-                    {mockSolicitudes.length > 0 ? (
+                    {solicitudes.length > 0 ? (
                         <div className="space-y-3">
-                        {mockSolicitudes.map((sol) => (
+                        {solicitudes.map((sol) => (
                             <div key={sol.id} className="border border-gray-200 rounded-xl p-4 flex justify-between items-start">
                                 <div>
                                     <div className="flex items-center gap-2">
-                                        <span className="font-bold text-sm">{sol.communityName}</span>
+                                        <span className="font-bold text-sm">{sol.community?.name}</span>
                                         <span className={`text-xs px-2 py-0.5 rounded-full ${sol.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700': sol.status === 'APPROVED' ? 'bg-green-100 text-green-700': 'bg-red-100 text-red-700'}`}>{sol.status === 'PENDING' ? 'Pendiente': sol.status === 'APPROVED' ? 'Aceptada': 'Rechazada'}
                                         </span>
                                     </div>
                                     <p className="text-sm text-gray-500 mt-1">
                                         {sol.type === 'JOIN' ? 'Solicitud de acceso' : 'Cambio de informacion'}{' - '}{new Date(sol.createdAt).toLocaleDateString('es-ES')}
                                     </p>
-                                    {sol.alias && <p className='text-sm text-gray-500 mt-1'>Alias: {sol.alias}</p>}
-                                    {sol.adminMessage && (
-                                        <p className='text-sm text-gray-600 mt-1 italic'>Respuesta del admin: {sol.adminMessage}</p>
-                                    )}
+                                    {sol.proposedAlias && <p className='text-sm text-gray-500 mt-1'>Alias: {sol.proposedAlias}</p>}
+                                    {sol.requestComment && <p className='text-sm text-gray-600 mt-1 italic'>{sol.requestComment}</p>}
                                 </div>
-                                <Button variant="outline" size="sm" onClick={() => handleArchivar(sol.id)}>
+                                <Button variant="outline" size="sm" onClick={() => handleArchivar(sol.id, sol.status)}>
                                     <Archive className='h-4 w-4 mr-1'/>
                                     {sol.status === 'PENDING' ? 'Cancelar':'Archivar'}
                                 </Button>
@@ -329,6 +308,17 @@ const mockSolicitudes = [
                     onConfirm={async () => {
                         setDeleteAccountModalOpen(false);
                         navigate('/');
+                    }}
+                />
+
+                <EditCommunityInfoModal
+                    isOpen={communityInfoModal.open}
+                    onClose={() => setCommunityInfoModal({ open: false, community: null })}
+                    communityId={communityInfoModal.community?.communityId || ''}
+                    currentAlias={communityInfoModal.community?.alias || ''}
+                    currentDomicile={buildCurrentDomicile(communityInfoModal.community)}
+                    onSuccess={async () => {
+                        await cargarSolicitudes();
                     }}
                 />
 

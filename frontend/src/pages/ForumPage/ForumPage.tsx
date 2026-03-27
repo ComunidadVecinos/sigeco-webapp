@@ -49,8 +49,8 @@ const ForumPage: React.FC = () => {
     const communityId = user?.activeCommunityId;
 
     //Rol del usuario
-    const activeCommunity: any = user?.communities?.find((c: any) => c.id === communityId);
-    const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICEPRESIDENT';
+    const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
+    const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [posts, setPosts] = useState<Post[]>([]);
@@ -61,6 +61,7 @@ const ForumPage: React.FC = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [loading, setLoading] = useState(false);
+    const [featureUnavailable, setFeatureUnavailable] = useState(false);
 
     //Comentarios
     const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -75,14 +76,21 @@ const ForumPage: React.FC = () => {
         if (!communityId) return;
         setLoading(true);
         try {
+            setFeatureUnavailable(false);
             const res = await getPosts(communityId, { page: pageNum, pageSize: 10, category: categoryFilter || undefined, startDate: startDate || undefined, endDate: endDate || undefined });
             const newPosts = res.data.content || [];
             setPosts(append ? [...posts, ...newPosts] : newPosts);
             setHasMore(!res.data.last);
-        } catch (err) {
+        } catch (err: any) {
+            if(err?.response?.status === 404){
+                setFeatureUnavailable(true);
+                setPosts([]);
+                setHasMore(false);
+            }
             console.error('Error cargando posts', err);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {setPage(0); loadPosts(0); }, [communityId, categoryFilter, startDate, endDate]);
@@ -96,6 +104,7 @@ const ForumPage: React.FC = () => {
     //Crear post
     const handleNewPost = async (content: string, category: PostCategory, pollOptions?: string[]) => {
         if (!communityId) return;
+        if (featureUnavailable) return;
         try {
             await createPost(communityId, { content, category, pollOptions });
             setPage(0);
@@ -109,6 +118,7 @@ const ForumPage: React.FC = () => {
     //Editar post
     const handleEditPost = async (postId: number) => {
         if (!communityId || !editPostContent.trim()) return;
+        if (featureUnavailable) return;
         try {
             await updatePost(communityId, postId, { content: editPostContent });
             setPosts(posts.map(p => p.id === postId ? { ...p, content: editPostContent } : p));
@@ -122,6 +132,7 @@ const ForumPage: React.FC = () => {
     //Eliminar post
     const handleDeletePost = async (postId: number) => {
         if (!communityId || !confirm('¿Eliminar esta publicación?')) return;
+        if (featureUnavailable) return;
         try {
             await deletePost(communityId, postId);
             setPosts(posts.filter(p => p.id !== postId));
@@ -133,6 +144,7 @@ const ForumPage: React.FC = () => {
     //Dar o quitar like
     const handleLike = async (postId: number) => {
         if (!communityId) return;
+        if (featureUnavailable) return;
         try {
             const res = await toggleLike(communityId, postId);
             setPosts(posts.map(p => p.id === postId ? {
@@ -148,6 +160,7 @@ const ForumPage: React.FC = () => {
     // Votar encuesta
     const handleVote = async (postId: number, optionIndex: number) => {
         if (!communityId) return;
+        if (featureUnavailable) return;
         try {
             await votePoll(communityId, postId, { optionIndex });
             setPosts(posts.map(p => {
@@ -166,6 +179,7 @@ const ForumPage: React.FC = () => {
     const handleOpenComments = async (post: Post) => {
         setSelectedPost(post);
         if (!communityId) return;
+        if (featureUnavailable) return;
         try {
             const res = await getComments(communityId, post.id, { page: 0, pageSize: 50 });
             setCommentsList(res.data.content || []);
@@ -178,6 +192,7 @@ const ForumPage: React.FC = () => {
     // Añadir comentario
     const handleAddComment = async (content: string) => {
         if (!communityId || !selectedPost) return;
+        if (featureUnavailable) return;
         try {
             const res = await addComment(communityId, selectedPost.id, { content });
             setCommentsList([...commentsList, res.data]);
@@ -190,6 +205,7 @@ const ForumPage: React.FC = () => {
     // Editar comentario
     const handleEditComment = async (commentId: number, content: string) => {
         if (!communityId || !selectedPost) return;
+        if (featureUnavailable) return;
         try {
             await updateComment(communityId, selectedPost.id, commentId, { content });
             setCommentsList(commentsList.map(c => c.id === commentId ? { ...c, content } : c));
@@ -201,6 +217,7 @@ const ForumPage: React.FC = () => {
     // Eliminar comentario
     const handleDeleteComment = async (commentId: number) => {
         if (!communityId || !selectedPost || !confirm('¿Eliminar este comentario?')) return;
+        if (featureUnavailable) return;
         try {
             await deleteComment(communityId, selectedPost.id, commentId);
             setCommentsList(commentsList.filter(c => c.id !== commentId));
@@ -225,6 +242,12 @@ const ForumPage: React.FC = () => {
 
             <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px]'>
                 <h1 className='text-[28px] font-bold mb-7 text-center'>Foro comunitario</h1>
+
+                {featureUnavailable && (
+                    <div className='bg-white rounded-2xl border border-amber-200 p-6 mb-6 text-amber-800 shadow-sm'>
+                        El backend actual no expone todavía el módulo de foro. La pantalla se mantiene accesible, pero sus datos y acciones no están disponibles en esta arquitectura.
+                    </div>
+                )}
 
                 <div className='flex justify-end mb-4'>
                     <Button variant={(categoryFilter || startDate || endDate) ? 'default' : 'outline'} size="sm" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className='flex items-center gap-2'>
@@ -290,7 +313,7 @@ const ForumPage: React.FC = () => {
                     </div>
                 )}
 
-                <CreatePost onSubmit={handleNewPost} />
+                {!featureUnavailable && <CreatePost onSubmit={handleNewPost} />}
 
                 <div className="mt-7 flex flex-col gap-5">
                     {posts.map((post) => (

@@ -1,93 +1,47 @@
+// Controlador HTTP del modulo auth.
 const authService = require('./auth.service');
-const sessionService = require('../../lib/session/session.service');
+const sessionService = require('../../lib/session');
 
+// La lógica de credenciales, sesiones e integraciones vive en el service.
 function setSessionCookie(res, sid) {
-  res.cookie('sid', sid, {
-    ...sessionService.getCookieConfig(),
-    maxAge: sessionService.getSessionTtlMs()
-  });
+  res.cookie('sid', sid, { ...sessionService.getCookieConfig(), maxAge: sessionService.getSessionTtlMs() });
 }
 
-async function register(req, res, next) {
-  try {
-    const { sid, user } = await authService.registerUser(req.body);
-
-    setSessionCookie(res, sid);
-
-    return res.status(201).json(user);
-  } catch (error) {
-    return next(error);
-  }
+function clearSessionCookie(res) {
+  res.cookie('sid', '', { ...sessionService.getCookieConfig(), maxAge: 0 });
 }
 
-async function login(req, res, next) {
-  try {
-    const { sid, user } = await authService.loginUser(req.body);
-
-    setSessionCookie(res, sid);
-
-    return res.status(200).json(user);
-  } catch (error) {
-    return next(error);
-  }
+// Registro no crea sesión automáticamente: obliga a pasar por login.
+async function register(req, res) {
+  const result = await authService.registerUser(req.body);
+  return res.status(201).json(result);
 }
 
-async function logout(req, res, next) {
-  try {
-    const result = await authService.logoutUser();
-
-    res.cookie('sid', '', {
-      ...sessionService.getCookieConfig(),
-      maxAge: 0
-    });
-
-    return res.status(200).json(result);
-  } catch (error) {
-    return next(error);
-  }
+async function login(req, res) {
+  const result = await authService.loginUser(req.body);
+  // La sesión viaja en cookie HttpOnly
+  setSessionCookie(res, result.sid);
+  return res.status(201).json({ user: result.user, context: result.context, session: result.session });
 }
 
-async function me(req, res, next) {
-  try {
-    return res.status(200).json(req.user);
-  } catch (error) {
-    return next(error);
-  }
+// Logout limpia siempre la cookie de cliente tras invalidar la sesión persistida.
+//   --> El identificador en cookie por sí solo no conserva autoridad si la BD ya la invalido.
+async function logout(req, res) {
+  const result = await authService.logoutSession(req.session.id);
+  clearSessionCookie(res);
+  return res.status(200).json(result);
 }
 
-async function changePassword(req, res, next) {
-  try {
-    const result = await authService.changePassword(
-      req.user.id,
-      req.body.currentPassword,
-      req.body.newPassword
-    );
-
-    res.cookie('sid', '', {
-      ...sessionService.getCookieConfig(),
-      maxAge: 0
-    });
-
-    return res.status(200).json(result);
-  } catch (error) {
-    return next(error);
-  }
+// Cambio de contraseña requiere sesión autenticada y usa req.session.id para conservar la sesión actual (el resto se invalida).
+async function changePassword(req, res) {
+  const result = await authService.changePassword( req.user.id, req.session.id, req.body.currentPassword, req.body.newPassword );
+  return res.status(200).json(result);
 }
 
-async function forgotPassword(req, res, next) {
-  try {
-    const result = await authService.forgotPassword(req.body.email);
-    return res.status(200).json(result);
-  } catch (error) {
-    return next(error);
-  }
+// Reset trabaja sobre email genérico, sin comprobar ni dominio ni existencia de la cuenta.
+async function resetPassword(req, res) {
+  const result = await authService.resetPassword(req.body.email);
+  return res.status(200).json(result);
 }
 
-module.exports = {
-  register,
-  login,
-  logout,
-  me,
-  changePassword,
-  forgotPassword
-};
+module.exports = { register, login, logout, changePassword, resetPassword };

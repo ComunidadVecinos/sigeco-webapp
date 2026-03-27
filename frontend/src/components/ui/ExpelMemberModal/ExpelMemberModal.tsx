@@ -8,8 +8,8 @@ import { expelMember } from '@/services/adminService';
 interface ExpelMemberModalProps {
     isOpen: boolean;
     onClose: () => void;
-    communityId: number;
-    userId: number;
+    communityId: string;
+    userId: string;
     memberAlias: string;
     onSuccess: () => void;
 }
@@ -28,7 +28,8 @@ const ExpelMemberModal: React.FC<ExpelMemberModalProps> = ({isOpen, onClose, com
             await expelMember(communityId, userId);
             onSuccess();
             handleClose();
-        }catch(err: any){
+        }
+        catch(err: any){
             setError(err.response?.data?.error?.message || 'Error al expulsar miembro');
         }
     };

@@ -2,7 +2,7 @@ import React from 'react';
 import {Check} from 'lucide-react';
 
 interface Community{
-    id: number;
+    communityId: string;
     name: string;
 }
 
@@ -10,8 +10,8 @@ interface CommunitiesDropdownProps{
     isOpen: boolean;
     onClose: () => void;
     communities: Community[];
-    activeCommunityId: number;
-    onSelectCommunity: (id: number) => void;
+    activeCommunityId: string | null;
+    onSelectCommunity: (id: string) => void;
 }
 
 const CommunitiesDropdown: React.FC<CommunitiesDropdownProps> = ({isOpen, onClose, communities, activeCommunityId, onSelectCommunity}) => {
@@ -25,9 +25,9 @@ const CommunitiesDropdown: React.FC<CommunitiesDropdownProps> = ({isOpen, onClos
                     <span className="text-gray-500 text-sm ml-3">Mis comunidades</span>
                 </div>
                 {communities.map((community) => (
-                    <button key={community.id} className={`flex items-center justify-between w-full px-4 py-3 bg-transparent border-none border-b border-gray-100 text-gray-500 text-left cursor-pointer transition-colors hover:bg-gray-50 last:border-b-0 ${community.id === activeCommunityId ? 'bg-blue-50' : ''}`} onClick={() => {onSelectCommunity(community.id); onClose();}}>
+                    <button key={community.communityId} className={`flex items-center justify-between w-full px-4 py-3 bg-transparent border-none border-b border-gray-100 text-gray-500 text-left cursor-pointer transition-colors hover:bg-gray-50 last:border-b-0 ${community.communityId === activeCommunityId ? 'bg-blue-50' : ''}`} onClick={() => {onSelectCommunity(community.communityId); onClose();}}>
                         <span className="font-medium">{community.name}</span>
-                        {community.id === activeCommunityId && (<Check className='h-4 w-4 text-[#104084]'/>)}
+                        {community.communityId === activeCommunityId && (<Check className='h-4 w-4 text-[#104084]'/>)}
                     </button>
                 ))}
             </div>

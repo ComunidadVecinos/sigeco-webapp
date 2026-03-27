@@ -21,8 +21,8 @@ const NewsPage: React.FC = () => {
     const communityId = user?.activeCommunityId;
 
     //Rol del usuario
-    const activeCommunity: any = user?.communities?.find((c: any) => c.id === communityId);
-    const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICEPRESIDENT';
+    const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
+    const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [newsList, setNewsList] = useState<News[]>([]);
@@ -33,6 +33,7 @@ const NewsPage: React.FC = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [loading, setLoading] = useState(false);
+    const [featureUnavailable, setFeatureUnavailable] = useState(false);
 
     //Modal de crear/editar
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -44,6 +45,7 @@ const NewsPage: React.FC = () => {
         if(!communityId) return;
         setLoading(true);
         try{
+            setFeatureUnavailable(false);
             const res: any = await getNews(communityId, {
                 page: pageNum,
                 pageSize: 10,
@@ -54,10 +56,16 @@ const NewsPage: React.FC = () => {
             const fetchedNews = res.data.content || [];
             setNewsList(append ? [...newsList, ...fetchedNews] : fetchedNews);
             setHasMore(!res.data.last);
-        } catch(err){
+        } catch(err: any){
+            if(err?.response?.status === 404){
+                setFeatureUnavailable(true);
+                setNewsList([]);
+                setHasMore(false);
+            }
             console.error('Error cargando noticias', err);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {setPage(0); loadNews(0);}, [communityId, searchQuery, startDate, endDate]);
@@ -71,6 +79,7 @@ const NewsPage: React.FC = () => {
     //Guardar noticia
     const handleSaveNews = async () => {
         if(!communityId || !formData.title.trim() || !formData.content.trim()) return;
+        if(featureUnavailable) return;
         try{
             if(editingNewsId) {
                 await updateNews(communityId, editingNewsId, formData);
@@ -101,6 +110,7 @@ const NewsPage: React.FC = () => {
 
     const handleDeleteNews = async (newsId: number) => {
         if(!communityId || !confirm('¿Estas seguro de eliminar esta noticia?')) return;
+        if(featureUnavailable) return;
         try{
             await deleteNews(communityId, newsId);
             setNewsList(newsList.filter(n => n.id !== newsId));
@@ -126,9 +136,15 @@ const NewsPage: React.FC = () => {
             <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0'>
                 <h1 className='text-[28px] font-bold mb-7 text-center'>Tablón de noticias</h1>
 
+                {featureUnavailable && (
+                    <div className='bg-white rounded-2xl border border-amber-200 p-6 mb-6 text-amber-800 shadow-sm'>
+                        El backend actual no expone todavía el módulo de noticias. La pantalla se mantiene accesible, pero sus datos y acciones no están disponibles en esta arquitectura.
+                    </div>
+                )}
+
                 <div className="flex justify-between items-center mb-4">
                     {isAdmin ? (
-                        <Button onClick={handleOpenCreate} size="sm" className='flex items-center gap-2'>
+                        <Button onClick={handleOpenCreate} size="sm" className='flex items-center gap-2' disabled={featureUnavailable}>
                             <Plus className='h-4 w-4'/> Redactar Comunicado
                         </Button>
                     ) : <div></div> }

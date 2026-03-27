@@ -1,29 +1,34 @@
 import api from './api';
 
+function cleanOptionalParams<T extends Record<string, string | number | undefined>>(params: T) {
+    return Object.fromEntries(
+        Object.entries(params).filter(([, value]) => value !== undefined && value !== '')
+    );
+}
+
 //Panel de administrador
-export const getAdminSummary = (communityId: number) =>
-    api.get(`/api/communities/${communityId}/admin/summary`);
+export const getAdminSummary = (communityId: string) =>
+    api.get(`/api/communities/${communityId}/summary`);
 
 //Solicitudes pendientes
-export const getRequests = (communityId: number, filters: {
-    status?: string;
+export const getRequests = (communityId: string, filters: {
     type?: string;
     page?: number;
     pageSize?: number;
-}) => api.get(`/api/communities/${communityId}/requests`, {params: filters});
+}) => api.get('/api/requests', {params: cleanOptionalParams({communityId, ...filters})});
 
 //Miembros de la comunidad
-export const getMembers = (communityId: number, filters: {
+export const getMembers = (communityId: string, filters: {
     q?: string;
     joinedBefore?: string;
     joinedAfter?: string;
     suspensionStatus?: string;
     page?: number;
     pageSize?: number;
-}) => api.get(`/api/communities/${communityId}/members`, {params: filters});
+}) => api.get(`/api/communities/${communityId}/members`, {params: cleanOptionalParams(filters)});
 
 //Editar info de la comunidad
-export const updateCommunity = (communityId: number, data: {
+export const updateCommunity = (communityId: string, data: {
     name?: string;
     country?: string;
     province?: string;
@@ -32,10 +37,19 @@ export const updateCommunity = (communityId: number, data: {
     streetName?: string;
     postalCode?: string;
     number?: string;
-}) => api.patch(`/api/communities/${communityId}`, data);
+}) => api.patch(`/api/communities/${communityId}`, {
+    name: data.name,
+    country: data.country,
+    province: data.province,
+    municipality: data.municipality,
+    streetType: data.streetType,
+    streetName: data.streetName,
+    postalCode: data.postalCode,
+    streetNumberKm: data.number
+});
 
 //Cambiar imagen de la comunidad
-export const updateCommunityAvatar = (communityId: number, file: File) => {
+export const updateCommunityAvatar = (communityId: string, file: File) => {
     const formData = new FormData();
     formData.append('avatar', file);
     return api.put(`/api/communities/${communityId}/avatar`, formData, {
@@ -44,41 +58,44 @@ export const updateCommunityAvatar = (communityId: number, file: File) => {
 };
 
 //Aceptar solicitud
-export const approveRequest = (communityId: number, requestId: number, message?: string) =>
-    api.post(`/api/communities/${communityId}/requests/${requestId}/approve`, {message});
+export const approveRequest = (_communityId: string, requestId: string, message?: string) =>
+    api.post(`/api/requests/${requestId}/approve`, {resolutionMessage: message});
 
 //Rechazar solicitud
-export const rejectRequest = (communityId: number, requestId: number, message?: string) =>
-    api.post(`/api/communities/${communityId}/requests/${requestId}/reject`, {message});
+export const rejectRequest = (_communityId: string, requestId: string, message?: string) =>
+    api.post(`/api/requests/${requestId}/reject`, {resolutionMessage: message});
 
 //Suspender usuario
-export const suspendMember = (communityId: number, userId: number, data: {
+export const suspendMember = (communityId: string, userId: string, data: {
     endDate: string;
     comment?: string;
-}) => api.post(`/api/communities/${communityId}/members/${userId}/suspension`, data);
+}) => api.put(`/api/communities/${communityId}/members/${userId}/suspension`, {
+    suspendedUntil: data.endDate,
+    suspensionReason: data.comment
+});
 
 //Cancelar suspension
-export const cancelSuspension = (communityId: number, userId: number) =>
+export const cancelSuspension = (communityId: string, userId: string) =>
     api.delete(`/api/communities/${communityId}/members/${userId}/suspension`);
 
 //Expulsar usuario
-export const expelMember = (communityId: number, userId: number) =>
-    api.delete(`/api/communities/${communityId}/members/${userId}`);
+export const expelMember = (communityId: string, userId: string, reason?: string) =>
+    api.post(`/api/communities/${communityId}/members/${userId}/expel`, {confirm: true, reason});
 
 //Asignar vicepresidente
-export const assignVicepresident = (communityId: number, userId: number) =>
-    api.put(`/api/communities/${communityId}/roles/vicepresident/assign`, {userId});
+export const assignVicepresident = (communityId: string, userId: string) =>
+    api.put(`/api/communities/${communityId}/members/${userId}/roles/VICE_PRESIDENT`);
 
 //Transferir presidente
-export const transferPresident = (communityId: number, userId: number) =>
-    api.post(`/api/communities/${communityId}/roles/president/transfer`, {userId});
+export const transferPresident = (communityId: string, userId: string) =>
+    api.put(`/api/communities/${communityId}/members/${userId}/roles/PRESIDENT`);
 
 //Transferir vicepresidente
-export const transferVicepresident = (communityId: number, userId: number) =>
-    api.post(`/api/communities/${communityId}/roles/vicepresident/transfer`, {userId});
+export const transferVicepresident = (communityId: string, userId: string) =>
+    api.put(`/api/communities/${communityId}/members/${userId}/roles/VICE_PRESIDENT`);
 
 //Eliminar comunidad
-export const deleteCommunity = (communityId: number, data: {
-    confirmText: string;
-    password: string;
+export const deleteCommunity = (communityId: string, data: {
+    confirmationText: string;
+    currentPassword: string;
 }) => api.delete(`/api/communities/${communityId}`, {data});

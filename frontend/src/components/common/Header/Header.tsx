@@ -1,13 +1,14 @@
 //La barra de navegacion con el logo y el boton de acceso
 
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import logo from '../../../assets/images/2.png';
-import {Link, useNavigate} from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ProfileDropdown from '../../ui/ProfileDropdown/ProfileDropdown';
 import LogoutModal from '../../ui/LogoutModal/LogoutModal';
 import CommunitiesDropdown from '../../ui/CommunitiesDropdown/CommunitiesDropdown';
+import Sidebar from '../../ui/Sidebar/Sidebar';
 import { Input } from '@/components/ui/input';
-import { Building2, CircleUserRound } from 'lucide-react';
+import { Building2, CircleUserRound, Menu } from 'lucide-react';
 import { useAuth } from '@/context/authContext';
 import { setActiveCommunity } from '@/services/communityServices';
 
@@ -17,41 +18,71 @@ interface HeaderLink {
     onClick?: () => void;
 }
 
-interface HeaderProps{
+interface HeaderProps {
     showCommunutySwitcher?: boolean;
     navLinks: HeaderLink[];
 }
 
-const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}) =>{
-
-
-    const [profileDropdownOpen, setProfileDropdownopen] = useState(false);
+const Header: React.FC<HeaderProps> = ({ showCommunutySwitcher: _showCommunutySwitcher = false, navLinks }) => {
+    const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
     const [logoutModalOpen, setLogoutModalOpen] = useState(false);
-    const navigate = useNavigate();
-
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [communitiesDropdownOpen, setCommunitiesDropdownOpen] = useState(false);
 
-    const {user, refreshUser} = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { user, refreshUser, logout } = useAuth();
 
     const communities = user?.communities || [];
-    const activeCommunityId = user?.activeCommunityId || 0;
-    const activeCommunity = communities.find((c: any) => c.id === activeCommunityId);
-    const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICEPRESIDENT';
+    const activeCommunityId = user?.activeCommunityId || null;
+    const hasCommunities = communities.length > 0;
+    const shouldShowCommunitySwitcher = hasCommunities;
+    const activeCommunity = communities.find((community: any) => community.communityId === activeCommunityId);
+    const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
 
-    const handleSelectCommunity = async (id:number) => {
-        try{
+    const headerLinks: HeaderLink[] = user
+        ? (
+            hasCommunities
+                ? [
+                    { label: <><Menu className="h-4 w-4 inline mr-1" /> Comunidad</>, path: '#', onClick: () => setSidebarOpen(true) },
+                    { label: 'Calendario', path: '/calendar' },
+                    ...(isAdmin ? [{ label: 'Administración', path: '/admin' }] : []),
+                    { label: 'Ayuda', path: '/help' }
+                ]
+                : [
+                    { label: 'Nueva Comunidad', path: '/auth/new-community' },
+                    { label: 'Ayuda', path: '/help' }
+                ]
+        )
+        : navLinks;
+
+    const handleSelectCommunity = async (id: string) => {
+        if (id === activeCommunityId) {
+            setCommunitiesDropdownOpen(false);
+            return;
+        }
+
+        try {
             await setActiveCommunity(id);
-            await refreshUser();
-        }catch(err){
+            const refreshedUser = await refreshUser();
+            const nextCommunity = refreshedUser?.communities?.find((community: any) => community.communityId === id);
+            const nextIsAdmin = nextCommunity?.role === 'PRESIDENT' || nextCommunity?.role === 'VICE_PRESIDENT';
+
+            if (location.pathname === '/admin' && !nextIsAdmin) {
+                navigate('/auth/me');
+                return;
+            }
+
+            navigate(`${location.pathname}${location.search}${location.hash}`);
+        } catch (err) {
             console.error('Error al cambiar comunidad', err);
         }
     };
 
-    return(
+    return (
         <header className="fixed top-0 w-full z-50 bg-white shadow-sm">
             <nav className="flex flex-col">
                 <div className="px-4 py-2">
-
                     <div className="flex w-full items-center mb-2">
                         <div className="mr-auto">
                             <Link to="/">
@@ -60,14 +91,17 @@ const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}
                         </div>
 
                         <div className="flex-1 mx-3">
-                            <Input type="search" placeholder="Busqueda en toda la Comunidad..." />
+                            <Input type="search" placeholder="Búsqueda en toda la comunidad..." />
                         </div>
 
                         <div className="ml-auto flex items-center">
-                            {showCommunutySwitcher && (
+                            {shouldShowCommunitySwitcher && (
                                 <div className="relative">
-                                    <button className='p-1 mr-3 hover:opacity-80 transition-opacity' onClick={() => setCommunitiesDropdownOpen(!communitiesDropdownOpen)}>
-                                        <Building2 className='h-8 w-8 text-[#104084]'></Building2>
+                                    <button
+                                        className="p-1 mr-3 hover:opacity-80 transition-opacity"
+                                        onClick={() => setCommunitiesDropdownOpen(!communitiesDropdownOpen)}
+                                    >
+                                        <Building2 className="h-8 w-8 text-[#104084]" />
                                     </button>
                                     <CommunitiesDropdown
                                         isOpen={communitiesDropdownOpen}
@@ -78,43 +112,47 @@ const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}
                                     />
                                 </div>
                             )}
+
                             <div className="relative">
-                                <button className="p-1 mr-5 hover:opacity-80 transition-opacity" onClick={() => setProfileDropdownopen(!profileDropdownOpen)}>
+                                <button
+                                    className="p-1 mr-5 hover:opacity-80 transition-opacity"
+                                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                                >
                                     <CircleUserRound className="h-8 w-8 text-[#104084]" />
                                 </button>
                                 <ProfileDropdown
                                     isOpen={profileDropdownOpen}
-                                    onClose={() => setProfileDropdownopen(false)}
+                                    onClose={() => setProfileDropdownOpen(false)}
                                     onLogout={() => {
-                                        setProfileDropdownopen(false);
+                                        setProfileDropdownOpen(false);
                                         setLogoutModalOpen(true);
                                     }}
                                 />
                             </div>
                         </div>
-
                     </div>
 
                     <hr className="w-full" />
 
                     <div className="flex w-full justify-start ml-5">
                         <ul className="flex flex-row list-none gap-3">
-                            {isAdmin && (
-                                <li>
-                                    <Link to="/admin" className="font-bold text-[#104084] relative hover:after:w-full after:content-[''] after:absolute after:left-0 after:bottom-[-4px] after:w-0 after:h-0.5 after:bg-[#104084] after:transition-all">Administración</Link>
-                                </li>
-                            )}
-                            {navLinks.map((link, index) => (
-                                <li key={index} >
+                            {headerLinks.map((link, index) => (
+                                <li key={index}>
                                     {link.onClick ? (
-                                        <span onClick={link.onClick} className="font-bold text-[#104084] cursor-pointer relative hover:after:w-full after:content-[''] after:absolute after:left-0 after:bottom-[-4px] after:w-0 after:h-0.5 after:bg-[#104084] after:transition-all">
+                                        <span
+                                            onClick={link.onClick}
+                                            className="font-bold text-[#104084] cursor-pointer relative hover:after:w-full after:content-[''] after:absolute after:left-0 after:bottom-[-4px] after:w-0 after:h-0.5 after:bg-[#104084] after:transition-all"
+                                        >
                                             {link.label}
                                         </span>
-                                        ):(<Link to={link.path} className="font-bold text-[#104084] relative hover:after:w-full after:content-[''] after:absolute after:left-0 after:bottom-[-4px] after:w-0 after:h-0.5 after:bg-[#104084] after:transition-all">
+                                    ) : (
+                                        <Link
+                                            to={link.path}
+                                            className="font-bold text-[#104084] relative hover:after:w-full after:content-[''] after:absolute after:left-0 after:bottom-[-4px] after:w-0 after:h-0.5 after:bg-[#104084] after:transition-all"
+                                        >
                                             {link.label}
                                         </Link>
                                     )}
-                                    
                                 </li>
                             ))}
                         </ul>
@@ -125,11 +163,10 @@ const Header: React.FC<HeaderProps> = ({showCommunutySwitcher = false, navLinks}
             <LogoutModal
                 isOpen={logoutModalOpen}
                 onClose={() => setLogoutModalOpen(false)}
-                onConfirm={() => {
-                    setLogoutModalOpen(false);
-                    navigate('/');
-                }}
+                onConfirm={async () => { await logout(); setLogoutModalOpen(false); navigate('/'); }}
             />
+
+            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         </header>
     );
 };

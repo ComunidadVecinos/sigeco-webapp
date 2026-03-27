@@ -4,12 +4,13 @@ import { Button } from '../button';
 import { Label } from '../label';
 import { Input } from '../input';
 import { transferPresident, transferVicepresident } from '@/services/adminService';
+import { useAuth } from '@/context/authContext';
 
 interface TransferRoleModalProps{
     isOpen: boolean;
     onClose: () => void;
-    communityId: number;
-    userId: number;
+    communityId: string;
+    userId: string;
     memberAlias: string;
     transferType: 'president' | 'vicepresident';
     onSuccess: () => void;
@@ -18,6 +19,7 @@ interface TransferRoleModalProps{
 const TransferRoleModal: React.FC<TransferRoleModalProps> = ({isOpen, onClose, communityId, userId, memberAlias, transferType, onSuccess}) => {
     const [confirmText, setConfirmText] = useState('');
     const [error, setError] = useState('');
+    const { refreshUser } = useAuth();
 
     const expectedText = transferType === 'president' ? 'TRANSFERIR PRESIDENTE' : 'TRANSFERIR VICEPRESIDENTE';
 
@@ -34,6 +36,7 @@ const TransferRoleModal: React.FC<TransferRoleModalProps> = ({isOpen, onClose, c
             else{
                 await transferVicepresident(communityId, userId);
             }
+            await refreshUser();
             onSuccess();
             handleClose();
         }

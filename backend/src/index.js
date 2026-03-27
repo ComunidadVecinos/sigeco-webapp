@@ -1,9 +1,18 @@
-// backend/src/index.js
+// Arranque del proceso HTTP del backend.
 const app = require('./app');
-const logger = require('./lib/logger');
+const { initializeSeedAssetsStorage } = require('../prisma/seedAssetsBootstrap');
 
 const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
-  logger.info(`Backend listening on port ${PORT}`);
+async function start() {
+  // Antes de abrir puerto HTTP, deja listo el storage local con los assets del seed. 
+  await initializeSeedAssetsStorage();
+
+  app.listen(PORT, () => { console.log(`Backend listening on port ${PORT}`); });
+}
+
+// Fallo en bootstrap o en listen registra error fatal y termina el proceso.
+start().catch((error) => {
+  console.error('Failed to start backend', error);
+  process.exit(1);
 });
