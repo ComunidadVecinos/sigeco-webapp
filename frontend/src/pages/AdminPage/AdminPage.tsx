@@ -8,8 +8,7 @@ import {
     FileText,
     Pencil,
     Search,
-    Shield,
-    Users
+    Shield
 } from 'lucide-react';
 import Header from '../../components/common/Header/Header';
 import imagen_generica from '../../assets/images/perfil_generico.png';
@@ -478,8 +477,16 @@ const AdminPage: React.FC = () => {
                                     key={member.membershipId}
                                     className="border border-gray-200 rounded-2xl p-5 flex flex-col gap-4 xl:flex-row xl:items-start"
                                 >
-                                    <div className="h-12 w-12 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
-                                        <Users className="h-5 w-5" />
+                                    <div className="h-12 w-12 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
+                                        <img
+                                            src={member.profileImageUrl || imagen_generica}
+                                            alt={member.alias ? `Foto de ${member.alias}` : 'Foto del miembro'}
+                                            className="h-full w-full object-cover"
+                                            onError={(event) => {
+                                                event.currentTarget.onerror = null;
+                                                event.currentTarget.src = imagen_generica;
+                                            }}
+                                        />
                                     </div>
 
                                     <div className="flex-1 min-w-0">

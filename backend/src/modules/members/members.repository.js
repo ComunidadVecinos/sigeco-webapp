@@ -275,7 +275,8 @@ async function findCommunityMembers(filters, options = {}) {
           door: true,
           deletedAt: true
         }
-      }
+      },
+      user: { select: { avatar: { select: { storagePath: true } } } }
     },
     orderBy: [ { createdAt: 'desc' }, { id: 'asc' } ],
     skip: options.skip || 0,

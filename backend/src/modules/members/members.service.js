@@ -9,6 +9,7 @@ const {
 
 const { isMembershipCurrentlySuspended } = require('../../lib/membership');
 const { buildAddressSummary } = require('../../lib/address');
+const storageService = require('../../lib/storage/storage');
 const { hasCommunityMembershipAccess, hasAdministrativeMembershipAccess } = require('./members.access');
 const authRepository = require('../auth/auth.repository');
 const { resolveUserAccessContext } = require('../auth/auth.context');
@@ -33,6 +34,7 @@ function mapCommunityMember(membership) {
   return {
     membershipId: membership.id,
     alias: membership.alias || null,
+    profileImageUrl: storageService.getPublicFileUrl(membership.user?.avatar?.storagePath || null),
     role: membership.role,
     createdAt: membership.createdAt.toISOString(),
     suspensionStatus: resolveSuspensionStatus(membership),
