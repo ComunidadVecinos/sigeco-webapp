@@ -23,7 +23,6 @@ services:
     build: ./backend
     container_name: app_db_init
     environment:
-      NODE_ENV: development
       DATABASE_URL: ${DATABASE_URL}
     depends_on:
       db:
@@ -39,7 +38,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV}
       DATABASE_URL: ${DATABASE_URL}
-      PORT: ${BACKEND_PORT}
+      PORT: 4000
       SESSION_SECRET: ${SESSION_SECRET}
       SESSION_TTL_DAYS: ${SESSION_TTL_DAYS}
       SESSION_SAMESITE: ${SESSION_SAMESITE}
@@ -65,8 +64,6 @@ services:
     container_name: app_mailpit
     ports:
       - "8025:8025"
-    expose:
-      - "1025"
     networks:
       - sigeco_network
     restart: unless-stopped
@@ -74,8 +71,6 @@ services:
   frontend:
     build: ./frontend
     container_name: app_frontend
-    depends_on:
-      - backend
     networks:
       - sigeco_network
     restart: unless-stopped

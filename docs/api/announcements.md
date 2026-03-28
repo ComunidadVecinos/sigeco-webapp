@@ -1,54 +1,111 @@
 # Announcements API
 
-The Announcements API (`/api/announcements/`) is used by the administrators to publish official notices and communications within a community.
+> API index: [docs/api/README.md](./README.md)
 
-> **API Documentation**
->
-> This document is part of the API documentation. For more information, return to the [API Documentation Index](./README.md).
+This page is reserved for the future `announcements` module.
 
----
-
-## Application Error Codes
-| Code | Description |
-|----|-------------|
-| ANNOUNCEMENT_NOT_FOUND | Announcement not found |
-| ANNOUNCEMENT_PUBLISH_FORBIDDEN | User cannot publish announcements |
+Planned base path: `/api/announcements`
 
 ---
 
-## Endpoints Index
+## Implementation status
 
-- [GET /api/forum/threads](#get-apiforumthreads)
+This module is not implemented in the current backend.
+
+What is currently visible in the codebase:
+
+- No dedicated module was found under `backend/src/modules/announcements`
+- No implemented HTTP routes were found for this module
+- No request or response contract is defined yet
+
+This document keeps a stable structure so it can be completed once the module exists.
 
 ---
 
-## GET `/api/forum/threads`
+## Overview
 
-<description>
+### Planned scope
 
-### Headers
-`Content-Type: application/json`
+- Placeholder: document publication, listing and lifecycle of announcements
+- Placeholder: clarify whether announcements are global or community-scoped
+- Placeholder: document visibility rules for residents and administrators
 
-### Body
-```json
-{
-  "body": "ToDo"
-}
-```
+### What is not defined yet
 
-### Validations
-* List of pertinent validations
+- Endpoint list
+- Payload shapes
+- Filters, pagination and sorting
+- Module-specific error codes
 
-### Response - `2XX <Response>`
-```json
-{
-  "response": "ToDo"
-}
-```
+---
 
-### Errors
-##### Errors
-| Error Code    | Message |
-| -------- | ------- |
-| 4XX  | ToDo |
-| 4XX | ToDo |
+## Access rules
+
+Not defined yet.
+
+Placeholder topics to document later:
+
+- Who can create announcements
+- Who can edit or archive announcements
+- Whether residents can read all announcements or only community-scoped ones
+
+---
+
+## Common response shapes
+
+Not defined yet.
+
+Placeholder topics to document later:
+
+- Announcement summary shape
+- Announcement detail shape
+- Pagination envelope, if introduced
+
+---
+
+## Endpoints
+
+No endpoints are currently implemented for this module.
+
+Placeholder sections to complete later:
+
+### 1. List announcements
+
+Placeholder.
+
+### 2. Get announcement detail
+
+Placeholder.
+
+### 3. Create announcement
+
+Placeholder.
+
+### 4. Update announcement
+
+Placeholder.
+
+### 5. Archive or delete announcement
+
+Placeholder.
+
+---
+
+## Common announcements error cases
+
+Not defined yet.
+
+Placeholder topics to document later:
+
+- Not found cases
+- Permission errors
+- Validation errors
+- State conflicts
+
+---
+
+## Frontend integration notes
+
+- Do not integrate against this module yet
+- Reuse [API Conventions](./conventions.md) for shared rules until a real contract exists
+- Revisit this page when the backend module is implemented

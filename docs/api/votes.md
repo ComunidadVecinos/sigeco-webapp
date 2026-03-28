@@ -1,56 +1,111 @@
 # Voting API
 
-The Voting API (`/api/votes/`) supports voting processes within communities through polls and votes.
+> API index: [docs/api/README.md](./README.md)
 
-> **API Documentation**
->
-> This document is part of the API documentation. For more information, return to the [API Documentation Index](./README.md).
+This page is reserved for the future `votes` module.
 
----
-
-## Application Error Codes
-| Code | Description |
-|----|-------------|
-| POLL_NOT_FOUND | Poll does not exist |
-| POLL_CLOSED | Voting period has ended |
-| DUPLICATE_VOTE | User already voted |
-| VOTE_OPTION_INVALID | Invalid vote option |
+Planned base path: `/api/votes`
 
 ---
 
-## Endpoints Index
+## Implementation status
 
-- [GET /api/forum/threads](#get-apiforumthreads)
+This module is not implemented in the current backend.
+
+What is currently visible in the codebase:
+
+- No dedicated module was found under `backend/src/modules/votes`
+- No implemented HTTP routes were found for this module
+- No request or response contract is defined yet
+
+This document keeps a stable structure so it can be completed once the module exists.
 
 ---
 
-## GET `/api/forum/threads`
+## Overview
 
-<description>
+### Planned scope
 
-### Headers
-`Content-Type: application/json`
+- Placeholder: document polls, options and ballot submission
+- Placeholder: define whether votes are anonymous, open or role-restricted
+- Placeholder: document vote lifecycle, closing and result publication
 
-### Body
-```json
-{
-  "body": "ToDo"
-}
-```
+### What is not defined yet
 
-### Validations
-* List of pertinent validations
+- Endpoint list
+- Poll and vote models
+- Result publication rules
+- Module-specific error codes
 
-### Response - `2XX <Response>`
-```json
-{
-  "response": "ToDo"
-}
-```
+---
 
-### Errors
-##### Errors
-| Error Code    | Message |
-| -------- | ------- |
-| 4XX  | ToDo |
-| 4XX | ToDo |
+## Access rules
+
+Not defined yet.
+
+Placeholder topics to document later:
+
+- Who can create polls
+- Who can vote
+- Whether administrative roles have additional voting capabilities
+
+---
+
+## Common response shapes
+
+Not defined yet.
+
+Placeholder topics to document later:
+
+- Poll summary
+- Poll detail
+- Vote submission result
+
+---
+
+## Endpoints
+
+No endpoints are currently implemented for this module.
+
+Placeholder sections to complete later:
+
+### 1. List polls
+
+Placeholder.
+
+### 2. Get poll detail
+
+Placeholder.
+
+### 3. Create poll
+
+Placeholder.
+
+### 4. Submit vote
+
+Placeholder.
+
+### 5. Close poll or publish results
+
+Placeholder.
+
+---
+
+## Common voting error cases
+
+Not defined yet.
+
+Placeholder topics to document later:
+
+- Poll not found
+- Poll closed
+- Duplicate vote
+- Invalid option
+
+---
+
+## Frontend integration notes
+
+- Do not integrate against this module yet
+- Reuse [API Conventions](./conventions.md) for shared rules until a real contract exists
+- Revisit this page when the backend module is implemented

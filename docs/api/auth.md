@@ -1,41 +1,114 @@
-# Authentication API (`/api/auth`)
+# Authentication API
 
-This module handles account access and session lifecycle.
+> API index: [docs/api/README.md](./README.md)
 
-> Related docs:
-> - [API index](./README.md)
-> - Swagger: `http://localhost/api/docs`
+This module handles account registration, login/logout, password change and password reset.
 
----
-
-## Security model
-
-- Signed cookie-based session (`sid`)
-- No JWT / no bearer token in request headers
-- Cookie attributes: `HttpOnly`, `Path=/`, `SameSite=Lax` (default), persistent (`Max-Age` from `SESSION_TTL_DAYS`)
-- Cookie signature uses `SESSION_SECRET`
-- Password change/reset invalidates previous sessions through auth versioning
+Base path: `/api/auth`
 
 ---
 
-## Available endpoints
+## Overview
 
-1. `POST /api/auth/register`
-2. `POST /api/auth/login`
-3. `POST /api/auth/logout`
-4. `GET /api/auth/me`
-5. `POST /api/auth/change-password`
-6. `POST /api/auth/forgot-password`
+### What this module does
 
-Not available in current backend:
-- `PUT /api/auth/reset-password`
-- `PUT /api/auth/delete-account`
+- Creates user accounts
+- Opens and closes the current session
+- Changes the password of the authenticated user
+- Resets password by email with a temporary password
+
+### What this module does not do
+
+- It does **not** expose `GET /api/auth/me`
+- Authenticated profile data is returned by the `users` module (`GET /api/users/me`)
+- Registration does **not** create a session automatically
 
 ---
 
-## 1) POST `/api/auth/register`
+## Session model
 
-Creates user and auto-login (sets `sid` cookie).
+Authentication is stateful and cookie-based.
+
+| Item | Value |
+|---|---|
+| Cookie name | `sid` |
+| Transport | `Set-Cookie` response header |
+| Cookie access | `HttpOnly` |
+| Cookie path | `/` |
+| `SameSite` | Configurable, default `lax` |
+| `Secure` | Configurable, forced to `true` when `SameSite=none` |
+| Session TTL | From `SESSION_TTL_DAYS` |
+
+Frontend must send credentials on protected routes.
+
+Example with Axios:
+
+```ts
+axios.post('/api/auth/sessions', body, { withCredentials: true });
+```
+
+---
+
+## Access context returned on login
+
+After successful login, the API returns a `context` object that summarizes the user's current access state.
+
+### `context.actorType`
+
+Possible values:
+
+| Value | Meaning |
+|---|---|
+| `RegisteredUserNoCommunity` | User has no active community membership |
+| `StandardMember` | User is a normal community member |
+| `DelegatedAdmin` | User is `VICE_PRESIDENT` |
+| `PrincipalAdmin` | User is `PRESIDENT` |
+
+### `context.activeMembership`
+
+Returned as `null` when the user has no active membership.
+
+When present:
+
+```json
+{
+  "id": "uuid",
+  "communityId": "uuid",
+  "communityName": "Comunidad SIGECO",
+  "role": "MEMBER",
+  "alias": "Marta Miembro",
+  "suspensionActive": false,
+  "suspendedAt": null,
+  "suspendedUntil": null,
+  "suspensionReason": null
+}
+```
+
+Selection rule used by backend:
+
+- It prefers the user's persisted active membership
+- If that membership is no longer valid, it prefers the first non-suspended active membership
+- If all memberships are suspended, it still returns one suspended membership as active context
+
+---
+
+## Endpoints
+
+| Method | Path | Auth required | Description |
+|---|---|---|---|
+| `POST` | `/api/auth/registrations` | No | Register a new account |
+| `POST` | `/api/auth/sessions` | No | Login and create session |
+| `DELETE` | `/api/auth/sessions/current` | Yes | Logout current session |
+| `POST` | `/api/auth/password/change` | Yes | Change current user's password |
+| `POST` | `/api/auth/password/reset` | No | Reset password by email |
+
+---
+
+## 1. Register
+
+`POST /api/auth/registrations`
+
+Creates a user account. It does **not** log the user in.
 
 ### Request
 
@@ -49,42 +122,48 @@ Content-Type: application/json
   "lastName": "Garcia",
   "email": "ana@ucm.es",
   "phone": "600 123 456",
-  "password": "Password1"
+  "password": "Password1!",
+  "passwordConfirmation": "Password1!"
 }
 ```
 
-Validation:
-- `firstName`, `lastName`: required, non-empty
-- `email`: required, valid email, must end with `@ucm.es`
-- `phone`: optional, exactly 9 digits, spaces allowed (normalized before saving)
-- `password`: required, min 8 chars, uppercase + lowercase + number
+### Validation rules
+
+| Field | Rules |
+|---|---|
+| `firstName` | Required, trimmed, letters/spaces/apostrophe/hyphen only |
+| `lastName` | Required, trimmed, letters/spaces/apostrophe/hyphen only |
+| `email` | Required, valid email, normalized to lowercase, must end with `@ucm.es` |
+| `phone` | Optional, 9 digits, spaces allowed, normalized before saving |
+| `password` | Required, min 8 chars, at least one uppercase, one lowercase, one digit and one special char |
+| `passwordConfirmation` | Required, must match `password` |
 
 ### Success
 
-- `201 Created`
-- `Set-Cookie: sid=...`
+- Status: `201 Created`
 
 ```json
 {
-  "id": "uuid",
-  "firstName": "Ana",
-  "lastName": "Garcia",
-  "email": "ana@ucm.es",
-  "phone": "600123456",
-  "createdAt": "2026-02-15T18:43:20.088Z"
+  "message": "Registro completado correctamente. Inicia sesión para continuar.",
+  "email": "ana@ucm.es"
 }
 ```
 
-### Errors
-- `400 VALIDATION_ERROR`
-- `409 CONFLICT` (email already registered)
-- `500 INTERNAL_ERROR`
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `422` | `VALIDATION_ERROR` | Body validation failed |
+| `422` | `EMAIL_ALREADY_REGISTERED` | Email already exists |
+| `422` | `PHONE_ALREADY_REGISTERED` | Phone already exists |
 
 ---
 
-## 2) POST `/api/auth/login`
+## 2. Login
 
-Validates credentials and sets a new `sid` cookie.
+`POST /api/auth/sessions`
+
+Creates a new session and sets the `sid` cookie.
 
 ### Request
 
@@ -92,148 +171,179 @@ Validates credentials and sets a new `sid` cookie.
 Content-Type: application/json
 ```
 
-By email:
+Login accepts a single `identifier` field.
+
+- If it contains `@`, backend treats it as email
+- Otherwise, backend tries to parse it as a 9-digit phone number, allowing spaces
+
+Example with email:
 
 ```json
 {
-  "email": "demo1@ucm.es",
-  "password": "Sigeco-2026"
+  "identifier": "ana@ucm.es",
+  "password": "Password1!"
 }
 ```
 
-By phone (Spain 9 digits, spaces optional):
+Example with phone:
 
 ```json
 {
-  "phone": "600 000 001",
-  "password": "Sigeco-2026"
+  "identifier": "600 123 456",
+  "password": "Password1!"
 }
 ```
+
+### Validation rules
+
+| Field | Rules |
+|---|---|
+| `identifier` | Required, non-empty string |
+| `password` | Required, non-empty string |
 
 ### Success
 
-- `200 OK`
-- `Set-Cookie: sid=...`
+- Status: `201 Created`
+- Response sets `Set-Cookie: sid=...`
 
 ```json
 {
-  "id": "uuid",
-  "firstName": "Demo",
-  "lastName": "UserOne",
-  "email": "demo1@ucm.es",
-  "phone": "+34600000001"
+  "user": {
+    "id": "uuid",
+    "firstName": "Ana",
+    "lastName": "Garcia",
+    "email": "ana@ucm.es",
+    "phone": "600123456"
+  },
+  "context": {
+    "actorType": "StandardMember",
+    "activeMembership": {
+      "id": "uuid",
+      "communityId": "uuid",
+      "communityName": "Comunidad SIGECO",
+      "role": "MEMBER",
+      "alias": "Ana",
+      "suspensionActive": false,
+      "suspendedAt": null,
+      "suspendedUntil": null,
+      "suspensionReason": null
+    }
+  },
+  "session": {
+    "expiresAt": "2026-03-28T20:15:00.000Z"
+  }
 }
 ```
 
-### Errors
-- `400 VALIDATION_ERROR`
-- `401 INVALID_CREDENTIALS`
-- `500 INTERNAL_ERROR`
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `422` | `VALIDATION_ERROR` | Missing `identifier` or `password` |
+| `401` | `INVALID_CREDENTIALS` | Unknown user or wrong password |
+
+### Frontend notes
+
+- The session token is not returned in the JSON body, only in the cookie
+- Frontend should persist no auth token manually
+- After login, the usual next step is calling `GET /api/users/me` to load full profile data
 
 ---
 
-## 3) POST `/api/auth/logout`
+## 3. Logout current session
 
-Clears `sid` cookie.
+`DELETE /api/auth/sessions/current`
+
+Invalidates the persisted current session and clears the client cookie.
+
+### Request
+
+Requires valid `sid` cookie.
+
+No request body.
+
+### Success
+
+- Status: `200 OK`
+- Response clears `sid` cookie
+
+```json
+{
+  "message": "Sesión cerrada correctamente."
+}
+```
+
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
+
+---
+
+## 4. Change password
+
+`POST /api/auth/password/change`
+
+Changes the authenticated user's password.
+
+Behavior:
+
+- Requires authenticated session
+- Validates current password
+- Updates password hash
+- Invalidates all other active sessions of the same user
+- Keeps the current session alive
 
 ### Request
 
 ```http
 Content-Type: application/json
-Cookie: sid=<signed_session_cookie>
+Cookie: sid=<session_cookie>
 ```
+
+```json
+{
+  "currentPassword": "Password1!",
+  "newPassword": "NewPassword2!",
+  "newPasswordConfirmation": "NewPassword2!"
+}
+```
+
+### Validation rules
+
+| Field | Rules |
+|---|---|
+| `currentPassword` | Required |
+| `newPassword` | Required, same complexity rules as registration |
+| `newPasswordConfirmation` | Required, must match `newPassword` |
 
 ### Success
 
-- `200 OK`
-- `Set-Cookie: sid=; Max-Age=0; ...`
+- Status: `200 OK`
 
 ```json
 {
-  "message": "Logged out successfully"
+  "message": "Contraseña cambiada correctamente."
 }
 ```
 
-### Errors
-- `500 INTERNAL_ERROR`
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
+| `422` | `VALIDATION_ERROR` | Invalid body |
+| `422` | `CURRENT_PASSWORD_INVALID` | Current password is wrong |
+| `404` | `NOT_FOUND` | Authenticated user no longer exists |
 
 ---
 
-## 4) GET `/api/auth/me`
+## 5. Reset password
 
-Returns authenticated user from `sid` cookie.
+`POST /api/auth/password/reset`
 
-### Request
-
-```http
-Cookie: sid=<signed_session_cookie>
-```
-
-### Success
-
-- `200 OK`
-
-```json
-{
-  "id": "uuid",
-  "firstName": "Demo",
-  "lastName": "UserOne",
-  "email": "demo1@ucm.es",
-  "phone": "+34600000001"
-}
-```
-
-### Errors
-- `401 UNAUTHORIZED` (missing/invalid/expired cookie)
-- `500 INTERNAL_ERROR`
-
----
-
-## 5) POST `/api/auth/change-password`
-
-Requires authenticated session. Updates password, invalidates previous sessions and clears current cookie.
-
-### Request
-
-```http
-Content-Type: application/json
-Cookie: sid=<signed_session_cookie>
-```
-
-```json
-{
-  "currentPassword": "OldPassword1",
-  "newPassword": "NewPassword1",
-  "confirmNewPassword": "NewPassword1"
-}
-```
-
-Validation:
-- `currentPassword`: required
-- `newPassword`: same complexity as register
-- `confirmNewPassword` must match `newPassword`
-
-### Success
-
-- `200 OK`
-- `Set-Cookie: sid=; Max-Age=0; ...`
-
-```json
-{
-  "message": "Password changed successfully. Please sign in again."
-}
-```
-
-### Errors
-- `400 VALIDATION_ERROR`
-- `401 INVALID_CREDENTIALS` / `UNAUTHORIZED`
-- `500 INTERNAL_ERROR`
-
----
-
-## 6) POST `/api/auth/forgot-password`
-
-Generates temporary password and sends it by email.
+Generates a temporary password and sends it by email when the account exists.
 
 ### Request
 
@@ -243,54 +353,86 @@ Content-Type: application/json
 
 ```json
 {
-  "email": "demo1@ucm.es"
+  "email": "ana@ucm.es"
 }
 ```
+
+### Validation rules
+
+| Field | Rules |
+|---|---|
+| `email` | Required, valid email, normalized to lowercase |
 
 ### Success
 
-- `200 OK`
+- Status: `200 OK`
 
 ```json
 {
-  "message": "If the email exists, a new temporary password has been sent."
+  "message": "Se ha enviado una nueva contraseña temporal."
 }
 ```
 
-Same success message is returned for existing/non-existing emails (anti-enumeration).
+### Backend behavior relevant to frontend
 
-### Errors
-- `400 VALIDATION_ERROR`
-- `500 INTERNAL_ERROR`
+- The endpoint returns the same success response whether the user exists or not
+- It does not require the email to belong to `@ucm.es`
+- If the user exists:
+  - backend generates a temporary password
+  - updates stored password
+  - sends email
+  - invalidates all active sessions for that user
+- If email sending fails, backend restores the previous password state
 
-### Local MailPit
+### Local development note
 
-Emails are available at:
-- `http://localhost:8025`
+In the local Docker environment, reset emails are delivered to MailPit:
+
+- UI: `http://localhost:8025`
+
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `422` | `VALIDATION_ERROR` | Invalid email format |
+| `502` | `EMAIL_SERVICE_UNAVAILABLE` | Password reset email could not be sent |
 
 ---
 
-## Quick curl examples
+## Common auth error cases
 
-```bash
-# Login
-curl -i -c cookie.txt -X POST http://localhost/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"demo1@ucm.es","password":"Sigeco-2026"}'
+| Scenario | Status | Code |
+|---|---|---|
+| Missing session cookie on protected route | `401` | `UNAUTHORIZED` |
+| Invalid or expired session cookie | `401` | `UNAUTHORIZED` |
+| Wrong login credentials | `401` | `INVALID_CREDENTIALS` |
+| Invalid request body | `422` | `VALIDATION_ERROR` |
+| Malformed JSON body | `400` | `VALIDATION_ERROR` |
 
-# Me
-curl -i -b cookie.txt http://localhost/api/auth/me
+Standard error shape:
 
-# Change password
-curl -i -b cookie.txt -X POST http://localhost/api/auth/change-password \
-  -H "Content-Type: application/json" \
-  -d '{"currentPassword":"Sigeco-2026","newPassword":"NewPassword1","confirmNewPassword":"NewPassword1"}'
-
-# Forgot password
-curl -i -X POST http://localhost/api/auth/forgot-password \
-  -H "Content-Type: application/json" \
-  -d '{"email":"demo1@ucm.es"}'
-
-# Logout
-curl -i -b cookie.txt -X POST http://localhost/api/auth/logout
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Error de validación",
+    "details": [
+      {
+        "field": "passwordConfirmation",
+        "location": "body",
+        "message": "Las contraseñas no coinciden"
+      }
+    ]
+  }
+}
 ```
+
+---
+
+## Frontend integration notes
+
+- Always use `withCredentials: true` or equivalent on protected requests
+- Do not store auth tokens in frontend state or local storage
+- Registration must usually be followed by an explicit login
+- After login, call the `users` module for the complete authenticated profile
+- Logout can be treated as idempotent in UX, but the backend still returns `401` if the session was already invalid

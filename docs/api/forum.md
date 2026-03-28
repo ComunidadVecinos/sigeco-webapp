@@ -1,56 +1,111 @@
 # Forum API
 
-The Forum API (`/api/forum/`) provides discussion features within a community, allowing users to create threads and post messages.
+> API index: [docs/api/README.md](./README.md)
 
-> **API Documentation**
->
-> This document is part of the API documentation. For more information, return to the [API Documentation Index](./README.md).
+This page is reserved for the future `forum` module.
 
----
-
-## Application Error Codes
-| Code | Description |
-|----|-------------|
-| THREAD_NOT_FOUND | Forum thread not found |
-| POST_NOT_FOUND | Post does not exist |
-| FORUM_WRITE_FORBIDDEN | User cannot post |
-| COMMENT_LIMIT_REACHED | Comment limit exceeded |
+Planned base path: `/api/forum`
 
 ---
 
-## Endpoints Index
+## Implementation status
 
-- [GET /api/forum/threads](#get-apiforumthreads)
+This module is not implemented in the current backend.
+
+What is currently visible in the codebase:
+
+- No dedicated module was found under `backend/src/modules/forum`
+- No implemented HTTP routes were found for this module
+- No request or response contract is defined yet
+
+This document keeps a stable structure so it can be completed once the module exists.
 
 ---
 
-## GET `/api/forum/threads`
+## Overview
 
-<description>
+### Planned scope
 
-### Headers
-`Content-Type: application/json`
+- Placeholder: document threads, posts and community discussions
+- Placeholder: define whether moderation belongs to this module
+- Placeholder: document whether forum content is community-scoped
 
-### Body
-```json
-{
-  "body": "ToDo"
-}
-```
+### What is not defined yet
 
-### Validations
-* List of pertinent validations
+- Endpoint list
+- Thread and post models
+- Pagination and sorting rules
+- Module-specific error codes
 
-### Response - `2XX <Response>`
-```json
-{
-  "response": "ToDo"
-}
-```
+---
 
-### Errors
-##### Errors
-| Error Code    | Message |
-| -------- | ------- |
-| 4XX  | ToDo |
-| 4XX | ToDo |
+## Access rules
+
+Not defined yet.
+
+Placeholder topics to document later:
+
+- Who can create threads
+- Who can reply or moderate content
+- Whether suspended members can still read forum content
+
+---
+
+## Common response shapes
+
+Not defined yet.
+
+Placeholder topics to document later:
+
+- Thread summary
+- Thread detail
+- Post summary
+
+---
+
+## Endpoints
+
+No endpoints are currently implemented for this module.
+
+Placeholder sections to complete later:
+
+### 1. List threads
+
+Placeholder.
+
+### 2. Get thread detail
+
+Placeholder.
+
+### 3. Create thread
+
+Placeholder.
+
+### 4. Reply to thread
+
+Placeholder.
+
+### 5. Edit, moderate or delete content
+
+Placeholder.
+
+---
+
+## Common forum error cases
+
+Not defined yet.
+
+Placeholder topics to document later:
+
+- Not found cases
+- Permission errors
+- Validation errors
+- Moderation conflicts
+
+---
+
+## Frontend integration notes
+
+- Do not integrate against this module yet
+- Reuse [API Conventions](./conventions.md) for shared rules until a real contract exists
+- Revisit this page when the backend module is implemented

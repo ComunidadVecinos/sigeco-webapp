@@ -88,7 +88,6 @@ docker compose logs -f db_init
 
 - Frontend: http://localhost
 - Backend API (proxied by nginx): `http://localhost/api/*`
-- Swagger/OpenAPI: `http://localhost/api/docs` (also available at `/docs` in backend)
 - MailPit UI: http://localhost:8025
 
 Development note: abrir http://localhost:8025 para ver emails de recovery/notifications.
@@ -110,6 +109,13 @@ SIGECO uses signed cookie-based sessions. Session behavior:
 - SMTP host (from backend container): `mailpit`
 - SMTP port: `1025`
 - UI inbox: http://localhost:8025
+
+### Seed demo accounts
+
+The local database is seeded automatically on first startup.
+
+- Shared password for demo users: `Sigeco-2026!`
+- Example accounts: `president@ucm.es`, `vice@ucm.es`, `member@ucm.es`, `suspended@ucm.es`, `nocommunity@ucm.es`
 
 ---
 
@@ -153,8 +159,16 @@ SIGECO is organised into the following functional modules:
 # Start all services
 docker compose up -d --build
 
-# Stop and remove containers/networks/volumes
+# Restart all services keeping data
+docker compose down
+docker compose up -d --build
+
+# Restart from a clean state (removes DB/storage volumes)
 docker compose down -v --remove-orphans
+docker compose up -d --build
+
+# Stop and remove containers/networks
+docker compose down
 ```
 
 ### Logs
@@ -191,9 +205,8 @@ docker compose exec backend npm run db:seed
 # Reset DB (destructive)
 docker compose exec backend npm run db:reset
 
-# Prisma Studio
-docker compose exec backend npm run prisma:studio
-
+# Prisma Studio (open http://localhost:5555)
+docker compose run --rm -p 5555:5555 backend npx prisma studio --hostname 0.0.0.0 --port 5555
 ```
 
 ### Inspect DB quickly from Docker
@@ -215,6 +228,6 @@ SELECT * FROM users LIMIT 20;
 
 Technical documentation is located in `/docs`:
 
+- [Architecture overview](docs/architecture/overview.md)
+- [Database documentation](docs/database/overview.md)
 - [API docs index](docs/api/README.md)
-- [Architecture](docs/architecture.md)
-- [Database design](docs/database.md)
