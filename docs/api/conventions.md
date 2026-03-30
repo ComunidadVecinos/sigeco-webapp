@@ -13,7 +13,9 @@ This document describes the cross-cutting API conventions currently implemented 
 - File uploads currently use `multipart/form-data`
 - Field naming in payloads: `camelCase`
 - Most identifiers are UUID strings
-- Dates are returned as ISO 8601 strings
+- Datetime fields are usually returned as ISO 8601 strings
+- Some business-date fields use `YYYY-MM-DD`
+- Some time-only fields use `HH:mm`
 
 Examples:
 
@@ -187,6 +189,7 @@ What frontend should expect:
 - Numeric query params such as `page` and `pageSize` are accepted as strings and normalized to numbers
 - Optional text query params are trimmed; empty strings may be treated as missing values
 - Date query params are validated before being parsed
+- Some modules use fixed string formats for date-like fields, for example `YYYY-MM`, `YYYY-MM-DD` or `HH:mm`
 - Invalid JSON body returns `400` with the standard error envelope
 - Schema validation failures return `422 VALIDATION_ERROR`
 
@@ -257,5 +260,5 @@ Uploaded files are later exposed as public URLs under `/uploads/...`, and the AP
 - Always send credentials on protected routes.
 - Do not expect a global response wrapper on success.
 - Always read and surface `error.message`; use `error.details` for field-level form feedback.
-- Treat returned date fields as strings and format them in frontend.
+- Treat returned date and time fields as strings and format them in frontend.
 - Treat returned file/image URLs as already public and directly renderable.

@@ -1,3 +1,7 @@
+// Acceso a datos del módulo calendar.
+// Calendar almacena eventos automáticos y personales en una unica tabla:
+// - "ownerMembershipId = null" identifica eventos automáticos de comunidad.
+// - "ownerMembershipId = <membershipId>"" identifica eventos personales privados del miembro.
 const prisma = require('../../lib/prisma');
 
 const calendarEventSelect = {
@@ -13,18 +17,14 @@ function buildVisibleCalendarEventsWhere({ communityId, ownerMembershipId, start
   return {
     communityId,
     deletedAt: null,
-    eventDate: {
-      gte: startDate,
-      lt: endDate
-    },
-    OR: [
-      { ownerMembershipId: null },
-      { ownerMembershipId }
-    ]
+    eventDate: { gte: startDate, lt: endDate },
+    // El listado mensual siempre mezcla eventos comunitarios con los personales del miembro actual.
+    OR: [{ ownerMembershipId: null }, { ownerMembershipId }]
   };
 }
 
 function buildCalendarEventsOrderBy() {
+  // Orden estable para la vista mensual y para evitar empates no deterministas entre eventos coincidentes.
   return [
     { eventDate: 'asc' },
     { startTime: 'asc' },
@@ -73,6 +73,7 @@ async function findOwnedPersonalEventById({ communityId, ownerMembershipId, even
 
 async function updateOwnedPersonalEvent({ communityId, ownerMembershipId, eventId, data }) {
   return prisma.$transaction(async (tx) => {
+    // "updateMany" permite mantener todas las restricciones de ownership y soft-delete en el propio WHERE.
     const updateResult = await tx.calendarEvent.updateMany({
       where: {
         id: eventId,
@@ -117,6 +118,7 @@ async function softDeleteOwnedPersonalEvent({ communityId, ownerMembershipId, ev
 }
 
 async function upsertAutomaticEvent(input) {
+  // La clave única compuesta hace idempotente la sincronización desde el módulo origen.
   return prisma.calendarEvent.upsert({
     where: {
       communityId_type_sourceEntityId: {
@@ -156,9 +158,7 @@ async function softDeleteAutomaticEvent({ communityId, type, sourceEntityId }) {
       ownerMembershipId: null,
       deletedAt: null
     },
-    data: {
-      deletedAt: new Date()
-    }
+    data: { deletedAt: new Date() }
   });
 }
 
@@ -167,17 +167,14 @@ async function softDeletePersonalEventsByMembershipIds(db, membershipIds, delete
     return { count: 0 };
   }
 
+  // Reutilizado por cierres de membership y borrado de cuenta para no dejar eventos personales huérfanos.
   return db.calendarEvent.updateMany({
     where: {
-      ownerMembershipId: {
-        in: membershipIds
-      },
+      ownerMembershipId: { in: membershipIds },
       type: 'PERSONAL',
       deletedAt: null
     },
-    data: {
-      deletedAt
-    }
+    data: { deletedAt }
   });
 }
 

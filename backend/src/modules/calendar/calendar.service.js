@@ -1,9 +1,14 @@
+// Servicio del módulo calendar.
+// Orquesta la visibilidad del calendario comunitario y separa dos categorías de eventos:
+// - automáticos: pertenecen a la comunidad y llegan sincronizados desde otros módulos.
+// - personales: pertenecen a una membership concreta dentro de esa comunidad.
 const { ConflictError, NotFoundError, ValidationError } = require('../../lib/errors');
 const calendarRepository = require('./calendar.repository');
 const membersRepository = require('../members/members.repository');
 const membersService = require('../members/members.service');
 
 function mapCalendarEvent(event) {
+  // La API expone fecha y hora, no datetime completo.
   return {
     id: event.id,
     title: event.title,
@@ -19,6 +24,7 @@ function buildValidationDetail(field, message) {
 }
 
 function assertValidTimeRange(startTime, endTime) {
+  // El módulo permite solapamientos: solo exige un rango horario internamente coherente.
   if (startTime < endTime) {
     return;
   }
@@ -30,6 +36,7 @@ function assertValidTimeRange(startTime, endTime) {
 
 function buildMonthRange(month) {
   const [year, monthNumber] = month.split('-').map(Number);
+  // El mes es el segmento natural de consulta y se acota en UTC para evitar deriva por zona horaria.
   return {
     startDate: new Date(Date.UTC(year, monthNumber - 1, 1)),
     endDate: new Date(Date.UTC(year, monthNumber, 1))
@@ -37,12 +44,14 @@ function buildMonthRange(month) {
 }
 
 async function requireCalendarMembershipAccess(userId, communityId) {
+  // Calendar reutiliza la noción de "pertenece a la comunidad", que incluye memberships suspendidas.
   return membersService.requireCommunityMembershipAccess(userId, communityId, membersRepository);
 }
 
 async function getCalendarMonthEvents(context, communityId, input, repository) {
   const { membership } = await requireCalendarMembershipAccess(context.userId, communityId);
   const { startDate, endDate } = buildMonthRange(input.month);
+  // La vista mensual mezcla eventos automáticos de comunidad con los personales del miembro actual.
   const events = await repository.findVisibleCalendarEventsInRange({
     communityId,
     ownerMembershipId: membership.id,
@@ -50,10 +59,7 @@ async function getCalendarMonthEvents(context, communityId, input, repository) {
     endDate
   });
 
-  return {
-    month: input.month,
-    content: events.map(mapCalendarEvent)
-  };
+  return { month: input.month, content: events.map(mapCalendarEvent) };
 }
 
 async function createPersonalEvent(context, communityId, input, repository) {
@@ -74,11 +80,7 @@ async function createPersonalEvent(context, communityId, input, repository) {
 
 async function updatePersonalEvent(context, communityId, eventId, input, repository) {
   const { membership } = await requireCalendarMembershipAccess(context.userId, communityId);
-  const existingEvent = await repository.findOwnedPersonalEventById({
-    communityId,
-    ownerMembershipId: membership.id,
-    eventId
-  });
+  const existingEvent = await repository.findOwnedPersonalEventById({ communityId, ownerMembershipId: membership.id, eventId });
 
   if (!existingEvent) {
     throw new NotFoundError('Evento personal no encontrado');
@@ -87,6 +89,7 @@ async function updatePersonalEvent(context, communityId, eventId, input, reposit
   const nextStartTime = input.startTime || existingEvent.startTime;
   const nextEndTime = input.endTime || existingEvent.endTime;
 
+  // PATCH permite modificar solo uno de los extremos horarios (se valida el rango final combinado).
   assertValidTimeRange(nextStartTime, nextEndTime);
 
   const updatedEvent = await repository.updateOwnedPersonalEvent({
@@ -120,13 +123,11 @@ async function deletePersonalEvent(context, communityId, eventId, repository) {
     throw new NotFoundError('Evento personal no encontrado');
   }
 
-  return {
-    deleted: true,
-    eventId
-  };
+  return { deleted: true, eventId };
 }
 
 async function upsertAutomaticEvent(input, repository = calendarRepository) {
+  // Los eventos automáticos son internos al backend: PERSONAL queda reservado al CRUD del usuario.
   if (input.type === 'PERSONAL') {
     throw new ValidationError(buildValidationDetail('type', 'Los eventos automáticos no pueden usar el tipo PERSONAL'));
   }
@@ -165,11 +166,7 @@ async function deleteAutomaticEvent(input, repository = calendarRepository) {
     sourceEntityId: input.sourceEntityId
   });
 
-  return {
-    deleted: result.count === 1,
-    type: input.type,
-    sourceEntityId: input.sourceEntityId
-  };
+  return { deleted: result.count === 1, type: input.type, sourceEntityId: input.sourceEntityId };
 }
 
 module.exports = {

@@ -1,3 +1,4 @@
+// Controladores HTTP del módulo calendar.
 const calendarRepository = require('./calendar.repository');
 const calendarService = require('./calendar.service');
 
@@ -46,9 +47,4 @@ async function deletePersonalEvent(req, res) {
   return res.status(200).json(result);
 }
 
-module.exports = {
-  getCalendarMonthEvents,
-  createPersonalEvent,
-  updatePersonalEvent,
-  deletePersonalEvent
-};
+module.exports = { getCalendarMonthEvents, createPersonalEvent, updatePersonalEvent, deletePersonalEvent };

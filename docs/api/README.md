@@ -31,7 +31,7 @@ This index is the canonical entry point for API docs from the project root `READ
 | [Requests](./requests.md) | Maintained | User and admin request workflows |
 | [Users](./users.md) | Maintained | Authenticated profile and self-service endpoints |
 | [Forum](./forum.md) | Draft | Structured placeholder for a future module |
-| [Calendar](./calendar.md) | Draft | Structured placeholder for a future module |
+| [Calendar](./calendar.md) | Maintained | Community month view and personal event endpoints |
 | [Announcements](./announcements.md) | Draft | Structured placeholder for a future module |
 | [Documents](./documents.md) | Draft | Structured placeholder for a future module |
 | [Incidents](./incidents.md) | Draft | Structured placeholder for a future module |
@@ -46,7 +46,7 @@ This index is the canonical entry point for API docs from the project root `READ
 - Successful responses do not use a global `data` wrapper. Each endpoint returns its domain payload directly.
 - Error responses do use a common envelope: `error.code`, `error.message`, and optional `error.details`.
 - Most resource identifiers exposed by the API are UUID strings.
-- Dates are returned as ISO 8601 strings.
+- Datetime fields are usually returned as ISO 8601 strings. Some business-date fields use `YYYY-MM-DD`, and some time-only fields use `HH:mm`.
 
 For the exact shared rules and examples, see [API Conventions](./conventions.md).
 
