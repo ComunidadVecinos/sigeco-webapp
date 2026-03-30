@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  MEMBER
+  VICE_PRESIDENT
+  PRESIDENT
+}
+
+enum CommunityRequestType {
+  JOIN
+  UPDATE_INFO
+}
+
+enum CommunityRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model User {
+  id                     String       @id @default(uuid()) @db.Uuid
+  firstName              String       @map("first_name")
+  lastName               String       @map("last_name")
+  email                  String       @unique @db.VarChar(320)
+  phone                  String?      @unique @db.VarChar(20)
+  passwordHash           String       @map("password_hash")
+  passwordChangedAt      DateTime     @default(now()) @map("password_changed_at")
+  lastActiveMembershipId String?      @db.Uuid @map("last_active_membership_id")
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
+  deletedAt              DateTime?    @map("deleted_at")
+
+  avatar               UserAvatar?
+  lastActiveMembership Membership?         @relation("UserLastActiveMembership", fields: [lastActiveMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  memberships          Membership[]        @relation("UserMemberships")
+  sessions             Session[]           @relation("UserSessions")
+  communityRequests    CommunityRequest[]  @relation("UserCommunityRequests")
+
+  @@index([lastActiveMembershipId])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Session {
+  id                 String       @id @default(uuid()) @db.Uuid
+  userId             String       @db.Uuid @map("user_id")
+  activeMembershipId String?      @db.Uuid @map("active_membership_id")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  expiresAt          DateTime     @map("expires_at")
+  invalidatedAt      DateTime?    @map("invalidated_at")
+
+  user             User        @relation("UserSessions", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  activeMembership Membership? @relation("SessionActiveMembership", fields: [activeMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([userId])
+  @@index([activeMembershipId])
+  @@index([expiresAt])
+  @@index([invalidatedAt])
+  @@map("sessions")
+}
+
+model Community {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  name               String                 @db.VarChar(160)
+  cif                String                 @unique @db.VarChar(20)
+  country            String                 @db.VarChar(100)
+  province           String                 @db.VarChar(120)
+  municipality       String                 @db.VarChar(120)
+  streetType         String                 @map("street_type") @db.VarChar(50)
+  streetName         String                 @map("street_name") @db.VarChar(255)
+  postalCode         String                 @map("postal_code") @db.VarChar(10)
+  streetNumberKm     String                 @map("street_number_km") @db.VarChar(30)
+  accessCode         String                 @unique @map("access_code") @db.VarChar(20)
+  /// Reserva de cuota para documentos de comunidad; todavia no hay modulo expuesto.
+  storageQuotaBytes  BigInt                 @default(5368709120) @map("storage_quota_bytes")
+  storageUsedBytes   BigInt                 @default(0) @map("storage_used_bytes")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+  deletedAt          DateTime?              @map("deleted_at")
+
+  avatar             CommunityAvatar?
+  folders            CommunityFolder[]
+  documents          CommunityDocument[]
+  memberships        Membership[]           @relation("CommunityMemberships")
+  communityRequests  CommunityRequest[]     @relation("CommunityRequests")
+  helpSections       CommunityHelpSection[] @relation("CommunityHelpSections")
+
+  @@index([cif])
+  @@index([accessCode])
+  @@index([deletedAt])
+  @@map("communities")
+}
+
+model UserAvatar {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId       String   @unique @db.Uuid @map("user_id")
+  storagePath  String   @unique @map("storage_path")
+  mimeType     String   @map("mime_type") @db.VarChar(100)
+  sizeBytes    Int      @map("size_bytes")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("user_avatars")
+}
+
+model CommunityAvatar {
+  id           String   @id @default(uuid()) @db.Uuid
+  communityId  String   @unique @db.Uuid @map("community_id")
+  storagePath  String   @unique @map("storage_path")
+  mimeType     String   @map("mime_type") @db.VarChar(100)
+  sizeBytes    Int      @map("size_bytes")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("community_avatars")
+}
+
+/// Arbol logico de carpetas desacoplado de la ruta fisica de almacenamiento.
+model CommunityFolder {
+  id          String    @id @default(uuid()) @db.Uuid
+  communityId String    @db.Uuid @map("community_id")
+  parentId    String?   @db.Uuid @map("parent_id")
+  name        String    @db.VarChar(255)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  community Community         @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parent    CommunityFolder?  @relation("CommunityFolderTree", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  children  CommunityFolder[] @relation("CommunityFolderTree")
+  documents CommunityDocument[]
+
+  @@unique([communityId, parentId, name])
+  @@index([communityId])
+  @@index([parentId])
+  @@index([deletedAt])
+  @@map("community_folders")
+}
+
+/// Documento que pertenece siempre a una comunidad y no a un usuario individual.
+model CommunityDocument {
+  id                     String    @id @default(uuid()) @db.Uuid
+  communityId            String    @db.Uuid @map("community_id")
+  folderId               String?   @db.Uuid @map("folder_id")
+  uploadedByMembershipId String?   @db.Uuid @map("uploaded_by_membership_id")
+  originalName           String    @map("original_name") @db.VarChar(255)
+  storagePath            String    @unique @map("storage_path")
+  mimeType               String    @map("mime_type") @db.VarChar(100)
+  extension              String?   @db.VarChar(20)
+  sizeBytes              BigInt    @map("size_bytes")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  deletedAt              DateTime? @map("deleted_at")
+
+  community            Community       @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  folder               CommunityFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  uploadedByMembership Membership?     @relation("CommunityDocumentUploadedBy", fields: [uploadedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([communityId])
+  @@index([folderId])
+  @@index([uploadedByMembershipId])
+  @@index([deletedAt])
+  @@map("community_documents")
+}
+
+model Membership {
+  id               String         @id @default(uuid()) @db.Uuid
+  userId           String         @db.Uuid @map("user_id")
+  communityId      String         @db.Uuid @map("community_id")
+  role             MembershipRole @default(MEMBER)
+  alias            String         @db.VarChar(120)
+  suspendedAt      DateTime?      @map("suspended_at")
+  suspendedUntil   DateTime?      @map("suspended_until")
+  suspensionReason String?        @map("suspension_reason")
+  joinedAt         DateTime       @default(now()) @map("joined_at")
+  endedAt          DateTime?      @map("ended_at")
+  endReason        String?        @map("end_reason")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  deletedAt        DateTime?      @map("deleted_at")
+
+  user                      User               @relation("UserMemberships", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  community                 Community          @relation("CommunityMemberships", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lastActiveForUsers        User[]             @relation("UserLastActiveMembership")
+  activeSessions            Session[]          @relation("SessionActiveMembership")
+  property                  Property?          @relation("MembershipProperty")
+  uploadedDocuments         CommunityDocument[] @relation("CommunityDocumentUploadedBy")
+  resolvedCommunityRequests CommunityRequest[] @relation("CommunityRequestResolvedByMembership")
+
+  @@index([userId])
+  @@index([communityId])
+  @@unique([userId, communityId])
+  @@index([communityId, role])
+  @@index([endedAt])
+  @@index([deletedAt])
+  @@map("memberships")
+}
+
+model Property {
+  id             String    @id @default(uuid()) @db.Uuid
+  membershipId   String    @unique @db.Uuid @map("membership_id")
+  label          String    @db.VarChar(120)
+  country        String    @db.VarChar(100)
+  province       String    @db.VarChar(120)
+  municipality   String    @db.VarChar(120)
+  streetType     String    @map("street_type") @db.VarChar(50)
+  streetName     String    @map("street_name") @db.VarChar(255)
+  postalCode     String    @map("postal_code") @db.VarChar(20)
+  streetNumberKm String    @map("street_number_km") @db.VarChar(30)
+  block          String?   @db.VarChar(30)
+  floor          String?   @db.VarChar(30)
+  door           String?   @db.VarChar(30)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  membership Membership @relation("MembershipProperty", fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([deletedAt])
+  @@map("properties")
+}
+
+model CommunityRequest {
+  id                     String                 @id @default(uuid()) @db.Uuid
+  communityId            String                 @db.Uuid @map("community_id")
+  userId                 String                 @db.Uuid @map("user_id")
+  type                   CommunityRequestType
+  status                 CommunityRequestStatus @default(PENDING)
+  requestComment         String?                @map("request_comment") @db.Text
+  resolutionMessage      String?                @map("resolution_message") @db.Text
+  resolvedByMembershipId String?                @db.Uuid @map("resolved_by_membership_id")
+  resolvedAt             DateTime?              @map("resolved_at")
+  cancelledAt            DateTime?              @map("cancelled_at")
+  archivedAt             DateTime?              @map("archived_at")
+  createdAt              DateTime               @default(now()) @map("created_at")
+  updatedAt              DateTime               @updatedAt @map("updated_at")
+
+  community             Community              @relation("CommunityRequests", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user                  User                   @relation("UserCommunityRequests", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  resolvedByMembership  Membership?            @relation("CommunityRequestResolvedByMembership", fields: [resolvedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  details               CommunityRequestDetails?
+
+  @@index([communityId])
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([resolvedByMembershipId])
+  @@index([archivedAt])
+  @@map("community_requests")
+}
+
+model CommunityRequestDetails {
+  id                String   @id @default(uuid()) @db.Uuid
+  communityRequestId String @unique @db.Uuid @map("community_request_id")
+  proposedAlias    String?  @map("proposed_alias") @db.VarChar(120)
+  label            String   @db.VarChar(120)
+  country          String   @db.VarChar(100)
+  province         String   @db.VarChar(120)
+  municipality     String   @db.VarChar(120)
+  streetType       String   @map("street_type") @db.VarChar(50)
+  streetName       String   @map("street_name") @db.VarChar(255)
+  postalCode       String   @map("postal_code") @db.VarChar(20)
+  streetNumberKm   String   @map("street_number_km") @db.VarChar(30)
+  block            String?  @db.VarChar(30)
+  floor            String?  @db.VarChar(30)
+  door             String?  @db.VarChar(30)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  communityRequest CommunityRequest @relation(fields: [communityRequestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("community_request_details")
+}
+
+model CommunityHelpSection {
+  id          String    @id @default(uuid()) @db.Uuid
+  communityId String    @db.Uuid @map("community_id")
+  title       String    @db.VarChar(160)
+  description String    @db.Text
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  community Community @relation("CommunityHelpSections", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([communityId])
+  @@index([communityId, sortOrder])
+  @@index([sortOrder])
+  @@index([deletedAt])
+  @@map("community_help_sections")
+}
