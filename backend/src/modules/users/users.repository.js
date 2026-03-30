@@ -1,5 +1,6 @@
 // Acceso a datos del módulo users.
 const prisma = require('../../lib/prisma');
+const calendarRepository = require('../calendar/calendar.repository');
 
 async function findUserProfileById(userId) {
   const user = await prisma.user.findUnique({
@@ -154,6 +155,7 @@ async function deleteUserAccount(userId, deletionData) {
     const membershipIds = user.memberships.map((membership) => membership.id);
 
     if (membershipIds.length > 0) {
+      await calendarRepository.softDeletePersonalEventsByMembershipIds(tx, membershipIds, now);
       // Se marca también la vivienda, porque su significado depende de la membership eliminada.
       await tx.property.updateMany({
         where: { membershipId: { in: membershipIds }, deletedAt: null

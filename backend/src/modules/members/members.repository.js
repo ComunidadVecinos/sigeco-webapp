@@ -1,6 +1,7 @@
 // Acceso a datos del módulo members.
 const prisma = require('../../lib/prisma');
 const { isMembershipCurrentlySuspended } = require('../../lib/membership');
+const calendarRepository = require('../calendar/calendar.repository');
 
 function buildInactiveMembershipWhere(now) {
   return { suspendedUntil: { gt: now } };
@@ -173,6 +174,8 @@ async function finalizeMembershipAndResolveActiveContext({ userId, membershipId,
     if (updateResult.count !== 1) {
       return null;
     }
+
+    await calendarRepository.softDeletePersonalEventsByMembershipIds(tx, [membershipId], now);
 
     const user = await tx.user.findUnique({
       where: { id: userId },

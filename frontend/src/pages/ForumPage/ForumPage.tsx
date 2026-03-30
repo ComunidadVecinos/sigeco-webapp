@@ -14,6 +14,7 @@ import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DateRange } from 'react-day-picker';
+import { useNavigate } from 'react-router-dom';
 
 
 type PostCategory = 'pregunta' | 'encuesta' | 'anuncio' | 'solicitud';
@@ -45,7 +46,8 @@ interface Post {
 
 
 const ForumPage: React.FC = () => {
-    const { user } = useAuth();
+    const navigate = useNavigate();
+    const { user, loading: authLoading } = useAuth();
     const communityId = user?.activeCommunityId;
 
     //Rol del usuario
@@ -70,6 +72,12 @@ const ForumPage: React.FC = () => {
     //Editar post
     const [editingPostId, setEditingPostId] = useState<number | null>(null);
     const [editPostContent, setEditPostContent] = useState('');
+
+    useEffect(() => {
+        if (!authLoading && user && !communityId) {
+            navigate('/auth/me', { replace: true });
+        }
+    }, [authLoading, communityId, navigate, user]);
 
     //Cargar posts
     const loadPosts = async (pageNum: number, append: boolean = false) => {

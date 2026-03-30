@@ -52,9 +52,9 @@ function formatDate(value?: string | null) {
 }
 
 function formatRole(role?: string | null) {
-    if (role === 'PRESIDENT') return 'Presidencia';
-    if (role === 'VICE_PRESIDENT') return 'Vicepresidencia';
-    if (role === 'MEMBER') return 'Vecino';
+    if (role === 'PRESIDENT') return 'Presidente';
+    if (role === 'VICE_PRESIDENT') return 'Vicepresidente';
+    if (role === 'MEMBER') return 'Vecino/a';
     return role || '-';
 }
 

@@ -1,11 +1,21 @@
 //Pagina de bienvenida donde puedes registrarte o iniciar sesion
 
-import React from "react";
+import React, { useEffect } from "react";
 import {Button} from "@/components/ui/button";
 import imgSD from '../../assets/images/SwingingDoodle.png'
-import {Link} from 'react-router-dom';
+import {Link, useNavigate} from 'react-router-dom';
+import { useAuth } from '@/context/authContext';
 
 const WelcomePage: React.FC = () => {
+    const navigate = useNavigate();
+    const { user, loading } = useAuth();
+
+    useEffect(() => {
+        if (!loading && user) {
+            navigate('/auth/me', { replace: true });
+        }
+    }, [loading, navigate, user]);
+
     return (
         <div>
             <main>

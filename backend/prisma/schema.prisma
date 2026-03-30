@@ -25,6 +25,13 @@ enum CommunityRequestStatus {
   CANCELLED
 }
 
+enum CalendarEventType {
+  PERSONAL
+  NEWS
+  RESERVATION
+  VOTING
+}
+
 model User {
   id                     String       @id @default(uuid()) @db.Uuid
   firstName              String       @map("first_name")
@@ -92,6 +99,7 @@ model Community {
   memberships        Membership[]           @relation("CommunityMemberships")
   communityRequests  CommunityRequest[]     @relation("CommunityRequests")
   helpSections       CommunityHelpSection[] @relation("CommunityHelpSections")
+  calendarEvents     CalendarEvent[]
 
   @@index([cif])
   @@index([accessCode])
@@ -198,6 +206,7 @@ model Membership {
   property                  Property?          @relation("MembershipProperty")
   uploadedDocuments         CommunityDocument[] @relation("CommunityDocumentUploadedBy")
   resolvedCommunityRequests CommunityRequest[] @relation("CommunityRequestResolvedByMembership")
+  calendarEvents            CalendarEvent[]    @relation("CalendarEventOwnerMembership")
 
   @@index([userId])
   @@index([communityId])
@@ -206,6 +215,29 @@ model Membership {
   @@index([endedAt])
   @@index([deletedAt])
   @@map("memberships")
+}
+
+model CalendarEvent {
+  id                String            @id @default(uuid()) @db.Uuid
+  communityId       String            @db.Uuid @map("community_id")
+  ownerMembershipId String?           @db.Uuid @map("owner_membership_id")
+  type              CalendarEventType
+  sourceEntityId    String?           @map("source_entity_id") @db.VarChar(191)
+  title             String            @db.VarChar(160)
+  eventDate         DateTime          @map("event_date") @db.Date
+  startTime         String            @map("start_time") @db.VarChar(5)
+  endTime           String            @map("end_time") @db.VarChar(5)
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  deletedAt         DateTime?         @map("deleted_at")
+
+  community       Community   @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  ownerMembership Membership? @relation("CalendarEventOwnerMembership", fields: [ownerMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([communityId, type, sourceEntityId], map: "calendar_events_auto_source_key")
+  @@index([communityId, eventDate, deletedAt], map: "calendar_events_month_lookup_idx")
+  @@index([communityId, ownerMembershipId, eventDate, deletedAt], map: "calendar_events_owner_month_lookup_idx")
+  @@map("calendar_events")
 }
 
 model Property {

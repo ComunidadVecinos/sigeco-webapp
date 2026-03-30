@@ -5,6 +5,7 @@ const asyncHandler = require('../../lib/http/asyncHandler');
 const { uploadAvatar } = require('../../lib/storage/avatarUpload');
 const validate = require('../../lib/validation/validate');
 const { requireSession } = require('../auth/auth.middleware');
+const calendarRoutes = require('../calendar/calendar.routes');
 const helpCommunityRoutes = require('../help/help.community.routes');
 const membersRoutes = require('../members/members.routes');
 const communitiesController = require('./communities.controller');
@@ -16,6 +17,7 @@ const router = express.Router();
 // communityId de la URL y centralizar la navegacion administrativa bajo este modulo.
 router.use('/:communityId/members', membersRoutes);
 router.use('/:communityId/help', helpCommunityRoutes);
+router.use('/:communityId/calendar', calendarRoutes);
 
 // Orden:
 // - validate sanea entrada antes del controller

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import { useAuth } from '../../context/authContext';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 const LogInPage: React.FC = () => {
 
     const navigate = useNavigate();
+    const {login, user, loading} = useAuth();
 
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
@@ -54,8 +55,11 @@ const LogInPage: React.FC = () => {
         }
     };
 
-    //Manejar envio
-    const {login} = useAuth();
+    useEffect(() => {
+        if (!loading && user) {
+            navigate('/auth/me', { replace: true });
+        }
+    }, [loading, navigate, user]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

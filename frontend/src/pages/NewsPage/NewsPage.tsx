@@ -8,6 +8,7 @@ import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getNews, createNews, updateNews, deleteNews } from '@/services/newsService';
+import { useNavigate } from 'react-router-dom';
 
 interface News {
     id: number;
@@ -17,7 +18,8 @@ interface News {
 }
 
 const NewsPage: React.FC = () => {
-    const {user} = useAuth();
+    const navigate = useNavigate();
+    const {user, loading: authLoading} = useAuth();
     const communityId = user?.activeCommunityId;
 
     //Rol del usuario
@@ -39,6 +41,12 @@ const NewsPage: React.FC = () => {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingNewsId, setEditingNewsId] = useState<number | null>(null);
     const [formData, setFormData] = useState({title: '', content: ''});
+
+    useEffect(() => {
+        if (!authLoading && user && !communityId) {
+            navigate('/auth/me', { replace: true });
+        }
+    }, [authLoading, communityId, navigate, user]);
 
     //Cargar noticias
     const loadNews = async (pageNum: number, append: boolean = false) => {

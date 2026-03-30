@@ -16,6 +16,7 @@ import { AuthProvider } from './context/authContext';
 import HelpPage from './pages/HelpPage/HelpPage';
 import NewsPage from './pages/NewsPage/NewsPage';
 import CalendarPage from './pages/CalendarPage/CalendarPage';
+import NotFoundPage from './pages/NotFoundPage/NotFoundPage';
 
 
 const App: React.FC = () => {
@@ -39,6 +40,7 @@ const App: React.FC = () => {
                     <Route path='/help' element={<HelpPage/>}/>
                     <Route path='/news' element={<NewsPage/>}/>
                     <Route path='/calendar' element={<CalendarPage/>}/>
+                    <Route path="*" element={<NotFoundPage />} />
                 </Routes>
             </div>
         </AuthProvider>
