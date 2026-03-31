@@ -1,7 +1,7 @@
 // Acceso a datos del módulo calendar.
-// Calendar almacena eventos automáticos y personales en una unica tabla:
+// Calendar almacena eventos automáticos y personales en una única tabla:
 // - "ownerMembershipId = null" identifica eventos automáticos de comunidad.
-// - "ownerMembershipId = <membershipId>"" identifica eventos personales privados del miembro.
+// - "ownerMembershipId = <membershipId>" identifica eventos personales privados del miembro.
 const prisma = require('../../lib/prisma');
 
 const calendarEventSelect = {
@@ -73,7 +73,7 @@ async function findOwnedPersonalEventById({ communityId, ownerMembershipId, even
 
 async function updateOwnedPersonalEvent({ communityId, ownerMembershipId, eventId, data }) {
   return prisma.$transaction(async (tx) => {
-    // "updateMany" permite mantener todas las restricciones de ownership y soft-delete en el propio WHERE.
+    // updateMany permite mantener todas las restricciones de ownership y soft-delete en el propio WHERE.
     const updateResult = await tx.calendarEvent.updateMany({
       where: {
         id: eventId,
@@ -117,9 +117,9 @@ async function softDeleteOwnedPersonalEvent({ communityId, ownerMembershipId, ev
   return updateResult.count === 1;
 }
 
-async function upsertAutomaticEvent(input) {
+async function upsertAutomaticEventInDb(db, input) {
   // La clave única compuesta hace idempotente la sincronización desde el módulo origen.
-  return prisma.calendarEvent.upsert({
+  return db.calendarEvent.upsert({
     where: {
       communityId_type_sourceEntityId: {
         communityId: input.communityId,
@@ -149,8 +149,12 @@ async function upsertAutomaticEvent(input) {
   });
 }
 
-async function softDeleteAutomaticEvent({ communityId, type, sourceEntityId }) {
-  return prisma.calendarEvent.updateMany({
+async function upsertAutomaticEvent(input) {
+  return upsertAutomaticEventInDb(prisma, input);
+}
+
+async function softDeleteAutomaticEventInDb(db, { communityId, type, sourceEntityId }) {
+  return db.calendarEvent.updateMany({
     where: {
       communityId,
       type,
@@ -160,6 +164,10 @@ async function softDeleteAutomaticEvent({ communityId, type, sourceEntityId }) {
     },
     data: { deletedAt: new Date() }
   });
+}
+
+async function softDeleteAutomaticEvent(input) {
+  return softDeleteAutomaticEventInDb(prisma, input);
 }
 
 async function softDeletePersonalEventsByMembershipIds(db, membershipIds, deletedAt = new Date()) {
@@ -185,6 +193,8 @@ module.exports = {
   updateOwnedPersonalEvent,
   softDeleteOwnedPersonalEvent,
   upsertAutomaticEvent,
+  upsertAutomaticEventInDb,
   softDeleteAutomaticEvent,
+  softDeleteAutomaticEventInDb,
   softDeletePersonalEventsByMembershipIds
 };

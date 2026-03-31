@@ -25,6 +25,8 @@ These routes are mounted from `communities`, but belong to other modules:
 
 - `/api/communities/:communityId/members/*`
 - `/api/communities/:communityId/help/*`
+- `/api/communities/:communityId/calendar/*`
+- `/api/communities/:communityId/voting/*`
 
 This page documents only the endpoints implemented in the `communities` module itself.
 

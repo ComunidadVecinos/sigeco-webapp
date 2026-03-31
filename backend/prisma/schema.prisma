@@ -32,24 +32,29 @@ enum CalendarEventType {
   VOTING
 }
 
+enum PollKind {
+  COMMUNITY_VOTING
+  FORUM_POLL
+}
+
 model User {
-  id                     String       @id @default(uuid()) @db.Uuid
-  firstName              String       @map("first_name")
-  lastName               String       @map("last_name")
-  email                  String       @unique @db.VarChar(320)
-  phone                  String?      @unique @db.VarChar(20)
-  passwordHash           String       @map("password_hash")
-  passwordChangedAt      DateTime     @default(now()) @map("password_changed_at")
-  lastActiveMembershipId String?      @db.Uuid @map("last_active_membership_id")
-  createdAt              DateTime     @default(now()) @map("created_at")
-  updatedAt              DateTime     @updatedAt @map("updated_at")
-  deletedAt              DateTime?    @map("deleted_at")
+  id                     String    @id @default(uuid()) @db.Uuid
+  firstName              String    @map("first_name")
+  lastName               String    @map("last_name")
+  email                  String    @unique @db.VarChar(320)
+  phone                  String?   @unique @db.VarChar(20)
+  passwordHash           String    @map("password_hash")
+  passwordChangedAt      DateTime  @default(now()) @map("password_changed_at")
+  lastActiveMembershipId String?   @map("last_active_membership_id") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  deletedAt              DateTime? @map("deleted_at")
 
   avatar               UserAvatar?
-  lastActiveMembership Membership?         @relation("UserLastActiveMembership", fields: [lastActiveMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  memberships          Membership[]        @relation("UserMemberships")
-  sessions             Session[]           @relation("UserSessions")
-  communityRequests    CommunityRequest[]  @relation("UserCommunityRequests")
+  lastActiveMembership Membership?        @relation("UserLastActiveMembership", fields: [lastActiveMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  memberships          Membership[]       @relation("UserMemberships")
+  sessions             Session[]          @relation("UserSessions")
+  communityRequests    CommunityRequest[] @relation("UserCommunityRequests")
 
   @@index([lastActiveMembershipId])
   @@index([deletedAt])
@@ -57,12 +62,12 @@ model User {
 }
 
 model Session {
-  id                 String       @id @default(uuid()) @db.Uuid
-  userId             String       @db.Uuid @map("user_id")
-  activeMembershipId String?      @db.Uuid @map("active_membership_id")
-  createdAt          DateTime     @default(now()) @map("created_at")
-  expiresAt          DateTime     @map("expires_at")
-  invalidatedAt      DateTime?    @map("invalidated_at")
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @map("user_id") @db.Uuid
+  activeMembershipId String?   @map("active_membership_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at")
+  expiresAt          DateTime  @map("expires_at")
+  invalidatedAt      DateTime? @map("invalidated_at")
 
   user             User        @relation("UserSessions", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   activeMembership Membership? @relation("SessionActiveMembership", fields: [activeMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -75,31 +80,32 @@ model Session {
 }
 
 model Community {
-  id                 String                 @id @default(uuid()) @db.Uuid
-  name               String                 @db.VarChar(160)
-  cif                String                 @unique @db.VarChar(20)
-  country            String                 @db.VarChar(100)
-  province           String                 @db.VarChar(120)
-  municipality       String                 @db.VarChar(120)
-  streetType         String                 @map("street_type") @db.VarChar(50)
-  streetName         String                 @map("street_name") @db.VarChar(255)
-  postalCode         String                 @map("postal_code") @db.VarChar(10)
-  streetNumberKm     String                 @map("street_number_km") @db.VarChar(30)
-  accessCode         String                 @unique @map("access_code") @db.VarChar(20)
+  id                String    @id @default(uuid()) @db.Uuid
+  name              String    @db.VarChar(160)
+  cif               String    @unique @db.VarChar(20)
+  country           String    @db.VarChar(100)
+  province          String    @db.VarChar(120)
+  municipality      String    @db.VarChar(120)
+  streetType        String    @map("street_type") @db.VarChar(50)
+  streetName        String    @map("street_name") @db.VarChar(255)
+  postalCode        String    @map("postal_code") @db.VarChar(10)
+  streetNumberKm    String    @map("street_number_km") @db.VarChar(30)
+  accessCode        String    @unique @map("access_code") @db.VarChar(20)
   /// Reserva de cuota para documentos de comunidad; todavia no hay modulo expuesto.
-  storageQuotaBytes  BigInt                 @default(5368709120) @map("storage_quota_bytes")
-  storageUsedBytes   BigInt                 @default(0) @map("storage_used_bytes")
-  createdAt          DateTime               @default(now()) @map("created_at")
-  updatedAt          DateTime               @updatedAt @map("updated_at")
-  deletedAt          DateTime?              @map("deleted_at")
+  storageQuotaBytes BigInt    @default(5368709120) @map("storage_quota_bytes")
+  storageUsedBytes  BigInt    @default(0) @map("storage_used_bytes")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
 
-  avatar             CommunityAvatar?
-  folders            CommunityFolder[]
-  documents          CommunityDocument[]
-  memberships        Membership[]           @relation("CommunityMemberships")
-  communityRequests  CommunityRequest[]     @relation("CommunityRequests")
-  helpSections       CommunityHelpSection[] @relation("CommunityHelpSections")
-  calendarEvents     CalendarEvent[]
+  avatar            CommunityAvatar?
+  folders           CommunityFolder[]
+  documents         CommunityDocument[]
+  memberships       Membership[]           @relation("CommunityMemberships")
+  communityRequests CommunityRequest[]     @relation("CommunityRequests")
+  helpSections      CommunityHelpSection[] @relation("CommunityHelpSections")
+  calendarEvents    CalendarEvent[]
+  polls             Poll[]
 
   @@index([cif])
   @@index([accessCode])
@@ -109,12 +115,12 @@ model Community {
 
 model UserAvatar {
   id          String   @id @default(uuid()) @db.Uuid
-  userId       String   @unique @db.Uuid @map("user_id")
-  storagePath  String   @unique @map("storage_path")
-  mimeType     String   @map("mime_type") @db.VarChar(100)
-  sizeBytes    Int      @map("size_bytes")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  userId      String   @unique @map("user_id") @db.Uuid
+  storagePath String   @unique @map("storage_path")
+  mimeType    String   @map("mime_type") @db.VarChar(100)
+  sizeBytes   Int      @map("size_bytes")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -122,13 +128,13 @@ model UserAvatar {
 }
 
 model CommunityAvatar {
-  id           String   @id @default(uuid()) @db.Uuid
-  communityId  String   @unique @db.Uuid @map("community_id")
-  storagePath  String   @unique @map("storage_path")
-  mimeType     String   @map("mime_type") @db.VarChar(100)
-  sizeBytes    Int      @map("size_bytes")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(uuid()) @db.Uuid
+  communityId String   @unique @map("community_id") @db.Uuid
+  storagePath String   @unique @map("storage_path")
+  mimeType    String   @map("mime_type") @db.VarChar(100)
+  sizeBytes   Int      @map("size_bytes")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -138,16 +144,16 @@ model CommunityAvatar {
 /// Arbol logico de carpetas desacoplado de la ruta fisica de almacenamiento.
 model CommunityFolder {
   id          String    @id @default(uuid()) @db.Uuid
-  communityId String    @db.Uuid @map("community_id")
-  parentId    String?   @db.Uuid @map("parent_id")
+  communityId String    @map("community_id") @db.Uuid
+  parentId    String?   @map("parent_id") @db.Uuid
   name        String    @db.VarChar(255)
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
 
-  community Community         @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  parent    CommunityFolder?  @relation("CommunityFolderTree", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  children  CommunityFolder[] @relation("CommunityFolderTree")
+  community Community           @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parent    CommunityFolder?    @relation("CommunityFolderTree", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  children  CommunityFolder[]   @relation("CommunityFolderTree")
   documents CommunityDocument[]
 
   @@unique([communityId, parentId, name])
@@ -160,9 +166,9 @@ model CommunityFolder {
 /// Documento que pertenece siempre a una comunidad y no a un usuario individual.
 model CommunityDocument {
   id                     String    @id @default(uuid()) @db.Uuid
-  communityId            String    @db.Uuid @map("community_id")
-  folderId               String?   @db.Uuid @map("folder_id")
-  uploadedByMembershipId String?   @db.Uuid @map("uploaded_by_membership_id")
+  communityId            String    @map("community_id") @db.Uuid
+  folderId               String?   @map("folder_id") @db.Uuid
+  uploadedByMembershipId String?   @map("uploaded_by_membership_id") @db.Uuid
   originalName           String    @map("original_name") @db.VarChar(255)
   storagePath            String    @unique @map("storage_path")
   mimeType               String    @map("mime_type") @db.VarChar(100)
@@ -172,9 +178,9 @@ model CommunityDocument {
   updatedAt              DateTime  @updatedAt @map("updated_at")
   deletedAt              DateTime? @map("deleted_at")
 
-  community            Community       @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  community            Community        @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   folder               CommunityFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  uploadedByMembership Membership?     @relation("CommunityDocumentUploadedBy", fields: [uploadedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  uploadedByMembership Membership?      @relation("CommunityDocumentUploadedBy", fields: [uploadedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([communityId])
   @@index([folderId])
@@ -185,8 +191,8 @@ model CommunityDocument {
 
 model Membership {
   id               String         @id @default(uuid()) @db.Uuid
-  userId           String         @db.Uuid @map("user_id")
-  communityId      String         @db.Uuid @map("community_id")
+  userId           String         @map("user_id") @db.Uuid
+  communityId      String         @map("community_id") @db.Uuid
   role             MembershipRole @default(MEMBER)
   alias            String         @db.VarChar(120)
   suspendedAt      DateTime?      @map("suspended_at")
@@ -199,18 +205,21 @@ model Membership {
   updatedAt        DateTime       @updatedAt @map("updated_at")
   deletedAt        DateTime?      @map("deleted_at")
 
-  user                      User               @relation("UserMemberships", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  community                 Community          @relation("CommunityMemberships", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  lastActiveForUsers        User[]             @relation("UserLastActiveMembership")
-  activeSessions            Session[]          @relation("SessionActiveMembership")
-  property                  Property?          @relation("MembershipProperty")
+  user                      User                @relation("UserMemberships", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  community                 Community           @relation("CommunityMemberships", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lastActiveForUsers        User[]              @relation("UserLastActiveMembership")
+  activeSessions            Session[]           @relation("SessionActiveMembership")
+  property                  Property?           @relation("MembershipProperty")
   uploadedDocuments         CommunityDocument[] @relation("CommunityDocumentUploadedBy")
-  resolvedCommunityRequests CommunityRequest[] @relation("CommunityRequestResolvedByMembership")
-  calendarEvents            CalendarEvent[]    @relation("CalendarEventOwnerMembership")
+  resolvedCommunityRequests CommunityRequest[]  @relation("CommunityRequestResolvedByMembership")
+  calendarEvents            CalendarEvent[]     @relation("CalendarEventOwnerMembership")
+  createdPolls              Poll[]              @relation("PollCreatedByMembership")
+  closedPolls               Poll[]              @relation("PollClosedByMembership")
+  pollVotes                 PollVote[]          @relation("MembershipPollVotes")
 
+  @@unique([userId, communityId])
   @@index([userId])
   @@index([communityId])
-  @@unique([userId, communityId])
   @@index([communityId, role])
   @@index([endedAt])
   @@index([deletedAt])
@@ -219,8 +228,8 @@ model Membership {
 
 model CalendarEvent {
   id                String            @id @default(uuid()) @db.Uuid
-  communityId       String            @db.Uuid @map("community_id")
-  ownerMembershipId String?           @db.Uuid @map("owner_membership_id")
+  communityId       String            @map("community_id") @db.Uuid
+  ownerMembershipId String?           @map("owner_membership_id") @db.Uuid
   type              CalendarEventType
   sourceEntityId    String?           @map("source_entity_id") @db.VarChar(191)
   title             String            @db.VarChar(160)
@@ -240,9 +249,69 @@ model CalendarEvent {
   @@map("calendar_events")
 }
 
+model Poll {
+  id                    String    @id @default(uuid()) @db.Uuid
+  communityId           String    @map("community_id") @db.Uuid
+  kind                  PollKind
+  title                 String    @db.VarChar(160)
+  description           String?   @db.Text
+  startsAt              DateTime  @default(now()) @map("starts_at")
+  endsAt                DateTime  @map("ends_at")
+  createdByMembershipId String    @map("created_by_membership_id") @db.Uuid
+  closedAt              DateTime? @map("closed_at")
+  closedByMembershipId  String?   @map("closed_by_membership_id") @db.Uuid
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  deletedAt             DateTime? @map("deleted_at")
+
+  community           Community    @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdByMembership Membership   @relation("PollCreatedByMembership", fields: [createdByMembershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  closedByMembership  Membership?  @relation("PollClosedByMembership", fields: [closedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  options             PollOption[]
+  votes               PollVote[]
+
+  @@index([communityId, kind, deletedAt, createdAt], map: "polls_community_kind_created_lookup_idx")
+  @@index([communityId, kind, deletedAt, endsAt], map: "polls_community_kind_ends_lookup_idx")
+  @@index([createdByMembershipId])
+  @@index([closedByMembershipId])
+  @@map("polls")
+}
+
+model PollOption {
+  id        String   @id @default(uuid()) @db.Uuid
+  pollId    String   @map("poll_id") @db.Uuid
+  title     String   @db.VarChar(160)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  votes PollVote[]
+
+  @@index([pollId, sortOrder])
+  @@map("poll_options")
+}
+
+model PollVote {
+  id           String   @id @default(uuid()) @db.Uuid
+  pollId       String   @map("poll_id") @db.Uuid
+  optionId     String   @map("option_id") @db.Uuid
+  membershipId String   @map("membership_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  poll       Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  option     PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  membership Membership @relation("MembershipPollVotes", fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([pollId, membershipId])
+  @@index([pollId])
+  @@index([optionId])
+  @@index([membershipId])
+  @@map("poll_votes")
+}
+
 model Property {
   id             String    @id @default(uuid()) @db.Uuid
-  membershipId   String    @unique @db.Uuid @map("membership_id")
+  membershipId   String    @unique @map("membership_id") @db.Uuid
   label          String    @db.VarChar(120)
   country        String    @db.VarChar(100)
   province       String    @db.VarChar(120)
@@ -266,23 +335,23 @@ model Property {
 
 model CommunityRequest {
   id                     String                 @id @default(uuid()) @db.Uuid
-  communityId            String                 @db.Uuid @map("community_id")
-  userId                 String                 @db.Uuid @map("user_id")
+  communityId            String                 @map("community_id") @db.Uuid
+  userId                 String                 @map("user_id") @db.Uuid
   type                   CommunityRequestType
   status                 CommunityRequestStatus @default(PENDING)
   requestComment         String?                @map("request_comment") @db.Text
   resolutionMessage      String?                @map("resolution_message") @db.Text
-  resolvedByMembershipId String?                @db.Uuid @map("resolved_by_membership_id")
+  resolvedByMembershipId String?                @map("resolved_by_membership_id") @db.Uuid
   resolvedAt             DateTime?              @map("resolved_at")
   cancelledAt            DateTime?              @map("cancelled_at")
   archivedAt             DateTime?              @map("archived_at")
   createdAt              DateTime               @default(now()) @map("created_at")
   updatedAt              DateTime               @updatedAt @map("updated_at")
 
-  community             Community              @relation("CommunityRequests", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user                  User                   @relation("UserCommunityRequests", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  resolvedByMembership  Membership?            @relation("CommunityRequestResolvedByMembership", fields: [resolvedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  details               CommunityRequestDetails?
+  community            Community                @relation("CommunityRequests", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user                 User                     @relation("UserCommunityRequests", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  resolvedByMembership Membership?              @relation("CommunityRequestResolvedByMembership", fields: [resolvedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  details              CommunityRequestDetails?
 
   @@index([communityId])
   @@index([userId])
@@ -294,22 +363,22 @@ model CommunityRequest {
 }
 
 model CommunityRequestDetails {
-  id                String   @id @default(uuid()) @db.Uuid
-  communityRequestId String @unique @db.Uuid @map("community_request_id")
-  proposedAlias    String?  @map("proposed_alias") @db.VarChar(120)
-  label            String   @db.VarChar(120)
-  country          String   @db.VarChar(100)
-  province         String   @db.VarChar(120)
-  municipality     String   @db.VarChar(120)
-  streetType       String   @map("street_type") @db.VarChar(50)
-  streetName       String   @map("street_name") @db.VarChar(255)
-  postalCode       String   @map("postal_code") @db.VarChar(20)
-  streetNumberKm   String   @map("street_number_km") @db.VarChar(30)
-  block            String?  @db.VarChar(30)
-  floor            String?  @db.VarChar(30)
-  door             String?  @db.VarChar(30)
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(uuid()) @db.Uuid
+  communityRequestId String   @unique @map("community_request_id") @db.Uuid
+  proposedAlias      String?  @map("proposed_alias") @db.VarChar(120)
+  label              String   @db.VarChar(120)
+  country            String   @db.VarChar(100)
+  province           String   @db.VarChar(120)
+  municipality       String   @db.VarChar(120)
+  streetType         String   @map("street_type") @db.VarChar(50)
+  streetName         String   @map("street_name") @db.VarChar(255)
+  postalCode         String   @map("postal_code") @db.VarChar(20)
+  streetNumberKm     String   @map("street_number_km") @db.VarChar(30)
+  block              String?  @db.VarChar(30)
+  floor              String?  @db.VarChar(30)
+  door               String?  @db.VarChar(30)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   communityRequest CommunityRequest @relation(fields: [communityRequestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -318,7 +387,7 @@ model CommunityRequestDetails {
 
 model CommunityHelpSection {
   id          String    @id @default(uuid()) @db.Uuid
-  communityId String    @db.Uuid @map("community_id")
+  communityId String    @map("community_id") @db.Uuid
   title       String    @db.VarChar(160)
   description String    @db.Text
   sortOrder   Int       @default(0) @map("sort_order")

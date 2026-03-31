@@ -8,6 +8,7 @@ const { requireSession } = require('../auth/auth.middleware');
 const calendarRoutes = require('../calendar/calendar.routes');
 const helpCommunityRoutes = require('../help/help.community.routes');
 const membersRoutes = require('../members/members.routes');
+const votingRoutes = require('../voting/voting.routes');
 const communitiesController = require('./communities.controller');
 const { createCommunitySchema, communityIdParamSchema, updateCommunitySchema, deleteCommunitySchema } = require('./communities.validation');
 
@@ -18,6 +19,7 @@ const router = express.Router();
 router.use('/:communityId/members', membersRoutes);
 router.use('/:communityId/help', helpCommunityRoutes);
 router.use('/:communityId/calendar', calendarRoutes);
+router.use('/:communityId/voting', votingRoutes);
 
 // Orden:
 // - validate sanea entrada antes del controller

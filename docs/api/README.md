@@ -35,7 +35,7 @@ This index is the canonical entry point for API docs from the project root `READ
 | [Announcements](./announcements.md) | Draft | Structured placeholder for a future module |
 | [Documents](./documents.md) | Draft | Structured placeholder for a future module |
 | [Incidents](./incidents.md) | Draft | Structured placeholder for a future module |
-| [Voting](./votes.md) | Draft | Structured placeholder for a future module |
+| [Voting](./voting.md) | Maintained | Community votings, single-choice ballots and summary counters |
 | [Reservations](./reservations.md) | Draft | Structured placeholder for a future module |
 
 ---
@@ -66,5 +66,5 @@ For the exact shared rules and examples, see [API Conventions](./conventions.md)
 - [Announcements](./announcements.md)
 - [Documents](./documents.md)
 - [Incidents](./incidents.md)
-- [Voting](./votes.md)
+- [Voting](./voting.md)
 - [Reservations](./reservations.md)
