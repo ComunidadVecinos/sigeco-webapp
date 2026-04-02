@@ -9,18 +9,19 @@ interface NewsCardProps {
     title: string;
     content: string;
     createdAt: string;
+    imageUrl?: string;
     isAdmin: boolean;
     onEdit: () => void;
     onDelete: () => void;
 }
 
-const NewsCard: React.FC<NewsCardProps> = ({title, content, createdAt, isAdmin, onEdit, onDelete}) => {
+const NewsCard: React.FC<NewsCardProps> = ({title, content, createdAt, imageUrl, isAdmin, onEdit, onDelete}) => {
     
     const formatteDate = createdAt ? format(new Date(createdAt), "d 'de' MMMM 'de' yyyy, HH:mm", {locale: es}) : '';
 
     return (
-        <div className='bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col gap-4'>
-            <div className='flex justify-between items-start border-b border-gray-50 pb-3'>
+        <div className='bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col overflow-hidden'>
+            <div className='flex justify-between items-start p-6 border-b border-gray-50 pb-3'>
                 <div className='flex items-center gap-3'>
                     <div className='px-3 py-1.5 rounded-full bg-blue-50/50 border border-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5'>
                         <Megaphone className='w-3-5 h-3.5'/>
@@ -42,8 +43,17 @@ const NewsCard: React.FC<NewsCardProps> = ({title, content, createdAt, isAdmin, 
                 )}
             </div>
 
-            <div className='pt-1'>
+            <div className='px-6 pt-4'>
                 <h3 className='text-xl font-bold text-gray-900 mb-3'>{title}</h3>
+            </div>
+
+            {imageUrl && (
+                <div className='px-6 pt-3'>
+                    <img src={imageUrl} alt="title" className='w-full max-h-[350px] object-cover rounded-lg border border-gray-100' />
+                </div>
+            )}
+
+            <div className="px-6 pt-3 pb-6">
                 <div className='text-gray-700 whitespace-pre-wrap text-sm leading-relaxed'>
                     {content}
                 </div>

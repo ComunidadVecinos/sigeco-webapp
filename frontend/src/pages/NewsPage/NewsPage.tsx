@@ -16,7 +16,11 @@ interface News {
     content: string;
     createdAt: string;
     isEvent?: boolean;
-    eventDate?: string;
+    eventStartDate?: string;
+    eventStartTime?: string;
+    eventEndDate?: string;
+    eventEndTime?: string;
+    imageUrl?: string;
 }
 
 const NewsPage: React.FC = () => {
@@ -28,6 +32,7 @@ const NewsPage: React.FC = () => {
     const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
     const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
 
+    
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [newsList, setNewsList] = useState<News[]>([]);
     const [page, setPage] = useState(0);
@@ -42,13 +47,14 @@ const NewsPage: React.FC = () => {
     //Modal de crear/editar
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingNewsId, setEditingNewsId] = useState<number | null>(null);
-    const [formData, setFormData] = useState({title: '', content: '', isEvent: false, eventDate: ''});
+    const [formData, setFormData] = useState({title: '', content: '', isEvent: false, eventStartDate: '', eventStartTime: '', eventEndDate: '', eventEndTime: '', imageFile: null as File | null, imagePreview: ''});
 
     useEffect(() => {
         if (!authLoading && user && !communityId) {
             navigate('/auth/me', { replace: true });
         }
     }, [authLoading, communityId, navigate, user]);
+    
 
     //Cargar noticias
     const loadNews = async (pageNum: number, append: boolean = false) => {
@@ -97,7 +103,7 @@ const NewsPage: React.FC = () => {
                 await createNews(communityId, formData);
             }
             setIsFormOpen(false);
-            setFormData({title: '', content: '', isEvent: false, eventDate: ''});
+            setFormData({title: '', content: '', isEvent: false, eventStartDate: '', eventStartTime: '', eventEndDate: '', eventEndTime: '', imageFile: null as File | null, imagePreview: ''});
             setEditingNewsId(null);
             setPage(0);
             loadNews(0);
@@ -107,7 +113,7 @@ const NewsPage: React.FC = () => {
     };
 
     const handleOpenCreate = () => {
-        setFormData({title: '', content: '', isEvent: false, eventDate: ''});
+        setFormData({title: '', content: '', isEvent: false, eventStartDate: '', eventStartTime: '', eventEndDate: '', eventEndTime: '', imageFile: null as File | null, imagePreview: ''});
         setEditingNewsId(null);
         setIsFormOpen(true);
     };
@@ -117,7 +123,12 @@ const NewsPage: React.FC = () => {
             title: news.title,
             content: news.content,
             isEvent: news.isEvent || false,
-            eventDate: news.eventDate || ''
+            eventStartDate: news.eventStartDate || '',
+            eventStartTime: news.eventStartTime || '',
+            eventEndDate: news.eventEndDate || '',
+            eventEndTime: news.eventEndTime || '',
+            imageFile: null,
+            imagePreview: news.imageUrl || ''
         });
         setEditingNewsId(news.id);
         setIsFormOpen(true);
@@ -230,6 +241,7 @@ const NewsPage: React.FC = () => {
                             title={news.title}
                             content={news.content}
                             createdAt={news.createdAt}
+                            imageUrl={news.imageUrl}
                             isAdmin={isAdmin}
                             onEdit={() => handleOpenEdit(news)}
                             onDelete={() => handleDeleteNews(news.id)}
