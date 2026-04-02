@@ -1,7 +1,12 @@
 // Acceso a datos del módulo forum.
 const prisma = require('../../lib/prisma');
 
-const membershipAuthorSelect = { id: true, alias: true, role: true };
+const membershipAuthorSelect = {
+  id: true,
+  alias: true,
+  role: true,
+  user: { select: { avatar: { select: { storagePath: true } } } }
+};
 
 const forumPostSelect = {
   id: true,

@@ -2,6 +2,7 @@
 const { Prisma } = require('@prisma/client');
 
 const { ConflictError, ForbiddenError, NotFoundError, ValidationError } = require('../../lib/errors');
+const storageService = require('../../lib/storage/storage');
 const membersRepository = require('../members/members.repository');
 const membersService = require('../members/members.service');
 
@@ -50,7 +51,12 @@ function mapAuthor(membership) {
     return null;
   }
 
-  return { membershipId: membership.id, alias: membership.alias || null, role: membership.role };
+  return {
+    membershipId: membership.id,
+    alias: membership.alias || null,
+    profileImageUrl: storageService.getPublicFileUrl(membership.user?.avatar?.storagePath || null),
+    role: membership.role
+  };
 }
 
 function buildCountMap(rows, keyField) {

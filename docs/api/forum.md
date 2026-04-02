@@ -75,6 +75,7 @@ Important:
 {
   "membershipId": "uuid",
   "alias": "Ana Vecina",
+  "profileImageUrl": "/uploads/images/users/<userId>/avatar.png",
   "role": "MEMBER"
 }
 ```
@@ -82,6 +83,7 @@ Important:
 Notes:
 
 - `author` may be `null` in some responses, especially for anonymized comments
+- `profileImageUrl` is a public URL or `null`
 
 ### Forum poll option
 
@@ -145,6 +147,7 @@ Used by create, list and detail responses.
   "author": {
     "membershipId": "uuid",
     "alias": "Ana Vecina",
+    "profileImageUrl": "/uploads/images/users/<userId>/avatar.png",
     "role": "MEMBER"
   },
   "likesCount": 4,
@@ -179,7 +182,7 @@ Notes:
 - `poll` is `null` unless `category` is `POLL`
 - There is no `likedByMe` or `hasLiked` field
 - There is no `views` field
-- `author` is returned as membership summary, not as user profile summary
+- `author` is returned as a membership summary with `membershipId`, `alias`, `profileImageUrl` and `role`
 
 ### Forum comment item
 
@@ -196,6 +199,7 @@ Used by create, list and update responses.
   "author": {
     "membershipId": "uuid",
     "alias": "Ana Vecina",
+    "profileImageUrl": "/uploads/images/users/<userId>/avatar.png",
     "role": "MEMBER"
   },
   "likesCount": 3
@@ -377,6 +381,7 @@ Behavior notes:
       "author": {
         "membershipId": "uuid",
         "alias": "Ana Vecina",
+        "profileImageUrl": "/uploads/images/users/<userId>/avatar.png",
         "role": "MEMBER"
       },
       "likesCount": 4,
@@ -588,6 +593,7 @@ Behavior notes:
       "author": {
         "membershipId": "uuid",
         "alias": "Ana Vecina",
+        "profileImageUrl": "/uploads/images/users/<userId>/avatar.png",
         "role": "MEMBER"
       },
       "likesCount": 3

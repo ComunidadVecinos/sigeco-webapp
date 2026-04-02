@@ -66,7 +66,7 @@ function mapVotingEnd(voting) {
 }
 
 function mapVotingCreator(membership) {
-  return { membershipId: membership.id, alias: membership.alias || null, role: membership.role };
+  return { alias: membership.alias || null };
 }
 
 function buildVoteCountMap(voteCountRows) {

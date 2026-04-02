@@ -61,9 +61,7 @@ Important:
 
 ```json
 {
-  "membershipId": "uuid",
-  "alias": "Verónica Vicepresidenta",
-  "role": "VICE_PRESIDENT"
+  "alias": "Verónica Vicepresidenta"
 }
 ```
 
@@ -87,9 +85,7 @@ Used by create and list responses.
   "title": "Renovación de la piscina",
   "description": "Selecciona una de las propuestas",
   "creator": {
-    "membershipId": "uuid",
-    "alias": "Verónica Vicepresidenta",
-    "role": "VICE_PRESIDENT"
+    "alias": "Verónica Vicepresidenta"
   },
   "createdAt": "2026-03-30T18:00:00.000Z",
   "startsAt": "2026-03-30T18:00:00.000Z",
@@ -253,9 +249,7 @@ Behavior notes:
       "title": "Renovación de la piscina",
       "description": "Selecciona una propuesta",
       "creator": {
-        "membershipId": "uuid",
-        "alias": "Verónica Vicepresidenta",
-        "role": "VICE_PRESIDENT"
+        "alias": "Verónica Vicepresidenta"
       },
       "createdAt": "2026-03-30T18:00:00.000Z",
       "startsAt": "2026-03-30T18:00:00.000Z",
