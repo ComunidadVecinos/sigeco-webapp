@@ -27,7 +27,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({onClose}) => {
                 <Link to="/" className={linkClass}><CalendarCheck className="h-[18px] w-[18px]"/>Reserva de espacios</Link>
                 <Link to="/" className={linkClass}><AlertTriangle className="h-[18px] w-[18px]"/>Incidencias</Link>
                 <Link to="/" className={linkClass}><CheckSquare className="h-[18px] w-[18px]"/>Votaciones</Link>
-                <Link to="/" className={linkClass}><Folder className="h-[18px] w-[18px]"/>Documentos</Link>
+                <Link to="/documents" className={linkClass}><Folder className="h-[18px] w-[18px]"/>Documentos</Link>
             </nav>        
         </>
     );
