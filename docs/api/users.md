@@ -351,8 +351,12 @@ Cookie: sid=<session_cookie>
 - The current response clears the `sid` cookie
 - Memberships are ended and soft-deleted
 - Related properties of those memberships are soft-deleted
+- Votes emitted by the user are removed from votings and polls that remain open; closed votings preserve their stored result
+- Forum likes emitted by the user are deleted
+- Forum posts authored by the user are soft-deleted and forum comments are anonymized
+- Visible community requests of the user are archived; if any were still pending they are cancelled first
 - The avatar DB record is removed and the stored file is deleted asynchronously
-- The response includes a `futureDataPolicy` object with pending cleanup notes for other domains
+- The response includes a `futureDataPolicy` object summarizing the cleanup already applied and the domains still pending review
 
 ### Success
 
@@ -362,8 +366,9 @@ Cookie: sid=<session_cookie>
 {
   "message": "Cuenta eliminada correctamente.",
   "futureDataPolicy": {
-    "votesCalendarReservations": "pending_soft_delete_or_disassociation",
-    "authorship": "pending_anonymization"
+    "votesCalendarReservations": "open_votes_removed_closed_votes_preserved_calendar_personal_events_soft_deleted",
+    "forum": "posts_soft_deleted_comments_anonymized",
+    "authorship": "pending_review_in_other_modules"
   }
 }
 ```

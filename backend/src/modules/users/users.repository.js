@@ -1,6 +1,9 @@
 // Acceso a datos del módulo users.
 const prisma = require('../../lib/prisma');
 const calendarRepository = require('../calendar/calendar.repository');
+const forumRepository = require('../forum/forum.repository');
+const requestsRepository = require('../requests/requests.repository');
+const votingRepository = require('../voting/voting.repository');
 
 async function findUserProfileById(userId) {
   const user = await prisma.user.findUnique({
@@ -156,6 +159,11 @@ async function deleteUserAccount(userId, deletionData) {
 
     if (membershipIds.length > 0) {
       await calendarRepository.softDeletePersonalEventsByMembershipIds(tx, membershipIds, now);
+      await votingRepository.deleteVotesOfMembershipsInOpenPolls(tx, membershipIds, now);
+      await forumRepository.deleteForumLikesByMembershipIds(tx, membershipIds);
+      await forumRepository.softDeleteForumPostsByMembershipIds(tx, membershipIds, now);
+      await forumRepository.anonymizeForumCommentsByMembershipIds(tx, membershipIds);
+      await requestsRepository.archiveRequestsByUserId(tx, { userId, archivedAt: now });
       // Se marca también la vivienda, porque su significado depende de la membership eliminada.
       await tx.property.updateMany({
         where: { membershipId: { in: membershipIds }, deletedAt: null
@@ -170,6 +178,9 @@ async function deleteUserAccount(userId, deletionData) {
         },
         data: { endedAt: now, endReason: 'USER_ACCOUNT_DELETED', deletedAt: now }
       });
+    }
+    else {
+      await requestsRepository.archiveRequestsByUserId(tx, { userId, archivedAt: now });
     }
 
     await tx.session.updateMany({

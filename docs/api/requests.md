@@ -20,6 +20,8 @@ Base path:
 - Lists pending requests of a community for admins
 - Lets users cancel or archive their own requests
 - Lets admins approve or reject pending requests
+- Auto-cancels pending requests when the user leaves that community
+- Archives all visible requests when the user deletes the account
 
 ### What frontend should know first
 
@@ -28,6 +30,8 @@ Base path:
 - Request statuses currently used are `PENDING`, `APPROVED`, `REJECTED` and `CANCELLED`
 - Archived requests are hidden from user-facing lists
 - Admin review endpoints operate on the community of the request itself
+- If the user leaves a community, pending requests of that same community are cancelled automatically
+- If the account is deleted, all visible requests are archived and any pending ones are first cancelled
 
 ---
 
@@ -227,6 +231,7 @@ No query params.
 
 - Archived requests are excluded
 - Items are ordered by `createdAt` descending
+- Requests may disappear from this list automatically after account deletion because they are archived as part of that lifecycle
 
 ### Expected errors
 

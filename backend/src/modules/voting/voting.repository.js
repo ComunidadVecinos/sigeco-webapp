@@ -25,10 +25,12 @@ const votingDetailSelect = {
 };
 
 function buildVotingBaseWhere(communityId) {
+  // Este repositorio opera solo sobre COMMUNITY_VOTING; FORUM_POLL reutiliza Poll desde su propio módulo.
   return { communityId, kind: 'COMMUNITY_VOTING', deletedAt: null };
 }
 
 function buildOpenVotingWhere(now = new Date()) {
+  // Una votación comunitaria abierta siempre debe tener fecha fin futura (campo nullable para )
   return { closedAt: null, endsAt: { gt: now } };
 }
 
@@ -174,6 +176,30 @@ async function softDeleteVoting(db, { communityId, votingId, deletedAt }) {
   });
 }
 
+async function deleteVotesOfMembershipsInOpenPolls(db, membershipIds, now = new Date()) {
+  if (!membershipIds || membershipIds.length === 0) {
+    return { count: 0 };
+  }
+
+  // Solo se retiran votos de encuestas aún abiertas: las cerradas conservan su resultado histórico.
+  return db.pollVote.deleteMany({
+    where: {
+      membershipId: { in: membershipIds },
+      poll: {
+        is: {
+          deletedAt: null,
+          closedAt: null,
+          startsAt: { lte: now },
+          OR: [
+            { kind: 'COMMUNITY_VOTING', endsAt: { gt: now } },
+            { kind: 'FORUM_POLL', OR: [{ endsAt: null }, { endsAt: { gt: now } }] }
+          ]
+        }
+      }
+    }
+  });
+}
+
 module.exports = {
   withTransaction,
   createVoting,
@@ -186,5 +212,6 @@ module.exports = {
   countPossibleVoters,
   insertVote,
   closeVoting,
-  softDeleteVoting
+  softDeleteVoting,
+  deleteVotesOfMembershipsInOpenPolls
 };

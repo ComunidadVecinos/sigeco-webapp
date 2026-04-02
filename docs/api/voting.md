@@ -2,7 +2,8 @@
 
 > API index: [docs/api/README.md](./README.md)
 
-This module manages community votings and single-choice ballot submission.
+This module manages community votings (`COMMUNITY_VOTING`) and single-choice ballot submission.
+The shared `Poll` model is also reused by `FORUM_POLL`.
 
 Base path:
 
@@ -20,6 +21,7 @@ Base path:
 - Lets admins close a voting manually
 - Lets admins delete a voting
 - Synchronizes each voting with one automatic calendar reminder
+- Removes votes of deleted accounts only while the voting is still open
 
 ### What frontend should know first
 
@@ -27,7 +29,10 @@ Base path:
 - Votings belong to one community and are scoped by `communityId`
 - Suspended members can list and vote, but cannot create, close or delete
 - Each voting has one `title`, optional `description`, and options with only `title`
+- Even if `Poll.endsAt` is nullable in Prisma, community votings still require a real end date and time
 - Voting status is computed by backend as `OPEN` or `CLOSED`
+- Community votings do not expose any update endpoint after creation
+- Once published, voting `title`, `description` and `options` remain fixed
 
 ---
 
@@ -46,6 +51,7 @@ Important:
 - Community membership access includes suspended members
 - Administrative access requires `PRESIDENT` or `VICE_PRESIDENT` and the membership must not be currently suspended
 - A member can cast only one vote per voting
+- If the account is deleted later, its vote is removed from open votings but preserved in closed votings
 
 ---
 
@@ -112,7 +118,9 @@ Notes:
 
 - `description` may be `null`
 - `myVoteOptionId` may be `null`
+- For valid `COMMUNITY_VOTING` responses, `endDate` and `endTime` are expected to be present
 - `status` is one of `OPEN` or `CLOSED`
+- `possibleVoters` is the current eligible census, not a historical snapshot
 
 ### Voting summary counters
 
@@ -143,6 +151,10 @@ Notes:
 `POST /api/communities/:communityId/voting`
 
 Creates a new community voting and its automatic calendar reminder.
+
+Although the underlying `Poll` model is shared with forum polls, this endpoint always creates `COMMUNITY_VOTING`, so closing date and time are required.
+
+This module does not provide any later edit flow for `title`, `description` or `options`.
 
 ### Request
 
@@ -179,6 +191,7 @@ Business rules:
 
 - Caller must be an active admin in the community
 - Suspended admins cannot create votings
+- This API does not allow open-ended votings
 - End date and time must be later than current backend time
 - End date and time must be at least one full hour after the creation moment
 
@@ -226,6 +239,7 @@ Behavior notes:
 - Summary counters are always returned for the whole community scope, not just for the current page
 - `possibleVoters` counts current non-ended community memberships, including suspended members
 - Items are ordered by `createdAt` descending, then `id` ascending
+- Votes emitted by deleted accounts stop counting only for votings that remain open; closed votings keep their stored result
 
 ### Success
 
@@ -322,6 +336,7 @@ Business rules:
 - `optionId` must belong to the target voting
 - Only open votings accept votes
 - Only one vote per user and voting is allowed
+- If the account is deleted before the voting closes, that vote is removed from the open tally
 
 ### Success
 

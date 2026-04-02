@@ -269,7 +269,11 @@ async function deleteMyAccount(context, input, usersRepository) {
 
   return {
     message: 'Cuenta eliminada correctamente.',
-    futureDataPolicy: { votesCalendarReservations: 'pending_soft_delete_or_disassociation', authorship: 'pending_anonymization' }
+    futureDataPolicy: {
+      votesCalendarReservations: 'open_votes_removed_closed_votes_preserved_calendar_personal_events_soft_deleted',
+      forum: 'posts_soft_deleted_comments_anonymized',
+      authorship: 'pending_review_in_other_modules'
+    }
   };
 }
 

@@ -10,7 +10,7 @@ const {
 const { isMembershipCurrentlySuspended } = require('../../lib/membership');
 const { buildAddressSummary } = require('../../lib/address');
 const storageService = require('../../lib/storage/storage');
-const { hasCommunityMembershipAccess, hasAdministrativeMembershipAccess } = require('./members.access');
+const { hasCommunityMembershipAccess, hasAdministrativeMembershipAccess, isMembershipOperational } = require('./members.access');
 const authRepository = require('../auth/auth.repository');
 const { resolveUserAccessContext } = require('../auth/auth.context');
 
@@ -121,6 +121,15 @@ async function requireAdministrativeCommunityAccess(userId, communityId, members
     throw new ForbiddenError('Se requieren permisos administrativos en esta comunidad');
   }
 
+  return { community, membership };
+}
+
+async function requireOperationalCommunityAccess(userId, communityId, membersRepository) {
+  const { community, membership } = await requireCommunityMembershipAccess(userId, communityId, membersRepository);
+
+  if (!isMembershipOperational(membership)) {
+    throw new ForbiddenError('No se puede operar en este módulo');
+  }
   return { community, membership };
 }
 
@@ -298,6 +307,7 @@ module.exports = {
   getCommunityMembers,
   listCommunityMembers,
   requireCommunityMembershipAccess,
+  requireOperationalCommunityAccess,
   requireAdministrativeCommunityAccess,
   leaveMyCommunity,
   expelCommunityMember,

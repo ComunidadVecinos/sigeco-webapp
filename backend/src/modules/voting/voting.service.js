@@ -52,8 +52,17 @@ function assertValidVotingEndDate(startsAt, endsAt) {
   }
 }
 
+// COMMUNITY_VOTING debe tener una fecha de fin válida (Poll.endsAt nullable para FORUM_POLL).
 function isVotingOpen(voting, now = new Date()) {
-  return voting.closedAt === null && voting.endsAt > now;
+  return voting.closedAt === null && voting.endsAt !== null && voting.endsAt > now;
+}
+
+function mapVotingEnd(voting) {
+  // Prisma permite endsAt nulo para FORUM_POLL, pero COMMUNITY_VOTING sigue operando con fecha de fin obligatoria.
+  if (!voting.endsAt) {
+    return { endDate: null, endTime: null };
+  }
+  return { endDate: formatDateOnly(voting.endsAt), endTime: formatUtcTime(voting.endsAt) };
 }
 
 function mapVotingCreator(membership) {
@@ -93,6 +102,7 @@ function mapVotingItem(voting, options, voteCountMap, possibleVoters, myVoteOpti
   }));
 
   const totalVotes = mappedOptions.reduce((sum, option) => sum + option.votes, 0);
+  const votingEnd = mapVotingEnd(voting);
 
   return {
     id: voting.id,
@@ -101,8 +111,8 @@ function mapVotingItem(voting, options, voteCountMap, possibleVoters, myVoteOpti
     creator: mapVotingCreator(voting.createdByMembership),
     createdAt: voting.createdAt.toISOString(),
     startsAt: voting.startsAt.toISOString(),
-    endDate: formatDateOnly(voting.endsAt),
-    endTime: formatUtcTime(voting.endsAt),
+    endDate: votingEnd.endDate,
+    endTime: votingEnd.endTime,
     status: isVotingOpen(voting, now) ? 'OPEN' : 'CLOSED',
     totalVotes,
     possibleVoters,
@@ -136,6 +146,7 @@ async function requireVotingAdministrativeAccess(userId, communityId) {
 async function createVoting(context, communityId, input, votingRepository) {
   const { membership } = await requireVotingAdministrativeAccess(context.userId, communityId);
   const startsAt = new Date();
+  // Por contrato HTTP de COMMUNITY_VOTING, endDate y endTime son obligatorios.
   const endsAt = buildEndsAt(input.endDate, input.endTime);
 
   assertValidVotingEndDate(startsAt, endsAt);
