@@ -8,7 +8,8 @@ import {
     FileText,
     Pencil,
     Search,
-    Shield
+    Shield,
+    Key
 } from 'lucide-react';
 import Header from '../../components/common/Header/Header';
 import imagen_generica from '../../assets/images/perfil_generico.png';
@@ -30,6 +31,8 @@ import ExpelMemberModal from '@/components/ui/ExpelMemberModal/ExpelMemberModal'
 import TransferRoleModal from '@/components/ui/TransferRoleModal/TransferRoleModal';
 import DeleteCommunityModal from '@/components/ui/DeleteCommunityModal/DeleteCommunityModal';
 import EditPhotoModal from '@/components/ui/EditPhotoModal/EditPhotoModal';
+import GenerateCodeModal from '@/components/ui/GenerateCodeModal/GenerateCodeModal';
+
 
 type RequestFilterState = {
     type: string;
@@ -104,6 +107,7 @@ const AdminPage: React.FC = () => {
         type: 'president'
     });
     const [deleteCommunityModalOpen, setDeleteCommunityModalOpen] = useState(false);
+    const [generateCodeModalOpen, setGenerateCodeModalOpen] = useState(false);
 
     useEffect(() => {
         if (loading) return;
@@ -247,6 +251,9 @@ const AdminPage: React.FC = () => {
                         <div className="flex items-start justify-between gap-4">
                             <h3 className="text-2xl font-bold text-gray-900">Datos de la Comunidad</h3>
                             <div className="flex flex-wrap items-center justify-end gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setGenerateCodeModalOpen(true)}>
+                                    <Key className='h-4 w-4 mr-2'/> Generar código
+                                </Button>
                                 <Button variant="outline" size="sm" onClick={() => setEditCommunityModalOpen(true)}>
                                     <Pencil className="h-4 w-4 mr-2" />Editar
                                 </Button>
@@ -715,6 +722,12 @@ const AdminPage: React.FC = () => {
                 onClose={() => setDeleteCommunityModalOpen(false)}
                 communityId={communityId}
                 communityName={summary?.community?.name || ''}
+            />
+
+            <GenerateCodeModal
+                isOpen={generateCodeModalOpen}
+                onClose={() => setGenerateCodeModalOpen(false)}
+                communityId={communityId}
             />
         </div>
     );

@@ -99,3 +99,7 @@ export const deleteCommunity = (communityId: string, data: {
     confirmationText: string;
     currentPassword: string;
 }) => api.delete(`/api/communities/${communityId}`, {data});
+
+//Regenerar código de acceso de la comunidad
+export const regenerateAccessCode = (communityId: string) =>
+    api.post(`/api/communities/${communityId}/admin/access-code/regenerate`);

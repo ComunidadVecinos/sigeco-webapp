@@ -13,12 +13,16 @@ export const getNews = (communityId: string, filters: {
 export const createNews = (communityId: string, data: {
     title: string;
     content: string; 
+    isEvent?: boolean;
+    eventDate?: string;
 }) => api.post(`/api/communities/${communityId}/news`, data);
 
 //Editar noticia
 export const updateNews = (communityId: string, newsId: number, data: {
     title?: string;
     content?: string;
+    isEvent?: boolean;
+    eventDate?: string;
 }) => api.patch(`/api/communities/${communityId}/news/${newsId}`, data);
 
 //Eliminar noticia

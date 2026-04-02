@@ -9,14 +9,14 @@ interface CreateEditNewsModalProps {
     onClose: () => void;
     onSave: () => void;
     isEditing: boolean;
-    formData: {title: string; content: string};
-    setFormData: React.Dispatch<React.SetStateAction<{title: string; content: string}>>;
+    formData: {title: string; content: string; isEvent: boolean; eventDate: string};
+    setFormData: React.Dispatch<React.SetStateAction<{title: string; content: string; isEvent: boolean; eventDate: string}>>;
 }
 
 const CreateEditNewsModal: React.FC<CreateEditNewsModalProps> = ({isOpen, onClose, onSave, isEditing, formData, setFormData}) => {
 
     //Validar que no este vacio
-    const isValid = !!formData.title.trim() && !!formData.content.trim();
+    const isValid = !!formData.title.trim() && !!formData.content.trim() && (!formData.isEvent || !!formData.eventDate);
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -41,6 +41,24 @@ const CreateEditNewsModal: React.FC<CreateEditNewsModalProps> = ({isOpen, onClos
                             onChange={(e) => setFormData({...formData, content: e.target.value})}
                         />
                     </div>
+
+                    <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
+                        <div>
+                            <Label className='font-bold'>¿Es un evento?</Label>
+                            <p className="text-xs text-gray-500 mt-0.5">Si lo activas, aparecerá en el calendario de la comunidad</p>
+                        </div>
+                        <button type='button' onClick={() => setFormData({...formData, isEvent: !formData.isEvent, eventDate: !formData.isEvent ? formData.eventDate : ''})} className={`
+                            relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.isEvent ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.isEvent ? 'translate-x-6' : 'translate-x-1'}`}/>
+                            </button>
+                    </div>
+
+                    {formData.isEvent && (
+                        <div className="flex flex-col gap-2">
+                            <Label className='font-bold'>Fecha del evento</Label>
+                            <Input type='date' value={formData.eventDate} onChange={(e) => setFormData({...formData, eventDate: e.target.value})}/>
+                        </div>
+                    )}
                 </div>
                 
                 <DialogFooter>

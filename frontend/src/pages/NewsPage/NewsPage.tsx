@@ -15,6 +15,8 @@ interface News {
     title: string;
     content: string;
     createdAt: string;
+    isEvent?: boolean;
+    eventDate?: string;
 }
 
 const NewsPage: React.FC = () => {
@@ -40,7 +42,7 @@ const NewsPage: React.FC = () => {
     //Modal de crear/editar
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingNewsId, setEditingNewsId] = useState<number | null>(null);
-    const [formData, setFormData] = useState({title: '', content: ''});
+    const [formData, setFormData] = useState({title: '', content: '', isEvent: false, eventDate: ''});
 
     useEffect(() => {
         if (!authLoading && user && !communityId) {
@@ -95,7 +97,7 @@ const NewsPage: React.FC = () => {
                 await createNews(communityId, formData);
             }
             setIsFormOpen(false);
-            setFormData({title: '', content: ''});
+            setFormData({title: '', content: '', isEvent: false, eventDate: ''});
             setEditingNewsId(null);
             setPage(0);
             loadNews(0);
@@ -105,13 +107,18 @@ const NewsPage: React.FC = () => {
     };
 
     const handleOpenCreate = () => {
-        setFormData({title: '', content: ''});
+        setFormData({title: '', content: '', isEvent: false, eventDate: ''});
         setEditingNewsId(null);
         setIsFormOpen(true);
     };
 
     const handleOpenEdit = (news: News) => {
-        setFormData({title: news.title, content: news.content});
+        setFormData({
+            title: news.title,
+            content: news.content,
+            isEvent: news.isEvent || false,
+            eventDate: news.eventDate || ''
+        });
         setEditingNewsId(news.id);
         setIsFormOpen(true);
     };
