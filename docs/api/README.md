@@ -30,7 +30,7 @@ This index is the canonical entry point for API docs from the project root `READ
 | [Members](./members.md) | Maintained | Community member admin and lifecycle endpoints |
 | [Requests](./requests.md) | Maintained | User and admin request workflows |
 | [Users](./users.md) | Maintained | Authenticated profile and self-service endpoints |
-| [Forum](./forum.md) | Draft | Structured placeholder for a future module |
+| [Forum](./forum.md) | Maintained | Community forum posts, comments, reactions and forum polls |
 | [Calendar](./calendar.md) | Maintained | Community month view and personal event endpoints |
 | [Announcements](./announcements.md) | Draft | Structured placeholder for a future module |
 | [Documents](./documents.md) | Draft | Structured placeholder for a future module |

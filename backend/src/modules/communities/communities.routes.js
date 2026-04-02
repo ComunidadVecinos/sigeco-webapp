@@ -5,21 +5,24 @@ const asyncHandler = require('../../lib/http/asyncHandler');
 const { uploadAvatar } = require('../../lib/storage/avatarUpload');
 const validate = require('../../lib/validation/validate');
 const { requireSession } = require('../auth/auth.middleware');
-const calendarRoutes = require('../calendar/calendar.routes');
-const helpCommunityRoutes = require('../help/help.community.routes');
+
 const membersRoutes = require('../members/members.routes');
+const helpCommunityRoutes = require('../help/help.community.routes');
+const calendarRoutes = require('../calendar/calendar.routes');
 const votingRoutes = require('../voting/voting.routes');
+const forumRoutes = require('../forum/forum.routes');
+
 const communitiesController = require('./communities.controller');
 const { createCommunitySchema, communityIdParamSchema, updateCommunitySchema, deleteCommunitySchema } = require('./communities.validation');
 
 const router = express.Router();
 
-// Members, help y el resto de módulos se montan como subrecursos de comunidad para compartir el mismo
-// communityId de la URL y centralizar la navegacion administrativa bajo este modulo.
+// Forum, help y el resto de módulos se montan como subrecursos de comunidad, compartiendo communityId de la URL y centralizando la navegación bajo este módulo.
 router.use('/:communityId/members', membersRoutes);
 router.use('/:communityId/help', helpCommunityRoutes);
 router.use('/:communityId/calendar', calendarRoutes);
 router.use('/:communityId/voting', votingRoutes);
+router.use('/:communityId/forum', forumRoutes);
 
 // Orden:
 // - validate sanea entrada antes del controller

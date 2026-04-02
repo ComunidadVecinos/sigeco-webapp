@@ -37,6 +37,13 @@ enum PollKind {
   FORUM_POLL
 }
 
+enum ForumCategory {
+  ANNOUNCEMENT
+  REQUEST
+  QUESTION
+  POLL
+}
+
 model User {
   id                     String    @id @default(uuid()) @db.Uuid
   firstName              String    @map("first_name")
@@ -59,6 +66,20 @@ model User {
   @@index([lastActiveMembershipId])
   @@index([deletedAt])
   @@map("users")
+}
+
+model UserAvatar {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  storagePath String   @unique @map("storage_path")
+  mimeType    String   @map("mime_type") @db.VarChar(100)
+  sizeBytes   Int      @map("size_bytes")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("user_avatars")
 }
 
 model Session {
@@ -99,32 +120,19 @@ model Community {
   deletedAt         DateTime? @map("deleted_at")
 
   avatar            CommunityAvatar?
-  folders           CommunityFolder[]
-  documents         CommunityDocument[]
   memberships       Membership[]           @relation("CommunityMemberships")
   communityRequests CommunityRequest[]     @relation("CommunityRequests")
   helpSections      CommunityHelpSection[] @relation("CommunityHelpSections")
+  folders           CommunityFolder[]
+  documents         CommunityDocument[]
   calendarEvents    CalendarEvent[]
   polls             Poll[]
+  forumPosts        ForumPost[]
 
   @@index([cif])
   @@index([accessCode])
   @@index([deletedAt])
   @@map("communities")
-}
-
-model UserAvatar {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @unique @map("user_id") @db.Uuid
-  storagePath String   @unique @map("storage_path")
-  mimeType    String   @map("mime_type") @db.VarChar(100)
-  sizeBytes   Int      @map("size_bytes")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@map("user_avatars")
 }
 
 model CommunityAvatar {
@@ -139,54 +147,6 @@ model CommunityAvatar {
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("community_avatars")
-}
-
-/// Arbol logico de carpetas desacoplado de la ruta fisica de almacenamiento.
-model CommunityFolder {
-  id          String    @id @default(uuid()) @db.Uuid
-  communityId String    @map("community_id") @db.Uuid
-  parentId    String?   @map("parent_id") @db.Uuid
-  name        String    @db.VarChar(255)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
-
-  community Community           @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  parent    CommunityFolder?    @relation("CommunityFolderTree", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  children  CommunityFolder[]   @relation("CommunityFolderTree")
-  documents CommunityDocument[]
-
-  @@unique([communityId, parentId, name])
-  @@index([communityId])
-  @@index([parentId])
-  @@index([deletedAt])
-  @@map("community_folders")
-}
-
-/// Documento que pertenece siempre a una comunidad y no a un usuario individual.
-model CommunityDocument {
-  id                     String    @id @default(uuid()) @db.Uuid
-  communityId            String    @map("community_id") @db.Uuid
-  folderId               String?   @map("folder_id") @db.Uuid
-  uploadedByMembershipId String?   @map("uploaded_by_membership_id") @db.Uuid
-  originalName           String    @map("original_name") @db.VarChar(255)
-  storagePath            String    @unique @map("storage_path")
-  mimeType               String    @map("mime_type") @db.VarChar(100)
-  extension              String?   @db.VarChar(20)
-  sizeBytes              BigInt    @map("size_bytes")
-  createdAt              DateTime  @default(now()) @map("created_at")
-  updatedAt              DateTime  @updatedAt @map("updated_at")
-  deletedAt              DateTime? @map("deleted_at")
-
-  community            Community        @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  folder               CommunityFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  uploadedByMembership Membership?      @relation("CommunityDocumentUploadedBy", fields: [uploadedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-
-  @@index([communityId])
-  @@index([folderId])
-  @@index([uploadedByMembershipId])
-  @@index([deletedAt])
-  @@map("community_documents")
 }
 
 model Membership {
@@ -210,12 +170,16 @@ model Membership {
   lastActiveForUsers        User[]              @relation("UserLastActiveMembership")
   activeSessions            Session[]           @relation("SessionActiveMembership")
   property                  Property?           @relation("MembershipProperty")
-  uploadedDocuments         CommunityDocument[] @relation("CommunityDocumentUploadedBy")
   resolvedCommunityRequests CommunityRequest[]  @relation("CommunityRequestResolvedByMembership")
+  uploadedDocuments         CommunityDocument[] @relation("CommunityDocumentUploadedBy")
   calendarEvents            CalendarEvent[]     @relation("CalendarEventOwnerMembership")
   createdPolls              Poll[]              @relation("PollCreatedByMembership")
   closedPolls               Poll[]              @relation("PollClosedByMembership")
   pollVotes                 PollVote[]          @relation("MembershipPollVotes")
+  forumPosts                ForumPost[]         @relation("ForumPostAuthorMembership")
+  forumComments             ForumComment[]      @relation("ForumCommentAuthorMembership")
+  forumPostLikes            ForumPostLike[]     @relation("MembershipForumPostLikes")
+  forumCommentLikes         ForumCommentLike[]  @relation("MembershipForumCommentLikes")
 
   @@unique([userId, communityId])
   @@index([userId])
@@ -224,89 +188,6 @@ model Membership {
   @@index([endedAt])
   @@index([deletedAt])
   @@map("memberships")
-}
-
-model CalendarEvent {
-  id                String            @id @default(uuid()) @db.Uuid
-  communityId       String            @map("community_id") @db.Uuid
-  ownerMembershipId String?           @map("owner_membership_id") @db.Uuid
-  type              CalendarEventType
-  sourceEntityId    String?           @map("source_entity_id") @db.VarChar(191)
-  title             String            @db.VarChar(160)
-  eventDate         DateTime          @map("event_date") @db.Date
-  startTime         String            @map("start_time") @db.VarChar(5)
-  endTime           String            @map("end_time") @db.VarChar(5)
-  createdAt         DateTime          @default(now()) @map("created_at")
-  updatedAt         DateTime          @updatedAt @map("updated_at")
-  deletedAt         DateTime?         @map("deleted_at")
-
-  community       Community   @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  ownerMembership Membership? @relation("CalendarEventOwnerMembership", fields: [ownerMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-
-  @@unique([communityId, type, sourceEntityId], map: "calendar_events_auto_source_key")
-  @@index([communityId, eventDate, deletedAt], map: "calendar_events_month_lookup_idx")
-  @@index([communityId, ownerMembershipId, eventDate, deletedAt], map: "calendar_events_owner_month_lookup_idx")
-  @@map("calendar_events")
-}
-
-model Poll {
-  id                    String    @id @default(uuid()) @db.Uuid
-  communityId           String    @map("community_id") @db.Uuid
-  kind                  PollKind
-  title                 String    @db.VarChar(160)
-  description           String?   @db.Text
-  startsAt              DateTime  @default(now()) @map("starts_at")
-  endsAt                DateTime  @map("ends_at")
-  createdByMembershipId String    @map("created_by_membership_id") @db.Uuid
-  closedAt              DateTime? @map("closed_at")
-  closedByMembershipId  String?   @map("closed_by_membership_id") @db.Uuid
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
-  deletedAt             DateTime? @map("deleted_at")
-
-  community           Community    @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  createdByMembership Membership   @relation("PollCreatedByMembership", fields: [createdByMembershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  closedByMembership  Membership?  @relation("PollClosedByMembership", fields: [closedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  options             PollOption[]
-  votes               PollVote[]
-
-  @@index([communityId, kind, deletedAt, createdAt], map: "polls_community_kind_created_lookup_idx")
-  @@index([communityId, kind, deletedAt, endsAt], map: "polls_community_kind_ends_lookup_idx")
-  @@index([createdByMembershipId])
-  @@index([closedByMembershipId])
-  @@map("polls")
-}
-
-model PollOption {
-  id        String   @id @default(uuid()) @db.Uuid
-  pollId    String   @map("poll_id") @db.Uuid
-  title     String   @db.VarChar(160)
-  sortOrder Int      @default(0) @map("sort_order")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  votes PollVote[]
-
-  @@index([pollId, sortOrder])
-  @@map("poll_options")
-}
-
-model PollVote {
-  id           String   @id @default(uuid()) @db.Uuid
-  pollId       String   @map("poll_id") @db.Uuid
-  optionId     String   @map("option_id") @db.Uuid
-  membershipId String   @map("membership_id") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  poll       Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  option     PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  membership Membership @relation("MembershipPollVotes", fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  @@unique([pollId, membershipId])
-  @@index([pollId])
-  @@index([optionId])
-  @@index([membershipId])
-  @@map("poll_votes")
 }
 
 model Property {
@@ -402,4 +283,213 @@ model CommunityHelpSection {
   @@index([sortOrder])
   @@index([deletedAt])
   @@map("community_help_sections")
+}
+
+/// Arbol logico de carpetas desacoplado de la ruta fisica de almacenamiento.
+model CommunityFolder {
+  id          String    @id @default(uuid()) @db.Uuid
+  communityId String    @map("community_id") @db.Uuid
+  parentId    String?   @map("parent_id") @db.Uuid
+  name        String    @db.VarChar(255)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  community Community           @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parent    CommunityFolder?    @relation("CommunityFolderTree", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  children  CommunityFolder[]   @relation("CommunityFolderTree")
+  documents CommunityDocument[]
+
+  @@unique([communityId, parentId, name])
+  @@index([communityId])
+  @@index([parentId])
+  @@index([deletedAt])
+  @@map("community_folders")
+}
+
+/// Documento que pertenece siempre a una comunidad y no a un usuario individual.
+model CommunityDocument {
+  id                     String    @id @default(uuid()) @db.Uuid
+  communityId            String    @map("community_id") @db.Uuid
+  folderId               String?   @map("folder_id") @db.Uuid
+  uploadedByMembershipId String?   @map("uploaded_by_membership_id") @db.Uuid
+  originalName           String    @map("original_name") @db.VarChar(255)
+  storagePath            String    @unique @map("storage_path")
+  mimeType               String    @map("mime_type") @db.VarChar(100)
+  extension              String?   @db.VarChar(20)
+  sizeBytes              BigInt    @map("size_bytes")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  deletedAt              DateTime? @map("deleted_at")
+
+  community            Community        @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  folder               CommunityFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  uploadedByMembership Membership?      @relation("CommunityDocumentUploadedBy", fields: [uploadedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([communityId])
+  @@index([folderId])
+  @@index([uploadedByMembershipId])
+  @@index([deletedAt])
+  @@map("community_documents")
+}
+
+model CalendarEvent {
+  id                String            @id @default(uuid()) @db.Uuid
+  communityId       String            @map("community_id") @db.Uuid
+  ownerMembershipId String?           @map("owner_membership_id") @db.Uuid
+  type              CalendarEventType
+  sourceEntityId    String?           @map("source_entity_id") @db.VarChar(191)
+  title             String            @db.VarChar(160)
+  eventDate         DateTime          @map("event_date") @db.Date
+  startTime         String            @map("start_time") @db.VarChar(5)
+  endTime           String            @map("end_time") @db.VarChar(5)
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  deletedAt         DateTime?         @map("deleted_at")
+
+  community       Community   @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  ownerMembership Membership? @relation("CalendarEventOwnerMembership", fields: [ownerMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([communityId, type, sourceEntityId], map: "calendar_events_auto_source_key")
+  @@index([communityId, eventDate, deletedAt], map: "calendar_events_month_lookup_idx")
+  @@index([communityId, ownerMembershipId, eventDate, deletedAt], map: "calendar_events_owner_month_lookup_idx")
+  @@map("calendar_events")
+}
+
+model Poll {
+  id                    String    @id @default(uuid()) @db.Uuid
+  communityId           String    @map("community_id") @db.Uuid
+  kind                  PollKind
+  title                 String    @db.VarChar(160)
+  description           String?   @db.Text
+  startsAt              DateTime  @default(now()) @map("starts_at")
+  /// Nullable para permitir encuestas de foro sin cierre. COMMUNITY_VOTING sigue exigiendo fecha fin en su modulo.
+  endsAt                DateTime? @map("ends_at")
+  createdByMembershipId String    @map("created_by_membership_id") @db.Uuid
+  closedAt              DateTime? @map("closed_at")
+  closedByMembershipId  String?   @map("closed_by_membership_id") @db.Uuid
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  deletedAt             DateTime? @map("deleted_at")
+
+  community           Community    @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdByMembership Membership   @relation("PollCreatedByMembership", fields: [createdByMembershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  closedByMembership  Membership?  @relation("PollClosedByMembership", fields: [closedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  options             PollOption[]
+  votes               PollVote[]
+  forumPost           ForumPost?
+
+  @@index([communityId, kind, deletedAt, createdAt], map: "polls_community_kind_created_lookup_idx")
+  @@index([communityId, kind, deletedAt, endsAt], map: "polls_community_kind_ends_lookup_idx")
+  @@index([createdByMembershipId])
+  @@index([closedByMembershipId])
+  @@map("polls")
+}
+
+model PollOption {
+  id        String   @id @default(uuid()) @db.Uuid
+  pollId    String   @map("poll_id") @db.Uuid
+  title     String   @db.VarChar(160)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  votes PollVote[]
+
+  @@index([pollId, sortOrder])
+  @@map("poll_options")
+}
+
+model PollVote {
+  id           String   @id @default(uuid()) @db.Uuid
+  pollId       String   @map("poll_id") @db.Uuid
+  optionId     String   @map("option_id") @db.Uuid
+  membershipId String   @map("membership_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  poll       Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  option     PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  membership Membership @relation("MembershipPollVotes", fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([pollId, membershipId])
+  @@index([pollId])
+  @@index([optionId])
+  @@index([membershipId])
+  @@map("poll_votes")
+}
+
+model ForumPost {
+  id                 String        @id @default(uuid()) @db.Uuid
+  communityId        String        @map("community_id") @db.Uuid
+  authorMembershipId String?       @map("author_membership_id") @db.Uuid
+  pollId             String?       @unique @map("poll_id") @db.Uuid
+  title              String        @db.VarChar(160)
+  description        String        @db.Text
+  category           ForumCategory
+  pinned             Boolean       @default(false)
+  editedAt           DateTime?     @map("edited_at")
+  isDeleted          Boolean       @default(false) @map("is_deleted")
+  lastActivityAt     DateTime      @default(now()) @map("last_activity_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  community        Community       @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  authorMembership Membership?     @relation("ForumPostAuthorMembership", fields: [authorMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  poll             Poll?           @relation(fields: [pollId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  comments         ForumComment[]
+  likes            ForumPostLike[]
+
+  @@index([communityId, isDeleted, pinned, createdAt], map: "forum_posts_community_created_lookup_idx")
+  @@index([communityId, isDeleted, pinned, lastActivityAt], map: "forum_posts_community_activity_lookup_idx")
+  @@index([communityId, category, isDeleted, createdAt], map: "forum_posts_community_category_created_lookup_idx")
+  @@map("forum_posts")
+}
+
+model ForumComment {
+  id                 String    @id @default(uuid()) @db.Uuid
+  postId             String    @map("post_id") @db.Uuid
+  authorMembershipId String?   @map("author_membership_id") @db.Uuid
+  content            String    @db.Text
+  editedAt           DateTime? @map("edited_at")
+  isDeleted          Boolean   @default(false) @map("is_deleted")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  post             ForumPost          @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  authorMembership Membership?        @relation("ForumCommentAuthorMembership", fields: [authorMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  likes            ForumCommentLike[]
+
+  @@index([postId, createdAt], map: "forum_comments_post_created_lookup_idx")
+  @@index([authorMembershipId], map: "forum_comments_author_membership_lookup_idx")
+  @@map("forum_comments")
+}
+
+model ForumPostLike {
+  id           String   @id @default(uuid()) @db.Uuid
+  postId       String   @map("post_id") @db.Uuid
+  membershipId String   @map("membership_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  post       ForumPost  @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  membership Membership @relation("MembershipForumPostLikes", fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([postId, membershipId])
+  @@index([postId])
+  @@index([membershipId])
+  @@map("forum_post_likes")
+}
+
+model ForumCommentLike {
+  id           String   @id @default(uuid()) @db.Uuid
+  commentId    String   @map("comment_id") @db.Uuid
+  membershipId String   @map("membership_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  comment    ForumComment @relation(fields: [commentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  membership Membership   @relation("MembershipForumCommentLikes", fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([commentId, membershipId])
+  @@index([commentId])
+  @@index([membershipId])
+  @@map("forum_comment_likes")
 }
