@@ -20,6 +20,20 @@ const api = axios.create({
     withCredentials: true
 });
 
+api.interceptors.request.use((config) => {
+    if (config.data instanceof FormData) {
+        if (config.headers && typeof config.headers.delete === 'function') {
+            config.headers.delete('Content-Type');
+            config.headers.delete('content-type');
+        } 
+        else if (config.headers) {
+            delete config.headers['Content-Type'];
+            delete config.headers['content-type'];
+        }
+    }
+    return config;
+});
+
 api.interceptors.response.use(
     (response) => response,
     (error) => {

@@ -1,11 +1,10 @@
 import React from 'react';
 import {Button} from '@/components/ui/button';
 import {Pencil, Trash2, Megaphone} from 'lucide-react';
-import {format} from 'date-fns';
-import {es} from 'date-fns/locale';
+import { formatUtcIsoInBusinessZone } from '@/lib/businessDateTime';
 
 interface NewsCardProps {
-    id: number;
+    id: string;
     title: string;
     content: string;
     createdAt: string;
@@ -17,7 +16,7 @@ interface NewsCardProps {
 
 const NewsCard: React.FC<NewsCardProps> = ({title, content, createdAt, imageUrl, isAdmin, onEdit, onDelete}) => {
     
-    const formatteDate = createdAt ? format(new Date(createdAt), "d 'de' MMMM 'de' yyyy, HH:mm", {locale: es}) : '';
+    const formatteDate = createdAt ? formatUtcIsoInBusinessZone(createdAt, "d 'de' MMMM 'de' yyyy, HH:mm") : '';
 
     return (
         <div className='bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col overflow-hidden'>

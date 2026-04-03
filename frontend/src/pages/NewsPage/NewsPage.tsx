@@ -11,7 +11,7 @@ import { getNews, createNews, updateNews, deleteNews } from '@/services/newsServ
 import { useNavigate } from 'react-router-dom';
 
 interface News {
-    id: number;
+    id: string;
     title: string;
     content: string;
     createdAt: string;
@@ -46,7 +46,7 @@ const NewsPage: React.FC = () => {
 
     //Modal de crear/editar
     const [isFormOpen, setIsFormOpen] = useState(false);
-    const [editingNewsId, setEditingNewsId] = useState<number | null>(null);
+    const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
     const [formData, setFormData] = useState({title: '', content: '', isEvent: false, eventStartDate: '', eventStartTime: '', eventEndDate: '', eventEndTime: '', imageFile: null as File | null, imagePreview: ''});
 
     useEffect(() => {
@@ -134,7 +134,7 @@ const NewsPage: React.FC = () => {
         setIsFormOpen(true);
     };
 
-    const handleDeleteNews = async (newsId: number) => {
+    const handleDeleteNews = async (newsId: string) => {
         if(!communityId || !confirm('¿Estas seguro de eliminar esta noticia?')) return;
         if(featureUnavailable) return;
         try{

@@ -118,7 +118,7 @@ const CreateEditNewsModal: React.FC<CreateEditNewsModalProps> = ({isOpen, onClos
                                 <Label className='font-bold text-sm'>Inicio <span className='text-red-500'>*</span></Label>
                                 <div className='flex gap-3'>
                                     <Input type='date' className='flex-1' value={formData.eventStartDate} onChange={(e) => setFormData({...formData, eventStartDate: e.target.value})}/>
-                                    <Input type='time' className='w-[140px]' value={formData.eventStartDate} onChange={(e) => setFormData({...formData, eventStartDate: e.target.value})}/>
+                                    <Input type='time' className='w-[140px]' value={formData.eventStartTime} onChange={(e) => setFormData({...formData, eventStartTime: e.target.value})}/>
                                 </div>
                             </div>
                             <div className="flex flex-col gap-2">
@@ -130,7 +130,7 @@ const CreateEditNewsModal: React.FC<CreateEditNewsModalProps> = ({isOpen, onClos
                                 </div>
                                 <div className="flex gap-3">
                                     <Input type='date' className='flex-1' value={formData.eventEndDate} onChange={(e) => setFormData({...formData, eventEndDate: e.target.value})}/>
-                                    <Input type='time' className='w-[140px]' value={formData.eventEndDate} onChange={(e) => setFormData({...formData, eventEndDate: e.target.value})}/>
+                                    <Input type='time' className='w-[140px]' value={formData.eventEndTime} onChange={(e) => setFormData({...formData, eventEndTime: e.target.value})}/>
                                 </div>
                             </div>
                         </div>
