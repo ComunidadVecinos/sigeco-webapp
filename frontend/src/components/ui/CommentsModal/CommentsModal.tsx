@@ -3,6 +3,7 @@ import {Dialog, DialogContent, DialogHeader, DialogTitle} from '@/components/ui/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CircleUserRound, Send, Pencil, Trash2, X, Check } from "lucide-react";
+import { formatUtcIsoInBusinessZone } from '@/lib/businessDateTime';
 
 
 interface Comment{
@@ -96,7 +97,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
                                 <div className="flex-1">
                                     <div className="flex gap-2 items-center mb-1">
                                         <span className="font-semibold text-[13px]">{comment.authorName}</span>
-                                        <span className="text-xs text-gray-400">{comment.timestamp}</span>
+                                        <span className="text-xs text-gray-400">{formatUtcIsoInBusinessZone(comment.timestamp, "dd/MM/yyyy HH:mm")}</span>
                                         <div className="ml-auto flex gap-1">
                                             {comment.isOwner && onEditComment && editingId !== comment.id && (
                                                 <button className="p-1 hover:bg-gray-100 rounded" onClick={() => startEdit(comment)}>

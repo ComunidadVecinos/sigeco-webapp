@@ -2,23 +2,16 @@
 const { Prisma } = require('@prisma/client');
 
 const { ConflictError, ForbiddenError, NotFoundError, ValidationError } = require('../../lib/errors');
+const { startOfBusinessDayUtc, startOfNextBusinessDayUtc } = require('../../lib/datetime/businessTime');
 const storageService = require('../../lib/storage/storage');
 const membersRepository = require('../members/members.repository');
 const membersService = require('../members/members.service');
 
-const DELETED_COMMENT_CONTENT = 'El contenido ha sido eliminado por el autor';
+const DELETED_COMMENT_CONTENT_BY_AUTHOR = 'El contenido ha sido eliminado por el autor';
+const DELETED_COMMENT_CONTENT_BY_ADMIN = 'El contenido ha sido eliminado por el administrador';
 
 function buildValidationDetail(field, message, location = 'body') {
   return [{ field, location, message }];
-}
-
-function addDays(date, days) {
-  return new Date(date.getTime() + (days * 24 * 60 * 60 * 1000));
-}
-
-function buildEndsAt(endDate, endTime) {
-  const [hours, minutes] = endTime.split(':').map(Number);
-  return new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate(), hours, minutes, 0, 0));
 }
 
 function assertValidForumPollEndDate(startsAt, endsAt) {
@@ -27,17 +20,25 @@ function assertValidForumPollEndDate(startsAt, endsAt) {
   }
 
   throw new ValidationError(
-    buildValidationDetail('poll.endDate', 'La fecha y hora de cierre deben ser posteriores al momento actual'),
-    { message: 'La fecha de cierre de la encuesta no es v\u00e1lida' }
+    buildValidationDetail('poll.endsAt', 'La fecha y hora de cierre deben ser posteriores al momento actual'),
+    { message: 'La fecha de cierre de la encuesta no es válida' }
   );
 }
 
 function buildPollEndsAtFromInput(input, now) {
-  if (!input.poll || !input.poll.endDate || !input.poll.endTime) {
+  if (!input.poll || !input.poll.endsAt) {
     return null;
   }
 
-  const endsAt = buildEndsAt(input.poll.endDate, input.poll.endTime);
+  const endsAt = input.poll.endsAt;
+
+  if (!endsAt) {
+    throw new ValidationError(
+      buildValidationDetail('poll.endsAt', 'La fecha y hora de cierre no son válidas'),
+      { message: 'La fecha de cierre de la encuesta no es válida' }
+    );
+  }
+
   assertValidForumPollEndDate(now, endsAt);
   return endsAt;
 }
@@ -149,7 +150,7 @@ function mapForumComment(comment, context) {
   return {
     id: comment.id,
     postId: comment.postId,
-    content: isDeleted ? DELETED_COMMENT_CONTENT : comment.content,
+    content: isDeleted ? (comment.content || DELETED_COMMENT_CONTENT_BY_AUTHOR) : comment.content,
     editedAt: comment.editedAt ? comment.editedAt.toISOString() : null,
     isDeleted,
     createdAt: comment.createdAt.toISOString(),
@@ -329,8 +330,8 @@ async function getPostList(context, communityId, input, forumRepository) {
   const pageResult = await forumRepository.findForumPostPage({
     communityId,
     category: input.category,
-    createdFrom: input.from || undefined,
-    createdToExclusive: input.to ? addDays(input.to, 1) : undefined,
+    createdFrom: input.from ? startOfBusinessDayUtc(input.from) : undefined,
+    createdToExclusive: input.to ? startOfNextBusinessDayUtc(input.to) : undefined,
     sortBy: input.sortBy,
     page: input.page,
     pageSize: input.pageSize
@@ -473,16 +474,20 @@ async function deleteComment(context, communityId, commentId, forumRepository) {
   await requireVisiblePost(communityId, comment.postId, forumRepository);
   assertCanDeleteComment(membership, comment);
 
+  const deletedContent = comment.authorMembershipId === membership.id ? DELETED_COMMENT_CONTENT_BY_AUTHOR : DELETED_COMMENT_CONTENT_BY_ADMIN;
+
   const deletedComment = await forumRepository.withTransaction((tx) => forumRepository.anonymizeForumComment(tx, {
     postId: comment.postId,
-    commentId
+    commentId,
+    deletedContent
   }));
 
   if (!deletedComment) {
     throw new ConflictError('No se ha podido eliminar el comentario');
   }
 
-  return { deleted: true, commentId };
+  const [item] = await buildForumCommentResponses([deletedComment], forumRepository);
+  return item;
 }
 
 async function togglePostLike(context, communityId, postId, forumRepository) {

@@ -1,68 +1,38 @@
 ﻿// Servicio del módulo voting.
-// Orquesta permisos, ciclo de vida de votaciones comunitarias y sincronización de eventos automáticos del calendario.
+
 const { Prisma } = require('@prisma/client');
 
 const { ConflictError, NotFoundError, ValidationError } = require('../../lib/errors');
 const membersRepository = require('../members/members.repository');
 const membersService = require('../members/members.service');
 const calendarRepository = require('../calendar/calendar.repository');
-const { buildOneHourAutomaticReminderWindow } = require('../calendar/calendar.reminder');
+const { addMinutesToInstant } = require('../calendar/calendar.datetime');
+const { buildVotingAutomaticCalendarEvents } = require('../calendar/calendar.reminder');
 
-function buildValidationDetail(field, message, location = 'body') {
-  return [{ field, location, message }];
-}
-
-function padTimeSegment(value) {
-  return String(value).padStart(2, '0');
-}
-
-function formatUtcTime(date) {
-  return `${padTimeSegment(date.getUTCHours())}:${padTimeSegment(date.getUTCMinutes())}`;
-}
-
-function formatDateOnly(date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function addMinutes(date, minutes) {
-  return new Date(date.getTime() + (minutes * 60 * 1000));
-}
-
-function buildEndsAt(endDate, endTime) {
-  const [hours, minutes] = endTime.split(':').map(Number);
-  return new Date(Date.UTC( endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate(), hours, minutes, 0, 0));
+function buildValidationDetail(field, message) {
+  return [{ field, location: 'body', message }];
 }
 
 function assertValidVotingEndDate(startsAt, endsAt) {
   if (endsAt <= startsAt) {
     throw new ValidationError(
-      buildValidationDetail('endDate', 'La fecha y hora de fin deben ser posteriores al momento actual'),
+      buildValidationDetail('endsAt', 'La fecha y hora de fin deben ser posteriores'),
       { message: 'La fecha de fin de la votación no es válida' }
     );
   }
 
-  const minimumAllowedEndsAt = addMinutes(startsAt, 60);
+  const minimumAllowedEndsAt = addMinutesToInstant(startsAt, 60);
 
-  // Se exige al menos una hora de margen para que el recordatorio automático del calendario siempre tenga una ventana coherente.
   if (endsAt < minimumAllowedEndsAt) {
     throw new ValidationError(
-      buildValidationDetail('endTime', 'La fecha y hora de fin deben ser, como mínimo, una hora posteriores al momento de creación'),
+      buildValidationDetail('endsAt', 'La fecha y hora de fin deben ser, como mínimo, una hora posteriores al momento de creación'),
       { message: 'La fecha de fin de la votación no cumple el margen mínimo requerido' }
     );
   }
 }
 
-// COMMUNITY_VOTING debe tener una fecha de fin válida (Poll.endsAt nullable para FORUM_POLL).
 function isVotingOpen(voting, now = new Date()) {
   return voting.closedAt === null && voting.endsAt !== null && voting.endsAt > now;
-}
-
-function mapVotingEnd(voting) {
-  // Prisma permite endsAt nulo para FORUM_POLL, pero COMMUNITY_VOTING sigue operando con fecha de fin obligatoria.
-  if (!voting.endsAt) {
-    return { endDate: null, endTime: null };
-  }
-  return { endDate: formatDateOnly(voting.endsAt), endTime: formatUtcTime(voting.endsAt) };
 }
 
 function mapVotingCreator(membership) {
@@ -102,7 +72,6 @@ function mapVotingItem(voting, options, voteCountMap, possibleVoters, myVoteOpti
   }));
 
   const totalVotes = mappedOptions.reduce((sum, option) => sum + option.votes, 0);
-  const votingEnd = mapVotingEnd(voting);
 
   return {
     id: voting.id,
@@ -111,27 +80,12 @@ function mapVotingItem(voting, options, voteCountMap, possibleVoters, myVoteOpti
     creator: mapVotingCreator(voting.createdByMembership),
     createdAt: voting.createdAt.toISOString(),
     startsAt: voting.startsAt.toISOString(),
-    endDate: votingEnd.endDate,
-    endTime: votingEnd.endTime,
+    endsAt: voting.endsAt ? voting.endsAt.toISOString() : null,
     status: isVotingOpen(voting, now) ? 'OPEN' : 'CLOSED',
     totalVotes,
     possibleVoters,
     myVoteOptionId: myVoteOptionId || null,
     options: mappedOptions
-  };
-}
-
-function buildVotingCalendarEventInput(communityId, votingId, title, endDate, endTime) {
-  const reminderWindow = buildOneHourAutomaticReminderWindow(endDate, endTime);
-
-  return {
-    communityId,
-    type: 'VOTING',
-    sourceEntityId: votingId,
-    title,
-    eventDate: reminderWindow.date,
-    startTime: reminderWindow.startTime,
-    endTime: reminderWindow.endTime
   };
 }
 
@@ -146,10 +100,10 @@ async function requireVotingAdministrativeAccess(userId, communityId) {
 async function createVoting(context, communityId, input, votingRepository) {
   const { membership } = await requireVotingAdministrativeAccess(context.userId, communityId);
   const startsAt = new Date();
-  // Por contrato HTTP de COMMUNITY_VOTING, endDate y endTime son obligatorios.
-  const endsAt = buildEndsAt(input.endDate, input.endTime);
+  const endsAt = input.endsAt;
 
   assertValidVotingEndDate(startsAt, endsAt);
+
   const createdVoting = await votingRepository.withTransaction(async (tx) => {
     const voting = await votingRepository.createVoting(tx, {
       communityId,
@@ -161,7 +115,12 @@ async function createVoting(context, communityId, input, votingRepository) {
       options: input.options
     });
 
-    await calendarRepository.upsertAutomaticEventInDb(tx, buildVotingCalendarEventInput(communityId, voting.id, voting.title, input.endDate, input.endTime));
+    await calendarRepository.replaceAutomaticEventsInDb(tx, {
+      communityId,
+      type: 'VOTING',
+      sourceEntityId: voting.id,
+      events: buildVotingAutomaticCalendarEvents({ title: voting.title, endsAt: voting.endsAt })
+    });
 
     return voting;
   });
@@ -181,8 +140,6 @@ async function getVotingList(context, communityId, input, votingRepository) {
   ]);
 
   const votingIds = pageResult.items.map((item) => item.id);
-
-  // El listado agrega opciones, conteos y voto propio en lecturas separadas para mantener la consulta base simple.
   const [options, voteCounts, membershipVotes] = await Promise.all([
     votingRepository.findVotingOptionsByPollIds(votingIds),
     votingRepository.findVoteCountsByPollIds(votingIds),
@@ -241,7 +198,7 @@ async function voteOnVoting(context, communityId, votingId, input, votingReposit
     }));
 
     return { voted: true, votingId: vote.pollId, optionId: vote.optionId, votedAt: vote.createdAt.toISOString() };
-  }
+  } 
   catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw new ConflictError('Solo se permite un voto por usuario y votación');
@@ -271,7 +228,6 @@ async function closeVoting(context, communityId, votingId, votingRepository) {
       return null;
     }
 
-    // El cierre manual elimina también el recordatorio pendiente del calendario para no dejar una cita desalineada.
     await calendarRepository.softDeleteAutomaticEventInDb(tx, { communityId, type: 'VOTING', sourceEntityId: votingId });
 
     return result;
@@ -300,7 +256,6 @@ async function deleteVoting(context, communityId, votingId, votingRepository) {
       return result;
     }
 
-    // Borrar una votación oculta también su recordatorio automático del calendario comunitario.
     await calendarRepository.softDeleteAutomaticEventInDb(tx, { communityId, type: 'VOTING', sourceEntityId: votingId });
 
     return result;
@@ -313,5 +268,3 @@ async function deleteVoting(context, communityId, votingId, votingRepository) {
 }
 
 module.exports = { createVoting, getVotingList, voteOnVoting, closeVoting, deleteVoting };
-
-

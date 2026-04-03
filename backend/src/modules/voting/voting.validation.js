@@ -1,26 +1,14 @@
 // Validaciones HTTP del módulo voting.
 const { z } = require('zod');
 
+const { isValidInstantString, parseInstantToUtcDate } = require('../../lib/datetime/businessTime');
 const { optionalCommentSchema, requiredTextSchema } = require('../../lib/validation/communityFields');
 const { positiveIntegerQuerySchema, uuidFieldSchema, uuidParamSchema } = require('../../lib/validation/requestFields');
 
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
-
-function isValidDateOnly(value) {
-  const parsedDate = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().slice(0, 10) === value;
-}
-
-function buildDateFieldSchema(fieldName) {
+function buildInstantFieldSchema(fieldName) {
   return z.string().trim()
-    .regex(DATE_REGEX, `El campo ${fieldName} debe tener formato YYYY-MM-DD`)
-    .refine((value) => isValidDateOnly(value), `El campo ${fieldName} debe ser una fecha válida`)
-    .transform((value) => new Date(`${value}T00:00:00.000Z`));
-}
-
-function buildTimeFieldSchema(fieldName) {
-  return z.string().trim().regex(TIME_REGEX, `El campo ${fieldName} debe tener formato HH:mm`);
+    .refine((value) => isValidInstantString(value), `El campo ${fieldName} debe ser un instante ISO 8601 válido`)
+    .transform((value) => parseInstantToUtcDate(value));
 }
 
 const votingOptionSchema = z.object({ title: requiredTextSchema('title', 160) }).strict();
@@ -30,8 +18,7 @@ const votingParamsSchema = z.object({ communityId: uuidFieldSchema('communityId'
 const createVotingSchema = z.object({
   title: requiredTextSchema('title', 160),
   description: optionalCommentSchema,
-  endDate: buildDateFieldSchema('endDate'),
-  endTime: buildTimeFieldSchema('endTime'),
+  endsAt: buildInstantFieldSchema('endsAt'),
   options: z.array(votingOptionSchema).min(2, 'Debes enviar al menos 2 opciones').max(5, 'No puedes enviar más de 5 opciones')
 }).strict();
 

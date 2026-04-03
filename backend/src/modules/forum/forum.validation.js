@@ -1,18 +1,13 @@
 // Validaciones HTTP del módulo forum.
 const { z } = require('zod');
 
+const { dateOnlyStringToUtcDate, isValidDateOnlyString, isValidInstantString, parseInstantToUtcDate } = require('../../lib/datetime/businessTime');
 const { requiredTextSchema } = require('../../lib/validation/communityFields');
 const { positiveIntegerQuerySchema, uuidFieldSchema, uuidParamSchema } = require('../../lib/validation/requestFields');
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const FORUM_CATEGORY_MAP = { announcement: 'ANNOUNCEMENT', request: 'REQUEST', question: 'QUESTION', poll: 'POLL' };
 const FORUM_CATEGORY_VALUES = Object.keys(FORUM_CATEGORY_MAP);
-
-function isValidDateOnly(value) {
-  const parsedDate = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().slice(0, 10) === value;
-}
 
 function normalizeOptionalString(value) {
   if (value === undefined) {
@@ -26,20 +21,23 @@ function normalizeOptionalString(value) {
 function buildDateFieldSchema(fieldName) {
   return z.string().trim()
     .regex(DATE_REGEX, `El campo ${fieldName} debe tener formato YYYY-MM-DD`)
-    .refine((value) => isValidDateOnly(value), `El campo ${fieldName} debe ser una fecha válida`)
-    .transform((value) => new Date(`${value}T00:00:00.000Z`));
+    .refine((value) => isValidDateOnlyString(value), `El campo ${fieldName} debe ser una fecha válida`)
+    .transform((value) => dateOnlyStringToUtcDate(value));
 }
 
 function buildOptionalDateFieldSchema(fieldName) {
   return z.union([z.string(), z.undefined()])
     .transform((value) => normalizeOptionalString(value))
     .refine((value) => value === undefined || DATE_REGEX.test(value), `El campo ${fieldName} debe tener formato YYYY-MM-DD`)
-    .refine((value) => value === undefined || isValidDateOnly(value), `El campo ${fieldName} debe ser una fecha válida`)
-    .transform((value) => (value === undefined ? undefined : new Date(`${value}T00:00:00.000Z`)));
+    .refine((value) => value === undefined || isValidDateOnlyString(value), `El campo ${fieldName} debe ser una fecha válida`)
+    .transform((value) => (value === undefined ? undefined : dateOnlyStringToUtcDate(value)));
 }
 
-function buildTimeFieldSchema(fieldName) {
-  return z.string().trim().regex(TIME_REGEX, `El campo ${fieldName} debe tener formato HH:mm`);
+function buildOptionalInstantFieldSchema(fieldName) {
+  return z.union([z.string(), z.undefined()])
+    .transform((value) => normalizeOptionalString(value))
+    .refine((value) => value === undefined || isValidInstantString(value), `El campo ${fieldName} debe ser un instante ISO 8601 válido`)
+    .transform((value) => (value === undefined ? undefined : parseInstantToUtcDate(value)));
 }
 
 function mapForumCategory(value) {
@@ -58,13 +56,9 @@ const forumPollOptionSchema = z.object({ title: requiredTextSchema('title', 160)
 const forumPollSchema = z.object({
   title: requiredTextSchema('poll.title', 160),
   description: requiredTextSchema('poll.description', 2000).optional(),
-  endDate: buildDateFieldSchema('poll.endDate').optional(),
-  endTime: buildTimeFieldSchema('poll.endTime').optional(),
+  endsAt: buildOptionalInstantFieldSchema('poll.endsAt'),
   options: z.array(forumPollOptionSchema).min(2, 'Debes enviar al menos 2 opciones').max(5, 'No puedes enviar más de 5 opciones')
-}).strict().refine((value) => Boolean(value.endDate) === Boolean(value.endTime), {
-  message: 'El cierre de encuesta debe incluir fecha y hora',
-  path: ['endDate']
-});
+}).strict();
 
 const createPostSchema = z.object({
   title: requiredTextSchema('title', 160),

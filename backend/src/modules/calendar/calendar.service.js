@@ -1,42 +1,59 @@
 // Servicio del módulo calendar.
-// Orquesta la visibilidad del calendario comunitario y separa dos categorías de eventos:
-// - automáticos: pertenecen a la comunidad y llegan sincronizados desde otros módulos.
-// - personales: pertenecen a una membership concreta dentro de esa comunidad.
+// Mantiene el almacenamiento interno por día de negocio, pero expone el
+// contrato público únicamente con instantes UTC ISO.
 const { ConflictError, NotFoundError, ValidationError } = require('../../lib/errors');
-const calendarRepository = require('./calendar.repository');
+const { buildBusinessDateOnly, buildBusinessDateTime, formatBusinessTime } = require('../calendar/calendar.datetime');
 const membersRepository = require('../members/members.repository');
 const membersService = require('../members/members.service');
-
-function mapCalendarEvent(event) {
-  // La API expone fecha y hora, no datetime completo.
-  return {
-    id: event.id,
-    title: event.title,
-    type: event.type,
-    date: event.eventDate.toISOString().slice(0, 10),
-    startTime: event.startTime,
-    endTime: event.endTime
-  };
-}
 
 function buildValidationDetail(field, message) {
   return [{ field, location: 'body', message }];
 }
 
-function assertValidTimeRange(startTime, endTime) {
-  // El módulo permite solapamientos: solo exige un rango horario internamente coherente.
-  if (startTime < endTime) {
-    return;
+function mapCalendarEvent(event) {
+  const startsAt = buildBusinessDateTime(event.eventDate, event.startTime);
+  const endsAt = buildBusinessDateTime(event.eventDate, event.endTime);
+
+  return {
+    id: event.id,
+    title: event.title,
+    type: event.type,
+    startsAt: startsAt ? startsAt.toISOString() : null,
+    endsAt: endsAt ? endsAt.toISOString() : null
+  };
+}
+
+function buildValidationMessage(field, message, errorMessage) {
+  throw new ValidationError(buildValidationDetail(field, message), {
+    message: errorMessage
+  });
+}
+
+function buildStoredPersonalEventFields(startsAt, endsAt) {
+  const eventDate = buildBusinessDateOnly(startsAt);
+  const endDate = buildBusinessDateOnly(endsAt);
+
+  if (eventDate.getTime() !== endDate.getTime()) {
+    buildValidationMessage(
+      'endsAt',
+      'Los eventos personales deben empezar y terminar el mismo día de negocio',
+      'El evento personal no puede cruzar de día en el calendario comunitario'
+    );
   }
 
-  throw new ValidationError(buildValidationDetail('startTime', 'La hora de inicio debe ser anterior a la hora de fin'), {
-    message: 'El rango horario del evento no es válido'
-  });
+  if (endsAt <= startsAt) {
+    buildValidationMessage(
+      'startsAt',
+      'La fecha y hora de inicio deben ser anteriores a la fecha y hora de fin',
+      'El rango temporal del evento personal no es válido'
+    );
+  }
+
+  return { eventDate, startTime: formatBusinessTime(startsAt), endTime: formatBusinessTime(endsAt) };
 }
 
 function buildMonthRange(month) {
   const [year, monthNumber] = month.split('-').map(Number);
-  // El mes es el segmento natural de consulta y se acota en UTC para evitar deriva por zona horaria.
   return {
     startDate: new Date(Date.UTC(year, monthNumber - 1, 1)),
     endDate: new Date(Date.UTC(year, monthNumber, 1))
@@ -44,14 +61,12 @@ function buildMonthRange(month) {
 }
 
 async function requireCalendarMembershipAccess(userId, communityId) {
-  // Calendar reutiliza la noción de "pertenece a la comunidad", que incluye memberships suspendidas.
   return membersService.requireCommunityMembershipAccess(userId, communityId, membersRepository);
 }
 
 async function getCalendarMonthEvents(context, communityId, input, repository) {
   const { membership } = await requireCalendarMembershipAccess(context.userId, communityId);
   const { startDate, endDate } = buildMonthRange(input.month);
-  // La vista mensual mezcla eventos automáticos de comunidad con los personales del miembro actual.
   const events = await repository.findVisibleCalendarEventsInRange({
     communityId,
     ownerMembershipId: membership.id,
@@ -64,15 +79,13 @@ async function getCalendarMonthEvents(context, communityId, input, repository) {
 
 async function createPersonalEvent(context, communityId, input, repository) {
   const { membership } = await requireCalendarMembershipAccess(context.userId, communityId);
-  assertValidTimeRange(input.startTime, input.endTime);
+  const storedFields = buildStoredPersonalEventFields(input.startsAt, input.endsAt);
 
   const event = await repository.createPersonalEvent({
     communityId,
     ownerMembershipId: membership.id,
     title: input.title,
-    eventDate: input.date,
-    startTime: input.startTime,
-    endTime: input.endTime
+    ...storedFields
   });
 
   return mapCalendarEvent(event);
@@ -80,28 +93,27 @@ async function createPersonalEvent(context, communityId, input, repository) {
 
 async function updatePersonalEvent(context, communityId, eventId, input, repository) {
   const { membership } = await requireCalendarMembershipAccess(context.userId, communityId);
-  const existingEvent = await repository.findOwnedPersonalEventById({ communityId, ownerMembershipId: membership.id, eventId });
+  const existingEvent = await repository.findOwnedPersonalEventById({
+    communityId,
+    ownerMembershipId: membership.id,
+    eventId
+  });
 
   if (!existingEvent) {
     throw new NotFoundError('Evento personal no encontrado');
   }
 
-  const nextStartTime = input.startTime || existingEvent.startTime;
-  const nextEndTime = input.endTime || existingEvent.endTime;
-
-  // PATCH permite modificar solo uno de los extremos horarios (se valida el rango final combinado).
-  assertValidTimeRange(nextStartTime, nextEndTime);
+  const existingStartsAt = buildBusinessDateTime(existingEvent.eventDate, existingEvent.startTime);
+  const existingEndsAt = buildBusinessDateTime(existingEvent.eventDate, existingEvent.endTime);
+  const nextStartsAt = input.startsAt || existingStartsAt;
+  const nextEndsAt = input.endsAt || existingEndsAt;
+  const storedFields = buildStoredPersonalEventFields(nextStartsAt, nextEndsAt);
 
   const updatedEvent = await repository.updateOwnedPersonalEvent({
     communityId,
     ownerMembershipId: membership.id,
     eventId,
-    data: {
-      ...(input.title !== undefined ? { title: input.title } : {}),
-      ...(input.date !== undefined ? { eventDate: input.date } : {}),
-      ...(input.startTime !== undefined ? { startTime: input.startTime } : {}),
-      ...(input.endTime !== undefined ? { endTime: input.endTime } : {})
-    }
+    data: { ...(input.title !== undefined ? { title: input.title } : {}), ...storedFields }
   });
 
   if (!updatedEvent) {
@@ -126,54 +138,4 @@ async function deletePersonalEvent(context, communityId, eventId, repository) {
   return { deleted: true, eventId };
 }
 
-async function upsertAutomaticEvent(input, repository = calendarRepository) {
-  // Los eventos automáticos son internos al backend: PERSONAL queda reservado al CRUD del usuario.
-  if (input.type === 'PERSONAL') {
-    throw new ValidationError(buildValidationDetail('type', 'Los eventos automáticos no pueden usar el tipo PERSONAL'));
-  }
-
-  if (!input.sourceEntityId) {
-    throw new ValidationError(buildValidationDetail('sourceEntityId', 'El identificador del origen es obligatorio'));
-  }
-
-  assertValidTimeRange(input.startTime, input.endTime);
-
-  const event = await repository.upsertAutomaticEvent({
-    communityId: input.communityId,
-    type: input.type,
-    sourceEntityId: input.sourceEntityId,
-    title: input.title,
-    eventDate: input.date,
-    startTime: input.startTime,
-    endTime: input.endTime
-  });
-
-  return mapCalendarEvent(event);
-}
-
-async function deleteAutomaticEvent(input, repository = calendarRepository) {
-  if (input.type === 'PERSONAL') {
-    throw new ValidationError(buildValidationDetail('type', 'Los eventos automáticos no pueden usar el tipo PERSONAL'));
-  }
-
-  if (!input.sourceEntityId) {
-    throw new ValidationError(buildValidationDetail('sourceEntityId', 'El identificador del origen es obligatorio'));
-  }
-
-  const result = await repository.softDeleteAutomaticEvent({
-    communityId: input.communityId,
-    type: input.type,
-    sourceEntityId: input.sourceEntityId
-  });
-
-  return { deleted: result.count === 1, type: input.type, sourceEntityId: input.sourceEntityId };
-}
-
-module.exports = {
-  getCalendarMonthEvents,
-  createPersonalEvent,
-  updatePersonalEvent,
-  deletePersonalEvent,
-  upsertAutomaticEvent,
-  deleteAutomaticEvent
-};
+module.exports = { getCalendarMonthEvents, createPersonalEvent, updatePersonalEvent, deletePersonalEvent };

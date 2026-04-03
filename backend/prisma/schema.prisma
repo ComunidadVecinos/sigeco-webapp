@@ -51,11 +51,11 @@ model User {
   email                  String    @unique @db.VarChar(320)
   phone                  String?   @unique @db.VarChar(20)
   passwordHash           String    @map("password_hash")
-  passwordChangedAt      DateTime  @default(now()) @map("password_changed_at")
+  passwordChangedAt      DateTime  @default(now()) @db.Timestamptz(3) @map("password_changed_at")
   lastActiveMembershipId String?   @map("last_active_membership_id") @db.Uuid
-  createdAt              DateTime  @default(now()) @map("created_at")
-  updatedAt              DateTime  @updatedAt @map("updated_at")
-  deletedAt              DateTime? @map("deleted_at")
+  createdAt              DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt              DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt              DateTime? @db.Timestamptz(3) @map("deleted_at")
 
   avatar               UserAvatar?
   lastActiveMembership Membership?        @relation("UserLastActiveMembership", fields: [lastActiveMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -74,8 +74,8 @@ model UserAvatar {
   storagePath String   @unique @map("storage_path")
   mimeType    String   @map("mime_type") @db.VarChar(100)
   sizeBytes   Int      @map("size_bytes")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3) @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -86,9 +86,9 @@ model Session {
   id                 String    @id @default(uuid()) @db.Uuid
   userId             String    @map("user_id") @db.Uuid
   activeMembershipId String?   @map("active_membership_id") @db.Uuid
-  createdAt          DateTime  @default(now()) @map("created_at")
-  expiresAt          DateTime  @map("expires_at")
-  invalidatedAt      DateTime? @map("invalidated_at")
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  expiresAt          DateTime  @db.Timestamptz(3) @map("expires_at")
+  invalidatedAt      DateTime? @db.Timestamptz(3) @map("invalidated_at")
 
   user             User        @relation("UserSessions", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   activeMembership Membership? @relation("SessionActiveMembership", fields: [activeMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -115,9 +115,9 @@ model Community {
   /// Reserva de cuota para documentos de comunidad; todavia no hay modulo expuesto.
   storageQuotaBytes BigInt    @default(5368709120) @map("storage_quota_bytes")
   storageUsedBytes  BigInt    @default(0) @map("storage_used_bytes")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  deletedAt         DateTime? @map("deleted_at")
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt         DateTime? @db.Timestamptz(3) @map("deleted_at")
 
   avatar            CommunityAvatar?
   memberships       Membership[]           @relation("CommunityMemberships")
@@ -128,6 +128,7 @@ model Community {
   calendarEvents    CalendarEvent[]
   polls             Poll[]
   forumPosts        ForumPost[]
+  newsItems         CommunityNews[]
 
   @@index([cif])
   @@index([accessCode])
@@ -141,8 +142,8 @@ model CommunityAvatar {
   storagePath String   @unique @map("storage_path")
   mimeType    String   @map("mime_type") @db.VarChar(100)
   sizeBytes   Int      @map("size_bytes")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3) @map("updated_at")
 
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -155,15 +156,15 @@ model Membership {
   communityId      String         @map("community_id") @db.Uuid
   role             MembershipRole @default(MEMBER)
   alias            String         @db.VarChar(120)
-  suspendedAt      DateTime?      @map("suspended_at")
-  suspendedUntil   DateTime?      @map("suspended_until")
+  suspendedAt      DateTime?      @db.Timestamptz(3) @map("suspended_at")
+  suspendedUntil   DateTime?      @db.Timestamptz(3) @map("suspended_until")
   suspensionReason String?        @map("suspension_reason")
-  joinedAt         DateTime       @default(now()) @map("joined_at")
-  endedAt          DateTime?      @map("ended_at")
+  joinedAt         DateTime       @default(now()) @db.Timestamptz(3) @map("joined_at")
+  endedAt          DateTime?      @db.Timestamptz(3) @map("ended_at")
   endReason        String?        @map("end_reason")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
-  deletedAt        DateTime?      @map("deleted_at")
+  createdAt        DateTime       @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt        DateTime?      @db.Timestamptz(3) @map("deleted_at")
 
   user                      User                @relation("UserMemberships", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   community                 Community           @relation("CommunityMemberships", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -180,6 +181,7 @@ model Membership {
   forumComments             ForumComment[]      @relation("ForumCommentAuthorMembership")
   forumPostLikes            ForumPostLike[]     @relation("MembershipForumPostLikes")
   forumCommentLikes         ForumCommentLike[]  @relation("MembershipForumCommentLikes")
+  createdNewsItems          CommunityNews[]     @relation("CommunityNewsAuthorMembership")
 
   @@unique([userId, communityId])
   @@index([userId])
@@ -204,9 +206,9 @@ model Property {
   block          String?   @db.VarChar(30)
   floor          String?   @db.VarChar(30)
   door           String?   @db.VarChar(30)
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  deletedAt      DateTime? @map("deleted_at")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt      DateTime? @db.Timestamptz(3) @map("deleted_at")
 
   membership Membership @relation("MembershipProperty", fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
@@ -223,11 +225,11 @@ model CommunityRequest {
   requestComment         String?                @map("request_comment") @db.Text
   resolutionMessage      String?                @map("resolution_message") @db.Text
   resolvedByMembershipId String?                @map("resolved_by_membership_id") @db.Uuid
-  resolvedAt             DateTime?              @map("resolved_at")
-  cancelledAt            DateTime?              @map("cancelled_at")
-  archivedAt             DateTime?              @map("archived_at")
-  createdAt              DateTime               @default(now()) @map("created_at")
-  updatedAt              DateTime               @updatedAt @map("updated_at")
+  resolvedAt             DateTime?              @db.Timestamptz(3) @map("resolved_at")
+  cancelledAt            DateTime?              @db.Timestamptz(3) @map("cancelled_at")
+  archivedAt             DateTime?              @db.Timestamptz(3) @map("archived_at")
+  createdAt              DateTime               @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt              DateTime               @updatedAt @db.Timestamptz(3) @map("updated_at")
 
   community            Community                @relation("CommunityRequests", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   user                 User                     @relation("UserCommunityRequests", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -258,8 +260,8 @@ model CommunityRequestDetails {
   block              String?  @db.VarChar(30)
   floor              String?  @db.VarChar(30)
   door               String?  @db.VarChar(30)
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  createdAt          DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3) @map("updated_at")
 
   communityRequest CommunityRequest @relation(fields: [communityRequestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -272,9 +274,9 @@ model CommunityHelpSection {
   title       String    @db.VarChar(160)
   description String    @db.Text
   sortOrder   Int       @default(0) @map("sort_order")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt   DateTime? @db.Timestamptz(3) @map("deleted_at")
 
   community Community @relation("CommunityHelpSections", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
@@ -291,9 +293,9 @@ model CommunityFolder {
   communityId String    @map("community_id") @db.Uuid
   parentId    String?   @map("parent_id") @db.Uuid
   name        String    @db.VarChar(255)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt   DateTime? @db.Timestamptz(3) @map("deleted_at")
 
   community Community           @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   parent    CommunityFolder?    @relation("CommunityFolderTree", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -318,9 +320,9 @@ model CommunityDocument {
   mimeType               String    @map("mime_type") @db.VarChar(100)
   extension              String?   @db.VarChar(20)
   sizeBytes              BigInt    @map("size_bytes")
-  createdAt              DateTime  @default(now()) @map("created_at")
-  updatedAt              DateTime  @updatedAt @map("updated_at")
-  deletedAt              DateTime? @map("deleted_at")
+  createdAt              DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt              DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt              DateTime? @db.Timestamptz(3) @map("deleted_at")
 
   community            Community        @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   folder               CommunityFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -339,18 +341,19 @@ model CalendarEvent {
   ownerMembershipId String?           @map("owner_membership_id") @db.Uuid
   type              CalendarEventType
   sourceEntityId    String?           @map("source_entity_id") @db.VarChar(191)
+  sourceOccurrenceKey String?         @map("source_occurrence_key") @db.VarChar(10)
   title             String            @db.VarChar(160)
   eventDate         DateTime          @map("event_date") @db.Date
   startTime         String            @map("start_time") @db.VarChar(5)
   endTime           String            @map("end_time") @db.VarChar(5)
-  createdAt         DateTime          @default(now()) @map("created_at")
-  updatedAt         DateTime          @updatedAt @map("updated_at")
-  deletedAt         DateTime?         @map("deleted_at")
+  createdAt         DateTime          @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt         DateTime          @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt         DateTime?         @db.Timestamptz(3) @map("deleted_at")
 
   community       Community   @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   ownerMembership Membership? @relation("CalendarEventOwnerMembership", fields: [ownerMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
-  @@unique([communityId, type, sourceEntityId], map: "calendar_events_auto_source_key")
+  @@unique([communityId, type, sourceEntityId, sourceOccurrenceKey], map: "calendar_events_auto_source_occurrence_key")
   @@index([communityId, eventDate, deletedAt], map: "calendar_events_month_lookup_idx")
   @@index([communityId, ownerMembershipId, eventDate, deletedAt], map: "calendar_events_owner_month_lookup_idx")
   @@map("calendar_events")
@@ -362,15 +365,15 @@ model Poll {
   kind                  PollKind
   title                 String    @db.VarChar(160)
   description           String?   @db.Text
-  startsAt              DateTime  @default(now()) @map("starts_at")
+  startsAt              DateTime  @default(now()) @db.Timestamptz(3) @map("starts_at")
   /// Nullable para permitir encuestas de foro sin cierre. COMMUNITY_VOTING sigue exigiendo fecha fin en su modulo.
-  endsAt                DateTime? @map("ends_at")
+  endsAt                DateTime? @db.Timestamptz(3) @map("ends_at")
   createdByMembershipId String    @map("created_by_membership_id") @db.Uuid
-  closedAt              DateTime? @map("closed_at")
+  closedAt              DateTime? @db.Timestamptz(3) @map("closed_at")
   closedByMembershipId  String?   @map("closed_by_membership_id") @db.Uuid
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
-  deletedAt             DateTime? @map("deleted_at")
+  createdAt             DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt             DateTime? @db.Timestamptz(3) @map("deleted_at")
 
   community           Community    @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   createdByMembership Membership   @relation("PollCreatedByMembership", fields: [createdByMembershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -391,7 +394,7 @@ model PollOption {
   pollId    String   @map("poll_id") @db.Uuid
   title     String   @db.VarChar(160)
   sortOrder Int      @default(0) @map("sort_order")
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
 
   poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   votes PollVote[]
@@ -405,7 +408,7 @@ model PollVote {
   pollId       String   @map("poll_id") @db.Uuid
   optionId     String   @map("option_id") @db.Uuid
   membershipId String   @map("membership_id") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt    DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
 
   poll       Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   option     PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -427,11 +430,11 @@ model ForumPost {
   description        String        @db.Text
   category           ForumCategory
   pinned             Boolean       @default(false)
-  editedAt           DateTime?     @map("edited_at")
+  editedAt           DateTime?     @db.Timestamptz(3) @map("edited_at")
   isDeleted          Boolean       @default(false) @map("is_deleted")
-  lastActivityAt     DateTime      @default(now()) @map("last_activity_at")
-  createdAt          DateTime      @default(now()) @map("created_at")
-  updatedAt          DateTime      @updatedAt @map("updated_at")
+  lastActivityAt     DateTime      @default(now()) @db.Timestamptz(3) @map("last_activity_at")
+  createdAt          DateTime      @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt          DateTime      @updatedAt @db.Timestamptz(3) @map("updated_at")
 
   community        Community       @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   authorMembership Membership?     @relation("ForumPostAuthorMembership", fields: [authorMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -450,10 +453,10 @@ model ForumComment {
   postId             String    @map("post_id") @db.Uuid
   authorMembershipId String?   @map("author_membership_id") @db.Uuid
   content            String    @db.Text
-  editedAt           DateTime? @map("edited_at")
+  editedAt           DateTime? @db.Timestamptz(3) @map("edited_at")
   isDeleted          Boolean   @default(false) @map("is_deleted")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
 
   post             ForumPost          @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   authorMembership Membership?        @relation("ForumCommentAuthorMembership", fields: [authorMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
@@ -468,7 +471,7 @@ model ForumPostLike {
   id           String   @id @default(uuid()) @db.Uuid
   postId       String   @map("post_id") @db.Uuid
   membershipId String   @map("membership_id") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt    DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
 
   post       ForumPost  @relation(fields: [postId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   membership Membership @relation("MembershipForumPostLikes", fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -483,7 +486,7 @@ model ForumCommentLike {
   id           String   @id @default(uuid()) @db.Uuid
   commentId    String   @map("comment_id") @db.Uuid
   membershipId String   @map("membership_id") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt    DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
 
   comment    ForumComment @relation(fields: [commentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   membership Membership   @relation("MembershipForumCommentLikes", fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -492,4 +495,29 @@ model ForumCommentLike {
   @@index([commentId])
   @@index([membershipId])
   @@map("forum_comment_likes")
+}
+
+model CommunityNews {
+  id                 String    @id @default(uuid()) @db.Uuid
+  communityId        String    @map("community_id") @db.Uuid
+  authorMembershipId String?   @map("author_membership_id") @db.Uuid
+  title              String    @db.VarChar(160)
+  description        String    @db.Text
+  imageStoragePath   String?   @map("image_storage_path")
+  imageMimeType      String?   @map("image_mime_type") @db.VarChar(100)
+  imageSizeBytes     Int?      @map("image_size_bytes")
+  eventStartsAt      DateTime? @db.Timestamptz(3) @map("event_starts_at")
+  eventEndsAt        DateTime? @db.Timestamptz(3) @map("event_ends_at")
+  editedAt           DateTime? @db.Timestamptz(3) @map("edited_at")
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt          DateTime? @db.Timestamptz(3) @map("deleted_at")
+
+  community        Community   @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  authorMembership Membership? @relation("CommunityNewsAuthorMembership", fields: [authorMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([communityId, deletedAt, createdAt], map: "community_news_community_created_lookup_idx")
+  @@index([communityId, deletedAt, eventStartsAt, createdAt], map: "community_news_community_event_created_lookup_idx")
+  @@index([authorMembershipId], map: "community_news_author_membership_lookup_idx")
+  @@map("community_news")
 }

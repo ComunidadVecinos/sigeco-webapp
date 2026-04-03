@@ -12,6 +12,10 @@ export const getPosts = (communityId: string, filters: {
     sortBy?: 'createdAt' | 'likes' | 'lastActivityAt';
 }) => api.get(`/api/communities/${communityId}/forum/posts`, {params: filters});
 
+//Detalle de una publicacion
+export const getPostDetail = (communityId: string, postId: string) =>
+    api.get(`/api/communities/${communityId}/forum/posts/${postId}`);
+
 //Crear publicacion
 export const createPost = (communityId: string, data: {
     title: string;
@@ -20,8 +24,7 @@ export const createPost = (communityId: string, data: {
     poll?: {
         title: string;
         description?: string;
-        endDate?: string;
-        endTime?: string;
+        endsAt?: string;
         options: {title: string}[];
     };
 }) => api.post(`/api/communities/${communityId}/forum/posts`, data);
@@ -40,10 +43,15 @@ export const deletePost = (communityId: string, postId: string) =>
 export const toggleLike = (communityId: string, postId: string) =>
     api.post(`/api/communities/${communityId}/forum/posts/${postId}/likes/toggle`);
 
+//Dar/quitar like en comentario
+export const toggleCommentLike = (communityId: string, commentId: string) =>
+    api.post(`/api/communities/${communityId}/forum/comments/${commentId}/likes/toggle`);
+
 //Listar comentarios
 export const getComments = (communityId: string, postId: string, filters: {
     page?: number;
     pageSize?: number;
+    sortBy?: 'createdAt' | 'likes';
 }) => api.get(`/api/communities/${communityId}/forum/posts/${postId}/comments`, {params: filters});
 
 //Añadir comentario

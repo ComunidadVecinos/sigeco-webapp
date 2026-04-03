@@ -1,7 +1,7 @@
 // Acceso a datos del módulo calendar.
 // Calendar almacena eventos automáticos y personales en una única tabla:
-// - "ownerMembershipId = null" identifica eventos automáticos de comunidad.
-// - "ownerMembershipId = <membershipId>" identifica eventos personales privados del miembro.
+// - `ownerMembershipId = null`: eventos automáticos de comunidad.
+// - `ownerMembershipId = <membershipId>`: eventos personales privados.
 const prisma = require('../../lib/prisma');
 
 const calendarEventSelect = {
@@ -18,13 +18,11 @@ function buildVisibleCalendarEventsWhere({ communityId, ownerMembershipId, start
     communityId,
     deletedAt: null,
     eventDate: { gte: startDate, lt: endDate },
-    // El listado mensual siempre mezcla eventos comunitarios con los personales del miembro actual.
     OR: [{ ownerMembershipId: null }, { ownerMembershipId }]
   };
 }
 
 function buildCalendarEventsOrderBy() {
-  // Orden estable para la vista mensual y para evitar empates no deterministas entre eventos coincidentes.
   return [
     { eventDate: 'asc' },
     { startTime: 'asc' },
@@ -32,6 +30,10 @@ function buildCalendarEventsOrderBy() {
     { createdAt: 'asc' },
     { id: 'asc' }
   ];
+}
+
+function buildAutomaticOccurrenceKey(date) {
+  return date.toISOString().slice(0, 10);
 }
 
 async function findVisibleCalendarEventsInRange(input) {
@@ -49,6 +51,7 @@ async function createPersonalEvent(input) {
       ownerMembershipId: input.ownerMembershipId,
       type: 'PERSONAL',
       sourceEntityId: null,
+      sourceOccurrenceKey: null,
       title: input.title,
       eventDate: input.eventDate,
       startTime: input.startTime,
@@ -73,7 +76,6 @@ async function findOwnedPersonalEventById({ communityId, ownerMembershipId, even
 
 async function updateOwnedPersonalEvent({ communityId, ownerMembershipId, eventId, data }) {
   return prisma.$transaction(async (tx) => {
-    // updateMany permite mantener todas las restricciones de ownership y soft-delete en el propio WHERE.
     const updateResult = await tx.calendarEvent.updateMany({
       where: {
         id: eventId,
@@ -118,17 +120,21 @@ async function softDeleteOwnedPersonalEvent({ communityId, ownerMembershipId, ev
 }
 
 async function upsertAutomaticEventInDb(db, input) {
-  // La clave única compuesta hace idempotente la sincronización desde el módulo origen.
+  const sourceOccurrenceKey = input.sourceOccurrenceKey || buildAutomaticOccurrenceKey(input.eventDate);
+
+  // La clave compuesta hace idempotente cada ocurrencia diaria del origen.
   return db.calendarEvent.upsert({
     where: {
-      communityId_type_sourceEntityId: {
+      communityId_type_sourceEntityId_sourceOccurrenceKey: {
         communityId: input.communityId,
         type: input.type,
-        sourceEntityId: input.sourceEntityId
+        sourceEntityId: input.sourceEntityId,
+        sourceOccurrenceKey
       }
     },
     update: {
       ownerMembershipId: null,
+      sourceOccurrenceKey,
       title: input.title,
       eventDate: input.eventDate,
       startTime: input.startTime,
@@ -140,6 +146,7 @@ async function upsertAutomaticEventInDb(db, input) {
       ownerMembershipId: null,
       type: input.type,
       sourceEntityId: input.sourceEntityId,
+      sourceOccurrenceKey,
       title: input.title,
       eventDate: input.eventDate,
       startTime: input.startTime,
@@ -149,8 +156,38 @@ async function upsertAutomaticEventInDb(db, input) {
   });
 }
 
-async function upsertAutomaticEvent(input) {
-  return upsertAutomaticEventInDb(prisma, input);
+async function replaceAutomaticEventsInDb(db, { communityId, type, sourceEntityId, events }) {
+  const normalizedEvents = Array.from(new Map(
+    (events || []).map((event) => {
+      const sourceOccurrenceKey = event.sourceOccurrenceKey || buildAutomaticOccurrenceKey(event.eventDate);
+      return [sourceOccurrenceKey, { ...event, sourceOccurrenceKey }];
+    })
+  ).values());
+
+  await Promise.all(normalizedEvents.map((event) => upsertAutomaticEventInDb(db, {
+    communityId,
+    type,
+    sourceEntityId,
+    title: event.title,
+    eventDate: event.eventDate,
+    startTime: event.startTime,
+    endTime: event.endTime,
+    sourceOccurrenceKey: event.sourceOccurrenceKey
+  })));
+
+  const occurrenceKeys = normalizedEvents.map((event) => event.sourceOccurrenceKey);
+
+  return db.calendarEvent.updateMany({
+    where: {
+      communityId,
+      type,
+      sourceEntityId,
+      ownerMembershipId: null,
+      deletedAt: null,
+      ...(occurrenceKeys.length > 0 ? { sourceOccurrenceKey: { notIn: occurrenceKeys } } : {})
+    },
+    data: { deletedAt: new Date() }
+  });
 }
 
 async function softDeleteAutomaticEventInDb(db, { communityId, type, sourceEntityId }) {
@@ -166,16 +203,11 @@ async function softDeleteAutomaticEventInDb(db, { communityId, type, sourceEntit
   });
 }
 
-async function softDeleteAutomaticEvent(input) {
-  return softDeleteAutomaticEventInDb(prisma, input);
-}
-
 async function softDeletePersonalEventsByMembershipIds(db, membershipIds, deletedAt = new Date()) {
   if (!membershipIds || membershipIds.length === 0) {
     return { count: 0 };
   }
 
-  // Reutilizado por cierres de membership y borrado de cuenta para no dejar eventos personales huérfanos.
   return db.calendarEvent.updateMany({
     where: {
       ownerMembershipId: { in: membershipIds },
@@ -192,9 +224,7 @@ module.exports = {
   findOwnedPersonalEventById,
   updateOwnedPersonalEvent,
   softDeleteOwnedPersonalEvent,
-  upsertAutomaticEvent,
-  upsertAutomaticEventInDb,
-  softDeleteAutomaticEvent,
+  replaceAutomaticEventsInDb,
   softDeleteAutomaticEventInDb,
   softDeletePersonalEventsByMembershipIds
 };

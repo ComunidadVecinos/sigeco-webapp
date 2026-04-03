@@ -1,5 +1,6 @@
 import React, {useState, useEffect, useRef} from "react";
 import {CircleUserRound, Heart, Eye, MessageCircle, MoreHorizontal, Pencil, Trash2} from "lucide-react";
+import { formatUtcIsoInBusinessZone } from '@/lib/businessDateTime';
 
 type PostCategory = 'question' | 'poll' | 'announcement' | 'request';
 
@@ -66,6 +67,7 @@ const PostCard: React.FC<PostCardProps> = ({
     onEdit,
     onDelete
 }) =>{
+    const formattedTimestamp = timestamp ? formatUtcIsoInBusinessZone(timestamp, "dd/MM/yyyy HH:mm") : '';
 
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -122,7 +124,7 @@ const PostCard: React.FC<PostCardProps> = ({
                 </div>
                 <div className="flex flex-col flex-1">
                     <span className="font-semibold text-gray-900">{authorName}</span>
-                    <span className="text-xs text-gray-400">{timestamp}</span>
+                    <span className="text-xs text-gray-400">{formattedTimestamp}</span>
                 </div>
                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${catStyle.bg} ${catStyle.text}`}>
                     {categoryLabels[category].emoji} {categoryLabels[category].label}
