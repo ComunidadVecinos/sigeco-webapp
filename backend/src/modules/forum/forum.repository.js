@@ -319,10 +319,10 @@ async function updateForumComment(db, { postId, commentId, data }) {
   });
 }
 
-async function anonymizeForumComment(db, { postId, commentId }) {
+async function anonymizeForumComment(db, { postId, commentId, deletedContent }) {
   const updateResult = await db.forumComment.updateMany({
     where: { id: commentId, postId, isDeleted: false },
-    data: { content: '', editedAt: null, isDeleted: true, authorMembershipId: null }
+    data: { content: deletedContent, editedAt: null, isDeleted: true, authorMembershipId: null }
   });
 
   if (updateResult.count !== 1) {
@@ -465,7 +465,7 @@ async function anonymizeForumCommentsByMembershipIds(db, membershipIds) {
   // El comentario se mantiene en el hilo, pero sin contenido ni autor.
   const result = await db.forumComment.updateMany({
     where: { id: { in: commentIds }, isDeleted: false },
-    data: { content: '', editedAt: null, isDeleted: true, authorMembershipId: null }
+    data: { content: 'El contenido ha sido eliminado por el autor', editedAt: null, isDeleted: true, authorMembershipId: null }
   });
 
   await db.forumCommentLike.deleteMany({ where: { commentId: { in: commentIds } } });

@@ -260,9 +260,8 @@ const ForumPage: React.FC = () => {
         if (!communityId || !selectedPost || !confirm('¿Eliminar este comentario?')) return;
         if (featureUnavailable) return;
         try {
-            await deleteComment(communityId, commentId);
-            setCommentsList(commentsList.filter(c => c.id !== commentId));
-            setPosts(posts.map(p => p.id === selectedPost.id ? { ...p, commentsCount: p.commentsCount - 1 } : p));
+            const res = await deleteComment(communityId, commentId);
+            setCommentsList(commentsList.map(c => c.id === commentId ? res.data : c));
         } catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al eliminar comentario');
         }
@@ -386,7 +385,7 @@ const ForumPage: React.FC = () => {
                                 pollOptions={post.poll?.options.map(opt => ({text: opt.title, votes: opt.votes})) ||  undefined}
                                 hasLiked={false}
                                 hasVoted={post.poll?.myVoteOptionId ? post.poll.options.findIndex(o => o.id === post.poll!.myVoteOptionId) : null}
-                                isOwner={post.author?.membershipId === activeCommunity?.id}
+                                isOwner={post.author?.membershipId === activeCommunity?.membershipId}
                                 isAdmin={isAdmin}
                                 onCommentsClick={() => handleOpenComments(post)}
                                 onLike={() => handleLike(post.id)}
@@ -433,7 +432,7 @@ const ForumPage: React.FC = () => {
                     authorAvatar: c.author?.profileImageUrl || undefined,
                     content: c.content,
                     timestamp: c.createdAt,
-                    isOwner: c.author?.membershipId === activeCommunity?.id
+                    isOwner: c.author?.membershipId === activeCommunity?.membershipId
                 }))}
                 isAdmin={isAdmin}
                 onAddComment={handleAddComment}

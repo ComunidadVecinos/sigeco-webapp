@@ -5,6 +5,7 @@ import { getFullProfile } from '../services/userServices';
 import { SESSION_EXPIRED_EVENT } from '../services/api';
 
 interface UserCommunity {
+    membershipId: string;
     communityId: string;
     name: string;
     address: string | null;
