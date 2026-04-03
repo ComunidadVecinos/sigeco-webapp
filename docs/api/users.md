@@ -16,6 +16,7 @@ Base path: `/api/users`
 - Updates the user's basic profile data
 - Changes the active community context used by the current session
 - Uploads or replaces the user's avatar
+- Deletes the user's avatar
 - Soft-deletes the current account
 
 ### What this module does not do
@@ -36,6 +37,7 @@ All endpoints in this module require a valid authenticated session cookie.
 | `PATCH` | `/api/users/me` | Update the authenticated profile |
 | `PUT` | `/api/users/me/active-community` | Change the active community context |
 | `PUT` | `/api/users/me/avatar` | Upload or replace the profile avatar |
+| `DELETE` | `/api/users/me/avatar` | Delete the current profile avatar |
 | `DELETE` | `/api/users/me` | Delete the authenticated account |
 
 ---
@@ -57,6 +59,7 @@ All endpoints in this module require a valid authenticated session cookie.
   "activeCommunityId": "uuid",
   "communities": [
     {
+      "membershipId": "uuid",
       "communityId": "uuid",
       "name": "Comunidad SIGECO",
       "role": "MEMBER",
@@ -89,6 +92,7 @@ Notes:
 
 - `profileImageUrl` is a public URL or `null`
 - `activeCommunityId` is the community selected in the current access context or `null`
+- `communities[].membershipId` identifies the user's own membership row in that community
 - `communities` includes only memberships that are not deleted, not ended, and belong to non-deleted communities
 - `communities` is ordered by `joinedAt` ascending
 - `address` is a UI-friendly string and may be `null`
@@ -318,7 +322,45 @@ await axios.put('/api/users/me/avatar', formData, {
 
 ---
 
-## 5. Delete my account
+## 5. Delete my avatar
+
+`DELETE /api/users/me/avatar`
+
+Deletes the current profile avatar without affecting the rest of the user profile.
+
+### Request
+
+Requires valid `sid` cookie.
+
+No request body.
+
+### Backend behavior relevant to frontend
+
+- Backend removes the avatar reference from the database first
+- Stored file cleanup is attempted afterwards as a best-effort step
+- If the physical file is already missing, the avatar is still considered deleted from the API point of view
+
+### Success
+
+- Status: `200 OK`
+
+```json
+{
+  "profileImageUrl": null
+}
+```
+
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
+| `404` | `NOT_FOUND` | Authenticated user no longer exists |
+| `409` | `CONFLICT` | User does not currently have an avatar |
+
+---
+
+## 6. Delete my account
 
 `DELETE /api/users/me`
 
@@ -354,9 +396,11 @@ Cookie: sid=<session_cookie>
 - Votes emitted by the user are removed from votings and polls that remain open; closed votings preserve their stored result
 - Forum likes emitted by the user are deleted
 - Forum posts authored by the user are soft-deleted and forum comments are anonymized
+- News items authored by the user are preserved and expose the author as `Usuario eliminado`
+- Automatic calendar events of type `NEWS` linked to preserved news are also preserved
 - Visible community requests of the user are archived; if any were still pending they are cancelled first
 - The avatar DB record is removed and the stored file is deleted asynchronously
-- The response includes a `futureDataPolicy` object summarizing the cleanup already applied and the domains still pending review
+- The response includes a `futureDataPolicy` object summarizing the cleanup already applied
 
 ### Success
 
@@ -368,7 +412,7 @@ Cookie: sid=<session_cookie>
   "futureDataPolicy": {
     "votesCalendarReservations": "open_votes_removed_closed_votes_preserved_calendar_personal_events_soft_deleted",
     "forum": "posts_soft_deleted_comments_anonymized",
-    "authorship": "pending_review_in_other_modules"
+    "news": "preserved_author_anonymized_events_preserved"
   }
 }
 ```
@@ -398,6 +442,7 @@ Cookie: sid=<session_cookie>
 | Invalid active community payload | `422` | `ACTIVE_COMMUNITY_INVALID` |
 | Selected active community does not exist | `404` | `ACTIVE_COMMUNITY_NOT_FOUND` |
 | Missing avatar file | `422` | `VALIDATION_ERROR` |
+| User tries to delete an avatar but none exists | `409` | `CONFLICT` |
 | Invalid account deletion confirmation text | `422` | `CONFIRMATION_TEXT_MISMATCH` |
 | Email mismatch during account deletion | `422` | `ACCOUNT_DELETION_EMAIL_MISMATCH` |
 

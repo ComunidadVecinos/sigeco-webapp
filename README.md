@@ -79,6 +79,12 @@ docker compose up -d --build
 
 Optional checks:
 
+- Backend API conventions: [docs/api/README.md](./docs/api/README.md)
+- Temporal contract summary:
+  - any field with date and time is exposed as UTC ISO
+  - backend keeps `Europe/Madrid` only as internal business timezone
+  - frontend must render those UTC instants in `Europe/Madrid`
+
 ```bash
 docker compose ps
 docker compose logs -f db_init
@@ -134,6 +140,8 @@ SIGECO is organised into the following functional modules:
 - Documents
 - Calendar
 - Help & FAQ
+
+Community administration currently covers community creation, administrative summary, basic data edition, access-code regeneration, avatar upload/deletion, and logical deletion of the community.
 
 ---
 
@@ -209,6 +217,13 @@ docker compose exec backend npm run db:reset
 docker compose run --rm -p 5555:5555 backend npx prisma studio --hostname 0.0.0.0 --port 5555
 ```
 
+Notes:
+
+- `db:seed` and `db:reset` are intended to be rerunnable in local development.
+- The seed clears dependent module data first, including `forum`, `voting`, `calendar` and `news`, before deleting memberships and users.
+- If you want a completely clean local environment, `docker compose down -v --remove-orphans` is still the safest option because it also recreates Docker volumes.
+- Current business timezone semantics are documented in [docs/api/conventions.md](./docs/api/conventions.md): every backend field with date and time now travels as a UTC ISO instant, while `Europe/Madrid` remains only as the internal business timezone used to interpret, validate and segment community dates.
+
 ### Inspect DB quickly from Docker
 
 ```bash
@@ -221,6 +236,11 @@ Inside `psql`:
 \dt
 SELECT * FROM users LIMIT 20;
 ```
+
+Recommended note:
+
+- If Prisma Studio fails from Windows with `P1001` while Docker is healthy, prefer the Docker command above instead of running Prisma locally.
+- For quick manual inspection without Studio, `psql` inside the `db` container is the simplest fallback.
 
 ---
 

@@ -2,57 +2,41 @@
 
 This directory is the API documentation hub for the current SIGECO backend.
 
-- Base path (behind nginx): `/api`
+- Base path: `/api`
 - Public uploaded assets: `/uploads/*`
-- Main formats: `application/json` and `multipart/form-data` for avatar uploads
+- Main formats: `application/json` and `multipart/form-data`
 - Auth model: signed session cookie (`sid`)
-
-This index is the canonical entry point for API docs from the project root `README.md`.
 
 ---
 
 ## Start here
 
-1. Read [API Conventions](./conventions.md) for cross-cutting rules shared by the backend.
-2. Read [Authentication](./auth.md) before integrating any protected flow.
-3. Use module pages only as references for the areas that are already maintained.
-
----
-
-## Current documentation status
-
-| Area | Status | Notes |
-|---|---|---|
-| [API Conventions](./conventions.md) | Maintained | Shared contract details needed by frontend |
-| [Authentication](./auth.md) | Maintained | Session lifecycle and auth endpoints |
-| [Communities](./communities.md) | Maintained | Core community admin endpoints |
-| [Help Center](./help.md) | Maintained | Global and community help endpoints |
-| [Members](./members.md) | Maintained | Community member admin and lifecycle endpoints |
-| [Requests](./requests.md) | Maintained | User and admin request workflows |
-| [Users](./users.md) | Maintained | Authenticated profile and self-service endpoints |
-| [Forum](./forum.md) | Maintained | Community forum posts, comments, reactions and forum polls |
-| [Calendar](./calendar.md) | Maintained | Community month view and personal event endpoints |
-| [Announcements](./announcements.md) | Draft | Structured placeholder for a future module |
-| [Documents](./documents.md) | Draft | Structured placeholder for a future module |
-| [Incidents](./incidents.md) | Draft | Structured placeholder for a future module |
-| [Voting](./voting.md) | Maintained | Community votings, single-choice ballots and summary counters |
-| [Reservations](./reservations.md) | Draft | Structured placeholder for a future module |
+1. Read [API Conventions](./conventions.md).
+2. Read [Authentication](./auth.md) before integrating protected flows.
+3. Use module pages for maintained backend areas.
 
 ---
 
 ## Common contract notes
 
-- Protected routes require the browser session cookie and frontend requests must send credentials.
-- Successful responses do not use a global `data` wrapper. Each endpoint returns its domain payload directly.
-- Error responses do use a common envelope: `error.code`, `error.message`, and optional `error.details`.
-- Most resource identifiers exposed by the API are UUID strings.
-- Datetime fields are usually returned as ISO 8601 strings. Some business-date fields use `YYYY-MM-DD`, and some time-only fields use `HH:mm`.
+- Protected routes require browser credentials.
+- Success responses do not use a global `data` wrapper.
+- Error responses do use the standard `error.code`, `error.message`, `error.details`.
+- Most resource identifiers are UUID strings.
+- Every field with date and time now travels as **ISO 8601 UTC**.
+- Backend still uses `Europe/Madrid` internally as business timezone.
+- Frontend must render UTC instants in `Europe/Madrid`.
 
-For the exact shared rules and examples, see [API Conventions](./conventions.md).
+Development helpers:
+
+- Prisma Studio from Docker:
+  `docker compose run --rm -p 5555:5555 backend npx prisma studio --hostname 0.0.0.0 --port 5555`
+- Quick SQL shell:
+  `docker compose exec db psql -U postgres -d appdb`
 
 ---
 
-## Module index
+## Maintained module docs
 
 - [API Conventions](./conventions.md)
 - [Authentication](./auth.md)
@@ -63,8 +47,11 @@ For the exact shared rules and examples, see [API Conventions](./conventions.md)
 - [Users](./users.md)
 - [Forum](./forum.md)
 - [Calendar](./calendar.md)
-- [Announcements](./announcements.md)
+- [News](./news.md)
+- [Voting](./voting.md)
+
+Draft placeholders:
+
 - [Documents](./documents.md)
 - [Incidents](./incidents.md)
-- [Voting](./voting.md)
 - [Reservations](./reservations.md)
