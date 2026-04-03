@@ -57,6 +57,10 @@ export const updateCommunityAvatar = (communityId: string, file: File) => {
     });
 };
 
+//Eliminar imagen de la comunidad
+export const deleteCommunityAvatar = (communityId: string) =>
+    api.delete(`/api/communities/${communityId}/avatar`);
+
 //Aceptar solicitud
 export const approveRequest = (_communityId: string, requestId: string, message?: string) =>
     api.post(`/api/requests/${requestId}/approve`, {resolutionMessage: message});

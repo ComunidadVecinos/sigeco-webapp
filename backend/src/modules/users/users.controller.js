@@ -28,6 +28,11 @@ async function updateMyAvatar(req, res) {
   return res.status(200).json(result);
 }
 
+async function deleteMyAvatar(req, res) {
+  const result = await usersService.deleteMyAvatar(req.user.id, usersRepository);
+  return res.status(200).json(result);
+}
+
 async function deleteMyAccount(req, res) {
   const result = await usersService.deleteMyAccount({ userId: req.user.id, currentEmail: req.user.email }, req.body, usersRepository);
   // El borrado invalida sesiones en BD y fuerza la limpieza de la cookie actual en la respuesta.
@@ -35,4 +40,4 @@ async function deleteMyAccount(req, res) {
   return res.status(200).json(result);
 }
 
-module.exports = {  getMyProfile, updateMyProfile, changeMyActiveCommunity, updateMyAvatar, deleteMyAccount };
+module.exports = { getMyProfile, updateMyProfile, changeMyActiveCommunity, updateMyAvatar, deleteMyAvatar, deleteMyAccount };

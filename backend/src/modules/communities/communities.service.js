@@ -129,7 +129,7 @@ async function regenerateCommunityAccessCode(context, communityId, communitiesRe
         throw new NotFoundError('Comunidad no encontrada');
       }
       return { community: { id: community.id, accessCode: community.accessCode } };
-    } 
+    }
     catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const field = getUniqueConstraintField(error);
@@ -176,10 +176,15 @@ async function updateCommunityAvatar(context, communityId, file, communitiesRepo
     throw new NotFoundError('Comunidad no encontrada');
   }
 
-  const storedFile = await storageService.replaceCommunityAvatarFile({ communityId, previousStoragePath: avatarContext.avatar?.storagePath || null, buffer: file.buffer, extension: image.extension });
+  const storedFile = await storageService.replaceCommunityAvatarFile({
+    communityId,
+    previousStoragePath: avatarContext.avatar?.storagePath || null,
+    buffer: file.buffer,
+    extension: image.extension
+  });
 
   try {
-    // Igual que en users, el archivo solo se confirma cuando la BD ya quedo alineada.
+    // Igual que en users, el archivo solo se confirma cuando la BD ya quedó alineada.
     const result = await communitiesRepository.replaceCommunityProfileImage(communityId, {
       storagePath: storedFile.storagePath,
       mimeType: file.mimetype,
@@ -187,21 +192,61 @@ async function updateCommunityAvatar(context, communityId, file, communitiesRepo
     });
 
     if (!result) {
-      await storedFile.rollback().catch(() => {});
+      await storageService.rollbackStoredFileSafely(
+        storedFile,
+        'No se ha podido restaurar el avatar previo tras no encontrarse la comunidad durante la actualización',
+        { communityId }
+      );
       throw new NotFoundError('Comunidad no encontrada');
     }
 
-    await storedFile.commit().catch((error) => {
-      console.warn('No se ha podido finalizar la limpieza del almacenamiento del avatar de la comunidad', { communityId, storagePath: storedFile.storagePath, error });
-    });
+    await storageService.commitStoredFileSafely(
+      storedFile,
+      'No se ha podido finalizar la limpieza del almacenamiento del avatar de la comunidad',
+      { communityId }
+    );
 
-    return { community: { id: result.communityId, avatarFileId: result.file.id,  avatarUrl: storageService.getPublicFileUrl(result.file.storagePath) } };
-  } 
+    return { community: { id: result.communityId, avatarFileId: result.file.id, avatarUrl: storageService.getPublicFileUrl(result.file.storagePath) } };
+  }
   catch (error) {
-    await storedFile.rollback().catch((rollbackError) => {
-      console.warn('No se ha podido restaurar el avatar previo de la comunidad tras un error de actualización', { communityId, storagePath: storedFile.storagePath, error: rollbackError }); });
+    await storageService.rollbackStoredFileSafely(
+      storedFile,
+      'No se ha podido restaurar el avatar previo de la comunidad tras un error de actualización',
+      { communityId }
+    );
     throw error;
   }
+}
+
+async function deleteCommunityAvatar(context, communityId, communitiesRepository) {
+  await membersService.requireAdministrativeCommunityAccess(context.userId, communityId, membersRepository);
+
+  const avatarContext = await communitiesRepository.findCommunityProfileImageContext(communityId);
+
+  if (!avatarContext) {
+    throw new NotFoundError('Comunidad no encontrada');
+  }
+
+  if (!avatarContext.avatar?.storagePath) {
+    throw new ConflictError('La comunidad no tiene avatar');
+  }
+
+  const result = await communitiesRepository.deleteCommunityProfileImage(communityId);
+
+  if (!result) {
+    throw new NotFoundError('Comunidad no encontrada');
+  }
+
+  if (result.storagePath) {
+    // Se limpia primero la referencia en BD y después el fichero físico.
+    storageService.deleteStoredFileSafely(
+      result.storagePath,
+      'No se ha podido eliminar el archivo del avatar de la comunidad tras borrar la referencia en la BD',
+      { communityId }
+    );
+  }
+
+  return { community: { id: result.communityId, avatarUrl: null } };
 }
 
 async function deleteCommunity(context, communityId, input, communitiesRepository) {
@@ -259,7 +304,7 @@ async function deleteCommunity(context, communityId, input, communitiesRepositor
         nextAccessCode
       });
       break;
-    } 
+    }
     catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const field = getUniqueConstraintField(error);
@@ -340,7 +385,7 @@ async function createCommunity(context, input, communitiesRepository) {
       }
 
       return buildCreateCommunityResponse(result);
-    } 
+    }
     catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const field = getUniqueConstraintField(error);
@@ -361,4 +406,12 @@ async function createCommunity(context, input, communitiesRepository) {
   throw new ConflictError('No se ha podido generar un código de acceso único. Inténtalo de nuevo.');
 }
 
-module.exports = { getCommunitySummary, regenerateCommunityAccessCode, updateCommunity, updateCommunityAvatar, deleteCommunity, createCommunity };
+module.exports = {
+  getCommunitySummary,
+  regenerateCommunityAccessCode,
+  updateCommunity,
+  updateCommunityAvatar,
+  deleteCommunityAvatar,
+  deleteCommunity,
+  createCommunity
+};

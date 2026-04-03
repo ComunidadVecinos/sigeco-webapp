@@ -9,9 +9,7 @@ function buildDeletedCommunityCif(currentCif, communityId) {
   return `${currentCif}-D-${communitySuffix}`;
 }
 
-// Communities considera "activos" solo los lideres o miembros cuyo acceso no esta
-// suspendido efectivamente en este instante. La suspension vencida vuelve a contar
-// como activa sin necesidad de job de mantenimiento.
+// Communities considera "activos" solo los miembros cuyo acceso no está suspendido en este instante. 
 function buildCurrentlyActiveMembershipWhere(communityId, now = new Date()) {
   return {
     communityId,
@@ -125,6 +123,30 @@ async function replaceCommunityProfileImage(communityId, fileData) {
     });
 
     return { communityId: community.id, file };
+  });
+}
+
+async function deleteCommunityProfileImage(communityId) {
+  return prisma.$transaction(async (tx) => {
+    const community = await tx.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+      select: {
+        id: true,
+        avatar: { select: { id: true, storagePath: true } }
+      }
+    });
+
+    if (!community) {
+      return null;
+    }
+
+    if (!community.avatar?.id) {
+      return { communityId: community.id, storagePath: null };
+    }
+
+    await tx.communityAvatar.delete({ where: { communityId } });
+
+    return { communityId: community.id, storagePath: community.avatar.storagePath };
   });
 }
 
@@ -364,6 +386,7 @@ module.exports = {
   updateCommunityAccessCode,
   findCommunityProfileImageContext,
   replaceCommunityProfileImage,
+  deleteCommunityProfileImage,
   softDeleteCommunityWithActorContext,
   findCommunityLeaders,
   createCommunityWithCreatorContext

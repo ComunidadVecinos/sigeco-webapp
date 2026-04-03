@@ -21,6 +21,10 @@ export const updateAvatar = (file: File) => {
     });
 };
 
+//Eliminar imagen de perfil
+export const deleteAvatar = () =>
+    api.delete('/api/users/me/avatar');
+
 //Eliminar cuenta
 export const deleteAccount = (email: string, confirmationText: string) =>
     api.delete('/api/users/me', {data: {email, confirmationText}});

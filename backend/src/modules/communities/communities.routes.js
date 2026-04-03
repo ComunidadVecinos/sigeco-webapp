@@ -11,6 +11,7 @@ const helpCommunityRoutes = require('../help/help.community.routes');
 const calendarRoutes = require('../calendar/calendar.routes');
 const votingRoutes = require('../voting/voting.routes');
 const forumRoutes = require('../forum/forum.routes');
+const newsRoutes = require('../news/news.routes');
 
 const communitiesController = require('./communities.controller');
 const { createCommunitySchema, communityIdParamSchema, updateCommunitySchema, deleteCommunitySchema } = require('./communities.validation');
@@ -23,6 +24,7 @@ router.use('/:communityId/help', helpCommunityRoutes);
 router.use('/:communityId/calendar', calendarRoutes);
 router.use('/:communityId/voting', votingRoutes);
 router.use('/:communityId/forum', forumRoutes);
+router.use('/:communityId/news', newsRoutes);
 
 // Orden:
 // - validate sanea entrada antes del controller
@@ -31,6 +33,7 @@ router.get('/:communityId/summary', requireSession, validate({ params: community
 router.post('/:communityId/admin/access-code/regenerate', requireSession, validate({ params: communityIdParamSchema }), asyncHandler(communitiesController.regenerateCommunityAccessCode));
 router.patch('/:communityId', requireSession, validate({ params: communityIdParamSchema, body: updateCommunitySchema }), asyncHandler(communitiesController.updateCommunity));
 router.put('/:communityId/avatar', requireSession, validate({ params: communityIdParamSchema }), uploadAvatar, asyncHandler(communitiesController.updateCommunityAvatar));
+router.delete('/:communityId/avatar', requireSession, validate({ params: communityIdParamSchema }), asyncHandler(communitiesController.deleteCommunityAvatar));
 router.delete('/:communityId', requireSession, validate({ params: communityIdParamSchema, body: deleteCommunitySchema }), asyncHandler(communitiesController.deleteCommunity));
 router.post('/', requireSession, validate({ body: createCommunitySchema }), asyncHandler(communitiesController.createCommunity));
 
