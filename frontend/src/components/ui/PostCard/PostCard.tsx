@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useRef} from "react";
 import {CircleUserRound, Heart, Eye, MessageCircle, MoreHorizontal, Pencil, Trash2} from "lucide-react";
 
-type PostCategory = 'pregunta' | 'encuesta' | 'anuncio' | 'solicitud';
+type PostCategory = 'question' | 'poll' | 'announcement' | 'request';
 
 
 interface PollOption {
@@ -10,7 +10,7 @@ interface PollOption {
 }
 
 interface PostCardProps{
-    postId: number;
+    postId: string;
     authorName: string;
     authorAvatar?: string;
     content: string;
@@ -32,17 +32,17 @@ interface PostCardProps{
 }
 
 const categoryStyles = {
-    pregunta : {bg: 'bg-blue-50', text: 'text-[#104084]'},
-    encuesta: {bg: 'bg-yellow-50', text: 'text-yellow-700'},
-    anuncio: {bg: 'bg-green-50', text: 'text-green-800'},
-    solicitud: {bg: 'bg-red-50', text: 'text-red-800'}
+    question : {bg: 'bg-blue-50', text: 'text-[#104084]'},
+    poll: {bg: 'bg-yellow-50', text: 'text-yellow-700'},
+    announcement: {bg: 'bg-green-50', text: 'text-green-800'},
+    request: {bg: 'bg-red-50', text: 'text-red-800'}
 };
 
 const categoryLabels = {
-    pregunta: {emoji: '❓', label: 'Pregunta'},
-    encuesta: {emoji: '📊', label: 'Encuesta'},
-    anuncio: {emoji: '📢', label: 'Anuncio'},
-    solicitud: {emoji: '🙋', label: 'Solicitud'}
+    question: {emoji: '❓', label: 'Pregunta'},
+    poll: {emoji: '📊', label: 'Encuesta'},
+    announcement: {emoji: '📢', label: 'Anuncio'},
+    request: {emoji: '🙋', label: 'Solicitud'}
 };
 
 const PostCard: React.FC<PostCardProps> = ({
@@ -155,7 +155,7 @@ const PostCard: React.FC<PostCardProps> = ({
                 <p className="m-0 text-gray-900 leading-relaxed">{content}</p>
             </div>
 
-            {category === 'encuesta' && pollOptions && pollOptions.length > 0 && (
+            {category === 'poll' && pollOptions && pollOptions.length > 0 && (
                 <div className="my-3">
                     {pollOptions.map((option, index) => (
                         <div key={index} 

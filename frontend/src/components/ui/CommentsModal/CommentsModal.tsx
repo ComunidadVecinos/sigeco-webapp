@@ -6,7 +6,7 @@ import { CircleUserRound, Send, Pencil, Trash2, X, Check } from "lucide-react";
 
 
 interface Comment{
-    id: number;
+    id: string;
     authorName: string;
     authorAvatar?: string;
     content: string;
@@ -22,8 +22,8 @@ interface CommentsModalProps{
     comments: Comment[];
     isAdmin?: boolean;
     onAddComment: (content: string) => void;
-    onEditComment?: (commentId: number, content: string) => void;
-    onDeleteComment?: (commentId: number) => void;
+    onEditComment?: (commentId: string, content: string) => void;
+    onDeleteComment?: (commentId: string) => void;
 }
 
 const CommentsModal: React.FC<CommentsModalProps> = ({
@@ -38,7 +38,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
     onDeleteComment
 }) => {
     const [newComment, setNewCommnet] = useState('');
-    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState('');
 
     if(!isOpen) return null;
