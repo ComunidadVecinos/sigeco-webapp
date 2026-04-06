@@ -95,6 +95,10 @@ function mapActiveMembership(activeMembership) {
   return { membershipId: activeMembership.id, communityId: activeMembership.communityId, role: activeMembership.role, alias: activeMembership.alias || null };
 }
 
+function collectUniqueStoragePaths(storagePaths) {
+  return [...new Set((storagePaths || []).filter(Boolean))];
+}
+
 // Resumen de comunidad para administración: solo datos institucionales y agregados.
 async function getCommunitySummary(context, communityId, communitiesRepository) {
   const { community } = await membersService.requireAdministrativeCommunityAccess(context.userId, communityId, membersRepository);
@@ -239,7 +243,7 @@ async function deleteCommunityAvatar(context, communityId, communitiesRepository
 
   if (result.storagePath) {
     // Se limpia primero la referencia en BD y después el fichero físico.
-    storageService.deleteStoredFileSafely(
+    await storageService.deleteStoredFileSafely(
       result.storagePath,
       'No se ha podido eliminar el archivo del avatar de la comunidad tras borrar la referencia en la BD',
       { communityId }
@@ -320,6 +324,22 @@ async function deleteCommunity(context, communityId, input, communitiesRepositor
 
   if (!deletionResult) {
     throw new ConflictError('No se ha podido eliminar la comunidad por su estado actual');
+  }
+
+  const storagePathsToDelete = collectUniqueStoragePaths([
+    deletionResult.storedFiles?.communityAvatarStoragePath,
+    ...(deletionResult.storedFiles?.newsImageStoragePaths || []),
+    ...(deletionResult.storedFiles?.documentStoragePaths || [])
+  ]);
+
+  if (storagePathsToDelete.length > 0) {
+    await Promise.all(storagePathsToDelete.map((storagePath) =>
+      storageService.deleteStoredFileSafely(
+        storagePath,
+        'No se ha podido eliminar un archivo de la comunidad tras su borrado',
+        { communityId }
+      )
+    ));
   }
 
   const storedSession = await authRepository.findSessionById(context.sessionId);

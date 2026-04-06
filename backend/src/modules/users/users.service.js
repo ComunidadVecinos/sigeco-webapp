@@ -248,7 +248,7 @@ async function deleteMyAvatar(userId, usersRepository) {
   if (result.storagePath) {
     // Primero se deja de exponer la referencia en BD y después se intenta limpiar
     // el fichero físico. Si esta limpieza falla, no se revierte la operación.
-    storageService.deleteStoredFileSafely(
+    await storageService.deleteStoredFileSafely(
       result.storagePath,
       'No se ha podido eliminar el archivo del avatar tras borrar la referencia en la BD',
       { userId }
@@ -299,7 +299,7 @@ async function deleteMyAccount(context, input, usersRepository) {
 
   if (result.profileImageStoragePath) {
     // El fichero físico se limpia fuera de la transacción para no convertir un fallo de filesystem en un rollback completo.
-    storageService.deleteStoredFileSafely(
+    await storageService.deleteStoredFileSafely(
       result.profileImageStoragePath,
       'No se ha podido eliminar la imagen de perfil tras el borrado de la cuenta',
       { userId: context.userId }

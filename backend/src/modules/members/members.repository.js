@@ -69,6 +69,8 @@ async function findActiveCommunityById(communityId) {
       id: true,
       name: true,
       cif: true,
+      storageQuotaBytes: true,
+      storageUsedBytes: true,
       country: true,
       province: true,
       municipality: true,

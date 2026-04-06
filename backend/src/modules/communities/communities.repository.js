@@ -175,7 +175,12 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
     const now = new Date();
     const community = await tx.community.findFirst({
       where: { id: communityId, deletedAt: null },
-      select: { cif: true }
+      select: {
+        cif: true,
+        avatar: { select: { storagePath: true } },
+        newsItems: { select: { imageStoragePath: true } },
+        documents: { select: { storagePath: true } }
+      }
     });
 
     if (!community) {
@@ -271,7 +276,14 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
       }
     }
 
-    return { nextActiveMembershipId };
+    return {
+      nextActiveMembershipId,
+      storedFiles: {
+        communityAvatarStoragePath: community.avatar?.storagePath || null,
+        newsImageStoragePaths: community.newsItems.map((item) => item.imageStoragePath).filter(Boolean),
+        documentStoragePaths: community.documents.map((document) => document.storagePath).filter(Boolean)
+      }
+    };
   });
 }
 
