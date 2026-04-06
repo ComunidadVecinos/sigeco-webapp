@@ -12,6 +12,7 @@ const calendarRoutes = require('../calendar/calendar.routes');
 const votingRoutes = require('../voting/voting.routes');
 const forumRoutes = require('../forum/forum.routes');
 const newsRoutes = require('../news/news.routes');
+const documentsRoutes = require('../documents/documents.routes');
 
 const communitiesController = require('./communities.controller');
 const { createCommunitySchema, communityIdParamSchema, updateCommunitySchema, deleteCommunitySchema } = require('./communities.validation');
@@ -25,6 +26,7 @@ router.use('/:communityId/calendar', calendarRoutes);
 router.use('/:communityId/voting', votingRoutes);
 router.use('/:communityId/forum', forumRoutes);
 router.use('/:communityId/news', newsRoutes);
+router.use('/:communityId/documents', documentsRoutes);
 
 // Orden:
 // - validate sanea entrada antes del controller

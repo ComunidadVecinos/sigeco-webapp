@@ -302,9 +302,9 @@ model CommunityFolder {
   children  CommunityFolder[]   @relation("CommunityFolderTree")
   documents CommunityDocument[]
 
-  @@unique([communityId, parentId, name])
   @@index([communityId])
   @@index([parentId])
+  @@index([communityId, parentId, deletedAt], map: "community_folders_scope_lookup_idx")
   @@index([deletedAt])
   @@map("community_folders")
 }
@@ -315,7 +315,9 @@ model CommunityDocument {
   communityId            String    @map("community_id") @db.Uuid
   folderId               String?   @map("folder_id") @db.Uuid
   uploadedByMembershipId String?   @map("uploaded_by_membership_id") @db.Uuid
-  originalName           String    @map("original_name") @db.VarChar(255)
+  name                   String    @db.VarChar(255)
+  description            String?   @db.Text
+  originalFilename       String    @map("original_filename") @db.VarChar(255)
   storagePath            String    @unique @map("storage_path")
   mimeType               String    @map("mime_type") @db.VarChar(100)
   extension              String?   @db.VarChar(20)
@@ -330,6 +332,7 @@ model CommunityDocument {
 
   @@index([communityId])
   @@index([folderId])
+  @@index([communityId, folderId, deletedAt, createdAt], map: "community_documents_scope_created_lookup_idx")
   @@index([uploadedByMembershipId])
   @@index([deletedAt])
   @@map("community_documents")

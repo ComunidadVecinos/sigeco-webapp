@@ -2,110 +2,112 @@
 
 > API index: [docs/api/README.md](./README.md)
 
-This page is reserved for the future `documents` module.
-
-Planned base path: `/api/documents`
-
----
-
-## Implementation status
-
-This module is not implemented as a dedicated backend HTTP module at the moment.
-
-What is currently visible in the codebase:
-
-- No dedicated module was found under `backend/src/modules/documents`
-- No implemented HTTP routes were found for this module
-- The database schema already includes `community_folders` and `community_documents` tables
-
-This means storage-related entities exist in the data model, but their HTTP contract is still undocumented because the module itself is not implemented yet.
+Base path: `/api/communities/:communityId/documents`
 
 ---
 
 ## Overview
 
-### Planned scope
+Community documents are protected resources scoped to a community.
 
-- Placeholder: document folder browsing
-- Placeholder: document file uploads and downloads
-- Placeholder: document community-scoped permissions over documents
+Access rules:
 
-### What is not defined yet
-
-- Endpoint list
-- Upload contract
-- Download/access contract
-- Module-specific error codes
-
----
-
-## Access rules
-
-Not defined yet.
-
-Placeholder topics to document later:
-
-- Who can upload documents
-- Who can create, rename or delete folders
-- Whether residents can download all documents in their community
-
----
-
-## Common response shapes
-
-Not defined yet.
-
-Placeholder topics to document later:
-
-- Folder tree item
-- Document summary
-- Upload result
+- any active membership in the community can browse folders, list documents and open document content
+- administrative write actions require community administrative access, so suspended vice presidents become read-only automatically
+- only PDF files are accepted
+- uploads count against the community quota tracked by `storage_quota_bytes` and `storage_used_bytes`
 
 ---
 
 ## Endpoints
 
-No endpoints are currently implemented for this module.
+### 1. List documents in a scope
 
-Placeholder sections to complete later:
+`GET /api/communities/:communityId/documents`
 
-### 1. List folders or documents
+Query params:
 
-Placeholder.
+- `parentId?`
+- `search?`
+- `page`
+- `pageSize`
 
-### 2. Create folder
+Response:
 
-Placeholder.
+- `parentFolder`
+- `breadcrumbs`
+- `folders`
+- `documents`
+- `pagination`
+- `storage`
 
-### 3. Upload document
+### 2. Get folder tree
 
-Placeholder.
+`GET /api/communities/:communityId/documents/folders/tree`
 
-### 4. Rename, move or update metadata
+Returns the active folder tree for navigation and selectors.
 
-Placeholder.
+### 3. Create folder
 
-### 5. Delete document or folder
+`POST /api/communities/:communityId/documents/folders`
 
-Placeholder.
+Body:
+
+```json
+{
+  "name": "Actas",
+  "parentId": "optional-folder-uuid"
+}
+```
+
+### 4. Rename folder
+
+`PATCH /api/communities/:communityId/documents/folders/:folderId`
+
+### 5. Delete folder
+
+`DELETE /api/communities/:communityId/documents/folders/:folderId`
+
+Deletes the folder recursively with logical deletion in database and best-effort cleanup in storage.
+
+### 6. Upload document
+
+`POST /api/communities/:communityId/documents/files`
+
+Content type: `multipart/form-data`
+
+Fields:
+
+- `name`
+- `description?`
+- `folderId?`
+- `file`
+
+### 7. Rename document
+
+`PATCH /api/communities/:communityId/documents/files/:documentId`
+
+### 8. Delete document
+
+`DELETE /api/communities/:communityId/documents/files/:documentId`
+
+### 9. Stream document content
+
+`GET /api/communities/:communityId/documents/files/:documentId/content`
+
+Query params:
+
+- `download?` set to `1` or `true` to force attachment mode
 
 ---
 
-## Common documents error cases
+## Error cases
 
-Not defined yet.
+Common error scenarios:
 
-Placeholder topics to document later:
-
-- Unsupported file type
-- File size or quota limits
-- Not found cases
-- Permission errors
-
----
-
-## Frontend integration notes
-
-- Do not integrate against this module yet
-- The presence of document tables in the schema does not imply a stable public API contract yet
-- Reuse [API Conventions](./conventions.md) for shared rules until a real contract exists
+- invalid or missing PDF file
+- file larger than the configured upload limit
+- quota exceeded
+- folder or document not found
+- forbidden write attempt by a non-admin or suspended vice president
+- name conflict in the same active scope

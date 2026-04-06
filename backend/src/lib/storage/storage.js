@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const fsSync = require('fs');
 const fs = require('fs/promises');
 const path = require('path');
 
@@ -58,6 +59,11 @@ function buildCommunityAvatarStoragePath(communityId, extension) {
 // Se fija por `communityId + newsId` para que cada noticia tenga como máximo una imagen pública.
 function buildCommunityNewsImageStoragePath(communityId, newsId, extension) {
   return normalizeStoragePath(path.join('uploads', 'images', 'communities', communityId, 'news', newsId, `image.${extension}`));
+}
+
+// Construye la ruta privada estable de un documento comunitario.
+function buildCommunityDocumentStoragePath(communityId, documentId, extension) {
+  return normalizeStoragePath(path.join('private', 'documents', 'communities', communityId, `${documentId}.${extension}`));
 }
 
 // Asegura que el directorio destino exista antes de escribir el archivo.
@@ -198,6 +204,11 @@ async function replaceCommunityNewsImageFile({ communityId, newsId, previousStor
   return replaceStoredFile(buildCommunityNewsImageStoragePath(communityId, newsId, extension), previousStoragePath, buffer);
 }
 
+// Reemplaza el fichero asociado a un documento comunitario manteniendo una ruta privada estable por documento.
+async function replaceCommunityDocumentFile({ communityId, documentId, previousStoragePath, buffer, extension }) {
+  return replaceStoredFile(buildCommunityDocumentStoragePath(communityId, documentId, extension), previousStoragePath, buffer);
+}
+
 // Elimina un archivo persistido si existe, sin tratar la ausencia como error.
 async function deleteStoredFile(storagePath) {
   if (!storagePath) {
@@ -249,12 +260,32 @@ async function deleteStoredFileSafely(storagePath, warningMessage, context = {})
   });
 }
 
+// Abre un stream de lectura para servir un fichero protegido ya persistido.
+async function createStoredFileReadStream(storagePath) {
+  if (!storagePath) {
+    throw new StorageUnavailableError('No se ha indicado una ruta de almacenamiento válida');
+  }
+
+  const absolutePath = getAbsoluteStoragePath(storagePath);
+
+  try {
+    await fs.access(absolutePath);
+  }
+  catch (error) {
+    throw new StorageUnavailableError(undefined, { cause: error });
+  }
+
+  return fsSync.createReadStream(absolutePath);
+}
+
 module.exports = {
   getUploadsRootPath,
   getPublicFileUrl,
   replaceUserAvatarFile,
   replaceCommunityAvatarFile,
   replaceCommunityNewsImageFile,
+  replaceCommunityDocumentFile,
+  createStoredFileReadStream,
   deleteStoredFile,
   commitStoredFileSafely,
   rollbackStoredFileSafely,

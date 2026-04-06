@@ -266,9 +266,9 @@ Important constraints:
 | `updated_at` | `timestamp(3)` | Required |
 | `deleted_at` | `timestamp(3)` | Nullable soft-delete marker |
 
-Important constraint:
+Important note:
 
-- unique per sibling scope: (`community_id`, `parent_id`, `name`)
+- active sibling name conflicts are enforced by the backend service layer
 
 ### `community_documents`
 
@@ -278,7 +278,9 @@ Important constraint:
 | `community_id` | `uuid` | Required FK -> `communities.id` |
 | `folder_id` | `uuid` | Nullable FK -> `community_folders.id` |
 | `uploaded_by_membership_id` | `uuid` | Nullable FK -> `memberships.id` |
-| `original_name` | `varchar(255)` | Required |
+| `name` | `varchar(255)` | Required display name |
+| `description` | `text` | Nullable |
+| `original_filename` | `varchar(255)` | Required uploaded filename |
 | `storage_path` | `text` | Required, unique |
 | `mime_type` | `varchar(100)` | Required |
 | `extension` | `varchar(20)` | Nullable |
@@ -446,7 +448,8 @@ In practice, repository queries often filter by `deletedAt: null`, `endedAt: nul
 - `memberships (user_id, community_id)`
 - `properties.membership_id`
 - `community_request_details.community_request_id`
-- `community_folders (community_id, parent_id, name)`
+- `community_folders (community_id, parent_id, deleted_at)`
+- `community_documents (community_id, folder_id, deleted_at, created_at)`
 - `community_documents.storage_path`
 
 ### Indexing visible in the schema
