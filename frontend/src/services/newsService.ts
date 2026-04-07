@@ -10,6 +10,8 @@ function mapNewsItem(item: any) {
         title: item.title,
         content: item.description,
         createdAt: item.createdAt,
+        editedAt: item.editedAt || null,
+        authorAlias: item.creator?.alias || null,
         isEvent: item.isEvent,
         eventStartDate: start?.date || '',
         eventStartTime: start?.time || '',
@@ -85,6 +87,7 @@ export const getNews = (communityId: string, filters: {
     search?: string;
     startDate?: string;
     endDate?: string;
+    eventType?: 'all' | 'event' | 'nonEvent';
 }) => (
     api.get(`/api/communities/${communityId}/news`, {
         params: {
@@ -93,7 +96,7 @@ export const getNews = (communityId: string, filters: {
             search: filters.search,
             from: filters.startDate,
             to: filters.endDate,
-            eventType: 'all'
+            eventType: filters.eventType || 'all'
         }
     }).then((res: any) => ({
         ...res,

@@ -2,19 +2,37 @@ import React, {useState, useEffect} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '../dialog';
 import { Button } from '../button';
 import { regenerateAccessCode } from '@/services/adminService';
-import { Copy, RefreshCw, Check } from 'lucide-react';
+import { Copy, RefreshCw, Check, Eye, EyeOff } from 'lucide-react';
 
 interface GenerateCodeModalProps {
     isOpen: boolean;
     onClose: () => void;
     communityId: string;
+    currentAccessCode?: string | null;
+    onCodeRegenerated?: (newCode: string) => void;
 }
 
-const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, communityId}) => {
+const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, communityId, currentAccessCode, onCodeRegenerated}) => {
     const [accessCode, setAccessCode] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [visible, setVisible] = useState(false);
+
+    useEffect(() => {
+        if(isOpen) {
+            setAccessCode(currentAccessCode || null);
+            setError(null);
+            setCopied(false);
+        }
+    }, [isOpen, currentAccessCode]);
+
+    useEffect(() => {
+        if(isOpen) {
+            setVisible(false);
+        }
+    }, [isOpen]);
+   
 
     const generate = async () => {
         if(!communityId) return;
@@ -25,21 +43,16 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
         try{
             const res = await regenerateAccessCode(communityId);
             setAccessCode(res.data.community.accessCode);
+            if(onCodeRegenerated){
+                onCodeRegenerated(res.data.community.accessCode);
+            }
+            setVisible(true);
         } catch (err: any){
             setError(err.response?.data?.error?.message || 'Error al generar el código de acceso.');
         } finally {
             setLoading(false);
         }
     };
-
-    useEffect(() => {
-        if(isOpen) {
-            setAccessCode(null);
-            setError(null);
-            setCopied(false);
-            generate();
-        }
-    }, [isOpen]);
 
     const handleCopy = async () => {
         if(!accessCode) return;
@@ -51,6 +64,8 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
             alert('No se pudo copiar al portapapeles.');
         }
     };
+
+    const maskedCode = accessCode ? accessCode.replace(/./g, '*') : null;
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -68,16 +83,24 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
                     {error && <p className='text-sm text-red-500'>{error}</p>}
 
                     {accessCode && !loading && (
-                        <div className='g-gray-50 border border-gray-200 rounded-xl p-6 inline-block'>
+                        <div className='bg-gray-50 border border-gray-200 rounded-xl p-6 inline-flex items-center gap-3'>
                             <span className='text-3xl font-mono font-bold tracking-[0.3em] text-gray-900'>
-                                {accessCode}
+                                {visible ? accessCode : maskedCode}
                             </span>
+                        
+                            <button onClick={() => setVisible(!visible)} className='p-1.5 hover:bg-gray-200 rounded-md transition-colors' title={visible ? 'Ocultar código' : 'Mostrar código'}>
+                                {visible ? <EyeOff className='h-5 w-5 text-gray-500' /> : <Eye className='h-5 w-5 text-gray-500' />}
+                            </button>
                         </div>
+                    )}
+
+                    {!accessCode && !loading && !error && (
+                        <p className="text-sm text-gray-400 mt-2">No hay código de acceso activo. Pulsa "Regenerar" para crear uno nuevo.</p>
                     )}
                 </div>
 
                 <DialogFooter className='flex gap-2 sm:justify-center'>
-                    <Button variant="outline" size="sm" onClick={handleCopy} disabled={!accessCode || loading}>
+                    <Button variant="outline" size="sm" onClick={handleCopy} disabled={!accessCode || loading || !visible}>
                         {copied ? <Check className='h-4 w-4 mr-2' /> : <Copy className='h-4 w-4 mr-2' />}
                         {copied ? 'Copiado' : 'Copiar'}
                     </Button>

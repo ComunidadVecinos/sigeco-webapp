@@ -114,6 +114,7 @@ async function getCommunitySummary(context, communityId, communitiesRepository) 
   return {
     community: {
       ...mapCommunitySummary(community),
+      accessCode: community.accessCode,
       president: mapLeaderMembership(president),
       vicePresident: mapLeaderMembership(vicePresident),
       neighborsCount: neighbors.total

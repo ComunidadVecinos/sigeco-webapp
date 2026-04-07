@@ -1,6 +1,6 @@
 //El componente que contendra todo el diseño
 
-import React from 'react';
+import React, {useEffect} from 'react';
 import Footer from '../../components/common/Footer/Footer';
 import FeatureCard from '../../components/ui/FeatureCard/FeatureCard';  
 import logo from '../../assets/images/1.png';
@@ -10,6 +10,11 @@ import touchIcon from '../../assets/images/touch.png';
 import { Button } from '@/components/ui/button';
 
 const LandingPage: React.FC = () =>{
+
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
+
     return (
         <>
             <header>

@@ -96,6 +96,22 @@ const CalendarPage: React.FC = () => {
         }
     };
 
+    const currentYear = new Date().getFullYear();
+    const yearOptions = Array.from({length: 11}, (_, i) => currentYear - 5 + i);
+    const monthNames = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+
+    const handleMonthSelect = (monthIndex: number) => {
+        const newDate = new Date(visibleMonth.getFullYear(), monthIndex, 1);
+        setVisibleMonth(newDate);
+    };
+
+    const handleYearSelect = (year: number) => {
+        const newDate = new Date(year, visibleMonth.getMonth(), 1);
+        setVisibleMonth(newDate);
+    };
+
     return (
         <div className='min-h-screen bg-gray-50/30'>
             <Header
@@ -132,6 +148,26 @@ const CalendarPage: React.FC = () => {
 
                 <div className='flex flex-col md:flex-row gap-8'>
                     <div className='bg-white p-4 rounded-2xl shadow-sm border border-gray-200 md:w-[350] h-fit'>
+                        <div className='flex gap-2 mb-3 justify-center'>
+                            <select 
+                                className='border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none focus:border-blue-400'
+                                value={visibleMonth.getMonth()}
+                                onChange={(e) => handleMonthSelect(Number(e.target.value))}
+                            >
+                                {monthNames.map((name, i) => (
+                                    <option value={i} key={i}>{name}</option>
+                                ))}
+                            </select>
+                            <select 
+                                className='border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none focus:border-blue-400'
+                                value={visibleMonth.getFullYear()}
+                                onChange={(e) => handleYearSelect(Number(e.target.value))}
+                            >
+                                {yearOptions.map((year) => (
+                                    <option value={year} key={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
                         <Calendar
                             mode='single'
                             selected={date}

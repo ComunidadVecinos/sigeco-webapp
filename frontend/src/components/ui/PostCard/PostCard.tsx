@@ -1,5 +1,5 @@
 import React, {useState, useEffect, useRef} from "react";
-import {CircleUserRound, Heart, Eye, MessageCircle, MoreHorizontal, Pencil, Trash2} from "lucide-react";
+import {CircleUserRound, Heart, MessageCircle, MoreHorizontal, Pencil, Trash2, Pin} from "lucide-react";
 import { formatUtcIsoInBusinessZone } from '@/lib/businessDateTime';
 
 type PostCategory = 'question' | 'poll' | 'announcement' | 'request';
@@ -12,13 +12,13 @@ interface PollOption {
 
 interface PostCardProps{
     postId: string;
+    title: string;
     authorName: string;
     authorAvatar?: string;
     content: string;
     timestamp: string;
     category: PostCategory;
     likes: number;
-    views: number;
     comments: number;
     pollOptions?: PollOption[];
     hasLiked?: boolean;
@@ -30,6 +30,9 @@ interface PostCardProps{
     onVote: (optionIndex: number) => void;
     onEdit?: () => void;
     onDelete?: () => void;
+    onPin?: () => void;
+    pinned?: boolean;
+    editedAt?: string | null;
 }
 
 const categoryStyles = {
@@ -48,13 +51,13 @@ const categoryLabels = {
 
 const PostCard: React.FC<PostCardProps> = ({
     postId,
+    title,
     authorName,
     authorAvatar,
     content,
     timestamp,
     category,
     likes,
-    views,
     comments,
     pollOptions,
     hasLiked = false,
@@ -65,9 +68,13 @@ const PostCard: React.FC<PostCardProps> = ({
     onLike,
     onVote,
     onEdit,
-    onDelete
+    onDelete,
+    onPin, 
+    pinned = false,
+    editedAt
 }) =>{
     const formattedTimestamp = timestamp ? formatUtcIsoInBusinessZone(timestamp, "dd/MM/yyyy HH:mm") : '';
+    const formattedEditedAt = editedAt ? formatUtcIsoInBusinessZone(editedAt, "dd/MM/yyyy HH:mm") : null;
 
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -125,10 +132,18 @@ const PostCard: React.FC<PostCardProps> = ({
                 <div className="flex flex-col flex-1">
                     <span className="font-semibold text-gray-900">{authorName}</span>
                     <span className="text-xs text-gray-400">{formattedTimestamp}</span>
+                    {formattedEditedAt && (
+                        <span className="text-xs text-gray-400 italic">• Editado: {formattedEditedAt}</span>
+                    )}
                 </div>
                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${catStyle.bg} ${catStyle.text}`}>
                     {categoryLabels[category].emoji} {categoryLabels[category].label}
                 </span>
+                {pinned && (
+                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-50 text-amber-700">
+                        📌 Fijado
+                    </span>
+                )}
                 {/*Menu de acciones*/}
                 {(isOwner || isAdmin) && (
                     <div className="relative" ref={menuRef}>
@@ -147,14 +162,19 @@ const PostCard: React.FC<PostCardProps> = ({
                                         <Trash2 className="h-4 w-4"/> Eliminar
                                     </button>
                                 )}
+                                {onPin && (
+                                    <button className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2" onClick={(e) => {e.stopPropagation(); setMenuOpen(false); onPin();}}>
+                                        <Pin className="h-4 w-4" /> {pinned ? 'Desfijar' : 'Fijar'}
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
                 )}
             </div>
 
-            <div className="mb-3">
-                <p className="m-0 text-gray-900 leading-relaxed">{content}</p>
+            <div className="mb-3 cursor-pointer" onClick={handleCommentsClick}>
+                <p className="font-bold text-base text-gray-900">{title}</p>
             </div>
 
             {category === 'poll' && pollOptions && pollOptions.length > 0 && (
@@ -177,9 +197,6 @@ const PostCard: React.FC<PostCardProps> = ({
             <div className="flex gap-5 pt-3 border-t border-gray-100">
                 <span className={`flex items-center gap-1.5 text-sm cursor-pointer ${hasLiked ? 'text-red-500' : 'text-gray-500'}`} onClick={handleLike}>
                     <Heart className='h-4 w-4' fill={hasLiked ? "currentColor": "none" }/> {likes}
-                </span>
-                <span className="flex items-center gap-1.5 text-sm text-gray-500">
-                    <Eye className="h-4 w-4"/> {views}
                 </span>
                 <span className="flex items-center gap-1.5 text-sm text-gray-500 cursor-pointer hover:text-[#104084]" onClick={handleCommentsClick}>
                     <MessageCircle className="h-4 w-4"/> {comments}

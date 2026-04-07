@@ -10,6 +10,7 @@ import LogoutModal from '../../components/ui/LogoutModal/LogoutModal';
 import DeleteAccountModal from '../../components/ui/DeleteAccountModal/DeleteAccountModal';
 import { useAuth } from '../../context/authContext';
 import { changePassword } from '../../services/authServices';
+import { deleteAvatar } from '@/services/userServices';
 import { Button } from '@/components/ui/button';
 import {Pencil, Camera, ChevronRight, LogOut, Trash2, Plus, Archive} from 'lucide-react';
 import { getMyRequests, archiveRequest, cancelRequest } from '@/services/communityServices';
@@ -229,7 +230,7 @@ const ProfilePage: React.FC = () =>{
 
                     <h4 className='font-bold mb-2'>Configuración de la cuenta</h4>
 
-                    <p className='text-sm text-gray-500 mb-4'>Cambia tu contraseña y gestiona tus notificaciones</p>
+                    <p className='text-sm text-gray-500 mb-4'>Cambia tu contraseña y gestiona la configuración de tu cuenta</p>
                     
                     <div className="flex justify-between items-center py-4 border-b border-gray-100">
                         <div>
@@ -238,18 +239,6 @@ const ProfilePage: React.FC = () =>{
                         </div>
                         
                         <Button variant="outline" size="sm" onClick={() => setPasswordModalOpen(true)}>
-                            <ChevronRight className="h-4 w-4"/>
-                        </Button>
-                    </div>
-                    
-                    <div className="flex justify-between items-center py-4">
-                        <div>
-                            <h5 className='font-bold text-base'>Gestionar notificaciones</h5>
-                            <p className="text-sm text-gray-500">Modificar tus preferencias para recibir notificaciones.</p>
-                        </div>
-                    
-
-                        <Button variant="outline" size="sm">
                             <ChevronRight className="h-4 w-4"/>
                         </Button>
                     </div>
@@ -288,7 +277,9 @@ const ProfilePage: React.FC = () =>{
                     isOpen={photoModalOpen}
                     onClose={() => setPhotoModalOpen(false)}
                     currentPhoto={profilePhoto}
-                    onSave={(newPhoto) => setProfilePhoto(newPhoto)}
+                    onSave={async (newPhoto) => {setProfilePhoto(newPhoto); await refreshUser();}}
+                    onDeletePhoto={async () => {await deleteAvatar(); await refreshUser();}}
+                    defaultPhoto={imagen_generica}
                 />
 
                 <EditPasswordModal

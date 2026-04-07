@@ -8,8 +8,8 @@ import { Menu, Filter, CalendarIcon } from 'lucide-react';
 import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { getPosts, createPost, updatePost, deletePost, toggleLike, getComments, addComment, updateComment, deleteComment, votePoll } from '@/services/forumService';
-import {format} from "date-fns";
+import { getPosts, createPost, updatePost, deletePost, toggleLike, getComments, addComment, updateComment, deleteComment, votePoll, pinPost, unpinPost, toggleCommentLike } from '@/services/forumService';
+import { format } from "date-fns";
 import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -65,8 +65,8 @@ interface Comment {
     content: string;
     createdAt: string;
     editedAt: string;
-    isDeleted: boolean; 
-    author: {membershipId: string; alias: string | null; profileImageUrl: string | null; role: string} | null;
+    isDeleted: boolean;
+    author: { membershipId: string; alias: string | null; profileImageUrl: string | null; role: string } | null;
     likesCount: number;
 }
 
@@ -90,10 +90,12 @@ const ForumPage: React.FC = () => {
     const [endDate, setEndDate] = useState('');
     const [loading, setLoading] = useState(false);
     const [featureUnavailable, setFeatureUnavailable] = useState(false);
+    const [sortBy, setSortBy] = useState<'createdAt' | 'likes' | 'lastActivityAt'>('createdAt');
 
     //Comentarios
     const [selectedPost, setSelectedPost] = useState<Post | null>(null);
     const [commentsList, setCommentsList] = useState<Comment[]>([]);
+    const [commentsSortby, setCommentsSortBy] = useState<'createdAt' | 'likes'>('createdAt');
 
     //Editar post
     const [editingPostId, setEditingPostId] = useState<string | null>(null);
@@ -111,20 +113,20 @@ const ForumPage: React.FC = () => {
         setLoading(true);
         try {
             setFeatureUnavailable(false);
-            const res = await getPosts(communityId, { 
-                page: pageNum + 1, 
+            const res = await getPosts(communityId, {
+                page: pageNum + 1,
                 pageSize: 10,
                 category: (categoryFilter as any) || undefined,
-                from: startDate || undefined, 
+                from: startDate || undefined,
                 to: endDate || undefined,
-                sortBy: 'createdAt' 
+                sortBy
             });
-            const newPosts = (res.data.items || []).map((p: any) => ({...p, category: p.category.toLowerCase() }));
+            const newPosts = (res.data.items || []).map((p: any) => ({ ...p, category: p.category.toLowerCase() }));
             setPosts(append ? [...posts, ...newPosts] : newPosts);
             const pagination = res.data.pagination;
             setHasMore(pagination.page < pagination.totalPages);
         } catch (err: any) {
-            if(err?.response?.status === 404){
+            if (err?.response?.status === 404) {
                 setFeatureUnavailable(true);
                 setPosts([]);
                 setHasMore(false);
@@ -135,7 +137,7 @@ const ForumPage: React.FC = () => {
         }
     };
 
-    useEffect(() => {setPage(0); loadPosts(0); }, [communityId, categoryFilter, startDate, endDate]);
+    useEffect(() => { setPage(0); loadPosts(0); }, [communityId, categoryFilter, startDate, endDate, sortBy]);
 
     const handleLoadMore = () => {
         const nextPage = page + 1;
@@ -148,11 +150,11 @@ const ForumPage: React.FC = () => {
         if (!communityId) return;
         if (featureUnavailable) return;
         try {
-            const data: any = {title, description, category}
-            if(category === 'poll' && pollOptions){
+            const data: any = { title, description, category }
+            if (category === 'poll' && pollOptions) {
                 data.poll = {
                     title,
-                    options: pollOptions.map(opt => ({title: opt}))
+                    options: pollOptions.map(opt => ({ title: opt }))
                 };
             }
             await createPost(communityId, data);
@@ -170,7 +172,8 @@ const ForumPage: React.FC = () => {
         if (featureUnavailable) return;
         try {
             await updatePost(communityId, postId, { description: editPostContent });
-            setPosts(posts.map(p => p.id === postId ? { ...p, description: editPostContent } : p));
+            setPage(0);
+            loadPosts(0);
             setEditingPostId(null);
             setEditPostContent('');
         } catch (err: any) {
@@ -216,13 +219,32 @@ const ForumPage: React.FC = () => {
         }
     };
 
-    //Cargar comentarios
-    const handleOpenComments = async (post: Post) => {
-        setSelectedPost(post);
+    //Fijar/desfijar publicacion
+    const handleTogglePin = async (post: Post) => {
         if (!communityId) return;
         if (featureUnavailable) return;
         try {
-            const res = await getComments(communityId, post.id, { page: 1, pageSize: 50 });
+            if (post.pinned) {
+                await unpinPost(communityId, post.id);
+            }
+            else {
+                await pinPost(communityId, post.id);
+            }
+            setPosts(posts.map(p => p.id === post.id ? { ...p, pinned: !p.pinned } : p));
+        }
+        catch (err: any) {
+            alert(err.response?.data?.error?.message || 'Error al fijar/desfijar publicación');
+        }
+    };
+
+    //Cargar comentarios
+    const handleOpenComments = async (post: Post) => {
+        setSelectedPost(post);
+        setCommentsSortBy('createdAt');
+        if (!communityId) return;
+        if (featureUnavailable) return;
+        try {
+            const res = await getComments(communityId, post.id, { page: 1, pageSize: 50, sortBy: 'createdAt' });
             setCommentsList(res.data.items || []);
         } catch (err) {
             console.error('Error cargando comentarios', err);
@@ -249,7 +271,7 @@ const ForumPage: React.FC = () => {
         if (featureUnavailable) return;
         try {
             await updateComment(communityId, commentId, { content });
-            setCommentsList(commentsList.map(c => c.id === commentId ? { ...c, content } : c));
+            setCommentsList(commentsList.map(c => c.id === commentId ? { ...c, content, editedAt: new Date().toISOString() } : c));
         } catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al editar comentario');
         }
@@ -264,6 +286,27 @@ const ForumPage: React.FC = () => {
             setCommentsList(commentsList.map(c => c.id === commentId ? res.data : c));
         } catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al eliminar comentario');
+        }
+    };
+
+    //Like en comentario
+    const handleLikeComment = async (commentId: string) => {
+        if (!communityId) return;
+        try {
+            const res = await toggleCommentLike(communityId, commentId);
+            setCommentsList(commentsList.map(c => c.id === commentId ? { ...c, likesCount: res.data.likesCount } : c));
+        } catch (err: any) {
+            console.error('Error al dar like al comentario', err);
+        }
+    };
+
+    const reloadComments = async (sort: 'createdAt' | 'likes') => {
+        if (!communityId || !selectedPost) return;
+        try {
+            const res = await getComments(communityId, selectedPost.id, { page: 1, pageSize: 50, sortBy: sort });
+            setCommentsList(res.data.items || []);
+        } catch (err) {
+            console.error('Error recargando comentarios', err);
         }
     };
 
@@ -289,11 +332,21 @@ const ForumPage: React.FC = () => {
                     </div>
                 )}
 
-                <div className='flex justify-end mb-4'>
-                    <Button variant={(categoryFilter || startDate || endDate) ? 'default' : 'outline'} size="sm" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className='flex items-center gap-2'>
-                        <Filter className='h-4 w-4' />
-                        Filtros {(categoryFilter || startDate || endDate) && "(Activos)"}
-                    </Button>
+                <div className='flex justify-between items-center mb-4'>
+                    <div className="flex gap-2">
+                        <Button variant={sortBy === 'createdAt' ? 'default' : 'outline'} size="sm" onClick={() => setSortBy('createdAt')}>
+                            Recientes
+                        </Button>
+                        <Button variant={sortBy === 'lastActivityAt' ? 'default' : 'outline'} size="sm" onClick={() => setSortBy('lastActivityAt')}>
+                            Actividad
+                        </Button>
+                        <Button variant={sortBy === 'likes' ? 'default' : 'outline'} size="sm" onClick={() => setSortBy('likes')}>
+                            Likes
+                        </Button>
+                        <Button variant={(categoryFilter || startDate || endDate) ? 'default' : 'outline'} size="sm" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className='flex items-center gap-2'>
+                            <Filter className='h-4 w-4' /> Filtros{(categoryFilter || startDate || endDate) && "(Activos)"}
+                        </Button>
+                    </div>
                 </div>
 
                 {showAdvancedFilters && (
@@ -374,15 +427,15 @@ const ForumPage: React.FC = () => {
                             <PostCard
                                 key={post.id}
                                 postId={post.id}
+                                title={post.title}
                                 authorName={post.author?.alias || 'Anonimo'}
                                 authorAvatar={post.author?.profileImageUrl || undefined}
                                 content={post.description}
                                 timestamp={post.createdAt}
                                 category={post.category}
                                 likes={post.likesCount}
-                                views={0}
                                 comments={post.commentsCount}
-                                pollOptions={post.poll?.options.map(opt => ({text: opt.title, votes: opt.votes})) ||  undefined}
+                                pollOptions={post.poll?.options.map(opt => ({ text: opt.title, votes: opt.votes })) || undefined}
                                 hasLiked={false}
                                 hasVoted={post.poll?.myVoteOptionId ? post.poll.options.findIndex(o => o.id === post.poll!.myVoteOptionId) : null}
                                 isOwner={post.author?.membershipId === activeCommunity?.membershipId}
@@ -390,13 +443,16 @@ const ForumPage: React.FC = () => {
                                 onCommentsClick={() => handleOpenComments(post)}
                                 onLike={() => handleLike(post.id)}
                                 onVote={(optionIndex) => {
-                                    if(post.poll) {
+                                    if (post.poll) {
                                         const option = post.poll.options[optionIndex];
-                                        if(option) handleVote(post.id, post.poll.id, option.id);
+                                        if (option) handleVote(post.id, post.poll.id, option.id);
                                     }
                                 }}
-                                onEdit={() => { setEditingPostId(post.id); setEditPostContent(post.description); }}
+                                onEdit={post.category !== 'poll' ? () => { setEditingPostId(post.id); setEditPostContent(post.description); } : undefined}
                                 onDelete={() => handleDeletePost(post.id)}
+                                onPin={isAdmin ? () => handleTogglePin(post) : undefined}
+                                pinned={post.pinned}
+                                editedAt={post.editedAt}
                             />
                         )
                     ))}
@@ -424,6 +480,7 @@ const ForumPage: React.FC = () => {
             <CommentsModal
                 isOpen={selectedPost !== null}
                 onClose={() => { setSelectedPost(null); setCommentsList([]); }}
+                postTitle={selectedPost?.title || ''}
                 postContent={selectedPost?.description || ''}
                 postAuthor={selectedPost?.author?.alias || ''}
                 comments={commentsList.map(c => ({
@@ -432,12 +489,17 @@ const ForumPage: React.FC = () => {
                     authorAvatar: c.author?.profileImageUrl || undefined,
                     content: c.content,
                     timestamp: c.createdAt,
-                    isOwner: c.author?.membershipId === activeCommunity?.membershipId
+                    isOwner: c.author?.membershipId === activeCommunity?.membershipId,
+                    likesCount: c.likesCount,
+                    editedAt: c.editedAt
                 }))}
                 isAdmin={isAdmin}
                 onAddComment={handleAddComment}
                 onEditComment={handleEditComment}
                 onDeleteComment={handleDeleteComment}
+                onLikeComment={handleLikeComment}
+                commentsSortBy={commentsSortby}
+                onChangeCommentsSortBy={async (sort) => { setCommentsSortBy(sort); await reloadComments(sort); }}
 
             />
         </div>

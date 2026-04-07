@@ -20,7 +20,8 @@ import {
     getAdminSummary,
     getMembers,
     getRequests,
-    updateCommunityAvatar
+    updateCommunityAvatar,
+    deleteCommunityAvatar
 } from '@/services/adminService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -252,7 +253,7 @@ const AdminPage: React.FC = () => {
                             <h3 className="text-2xl font-bold text-gray-900">Datos de la Comunidad</h3>
                             <div className="flex flex-wrap items-center justify-end gap-2">
                                 <Button variant="outline" size="sm" onClick={() => setGenerateCodeModalOpen(true)}>
-                                    <Key className='h-4 w-4 mr-2'/> Generar código
+                                    <Key className='h-4 w-4 mr-2' /> Código de acceso
                                 </Button>
                                 <Button variant="outline" size="sm" onClick={() => setEditCommunityModalOpen(true)}>
                                     <Pencil className="h-4 w-4 mr-2" />Editar
@@ -365,11 +366,10 @@ const AdminPage: React.FC = () => {
                                                     {request.requesterName || request.proposedAlias || 'Solicitud pendiente'}
                                                 </h4>
                                                 <span
-                                                    className={`text-xs px-2 py-1 rounded-full ${
-                                                        request.type === 'JOIN'
+                                                    className={`text-xs px-2 py-1 rounded-full ${request.type === 'JOIN'
                                                             ? 'bg-blue-100 text-blue-700'
                                                             : 'bg-yellow-100 text-yellow-700'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {formatRequestType(request.type)}
                                                 </span>
@@ -670,6 +670,12 @@ const AdminPage: React.FC = () => {
                     setSummary((prev: any) => (prev ? { ...prev, community: { ...prev.community, avatar: newPhotoUrl } } : prev));
                     await reloadSummary();
                 }}
+                onDeletePhoto={async () => {
+                    await deleteCommunityAvatar(communityId);
+                    setSummary((prev: any) => (prev ? { ...prev, community: { ...prev.community, avatar: null } } : prev));
+                    await reloadSummary();
+                }}
+                defaultPhoto={imagen_generica}
             />
 
             <RequestActionModal
@@ -728,6 +734,13 @@ const AdminPage: React.FC = () => {
                 isOpen={generateCodeModalOpen}
                 onClose={() => setGenerateCodeModalOpen(false)}
                 communityId={communityId}
+                currentAccessCode={summary?.community?.accessCode || null}
+                onCodeRegenerated={(newCode) => {
+                    setSummary((prev : any) => prev ? {
+                        ...prev,
+                        community: { ...prev.community, accessCode: newCode }
+                    } : null);
+                }}
             />
         </div>
     );
