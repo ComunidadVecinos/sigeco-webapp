@@ -11,10 +11,11 @@ interface EditDocumentModaProps {
     communityId: string;
     docId: string;
     currentName: string;
+    type: string;
     onSuccess:() => void;
 }
 
-const EditDocumentModal: React.FC<EditDocumentModaProps> = ({isOpen, onClose, communityId, docId, currentName, onSuccess}) => {
+const EditDocumentModal: React.FC<EditDocumentModaProps> = ({isOpen, onClose, communityId, docId, currentName, type, onSuccess}) => {
     const [name, setName] = useState(currentName);
     const [loading, setLoading] = useState(false);
 
@@ -24,7 +25,7 @@ const EditDocumentModal: React.FC<EditDocumentModaProps> = ({isOpen, onClose, co
         if(!name.trim()) return;
         setLoading(true);
         try{
-            await updateDocument(communityId, docId, { name: name.trim() });
+            await updateDocument(communityId, docId, type, { name: name.trim() });
             onClose();
             onSuccess();
         } catch (err: any){

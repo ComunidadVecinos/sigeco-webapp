@@ -122,7 +122,7 @@ const ForumPage: React.FC = () => {
                 sortBy
             });
             const newPosts = (res.data.items || []).map((p: any) => ({ ...p, category: p.category.toLowerCase() }));
-            setPosts(append ? [...posts, ...newPosts] : newPosts);
+            setPosts(prev => append ? [...prev, ...newPosts] : newPosts);
             const pagination = res.data.pagination;
             setHasMore(pagination.page < pagination.totalPages);
         } catch (err: any) {
@@ -172,8 +172,9 @@ const ForumPage: React.FC = () => {
         if (featureUnavailable) return;
         try {
             await updatePost(communityId, postId, { description: editPostContent });
-            setPage(0);
-            loadPosts(0);
+            setPosts(prev => prev.map(p => 
+                p.id === postId ? {...p, description: editPostContent, editedAt: new Date().toISOString()} : p
+            ));
             setEditingPostId(null);
             setEditPostContent('');
         } catch (err: any) {
@@ -230,7 +231,7 @@ const ForumPage: React.FC = () => {
             else {
                 await pinPost(communityId, post.id);
             }
-            setPosts(posts.map(p => p.id === post.id ? { ...p, pinned: !p.pinned } : p));
+            setPosts(prev => prev.map(p => p.id === post.id ? { ...p, pinned: !p.pinned } : p));
         }
         catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al fijar/desfijar publicación');

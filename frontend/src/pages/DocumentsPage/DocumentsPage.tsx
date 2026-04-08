@@ -25,7 +25,7 @@ const DocumentsPage: React.FC = () => {
 
     const [folderModalOpen, setFolderModalOpen] = useState(false);
     const [documentModalOpen, setDocumentModalOpen] = useState(false);
-    const [editModal, setEditModal] = useState<{open: boolean; docId: string; name: string}>({open: false, docId: '', name: ''});
+    const [editModal, setEditModal] = useState<{open: boolean; docId: string; name: string; type: string}>({open: false, docId: '', name: '', type: ''});
     const [viewerModal, setViewerModal] = useState<{open: boolean; url: string; name: string}>({open: false, url: '', name: ''});
 
     const loadDocuments = async () => {
@@ -33,7 +33,15 @@ const DocumentsPage: React.FC = () => {
         setLoading(true);
         try{
             const res = await getDocuments(communityId);
-            setDocuments(res.data);
+            const responseData = res.data as any;
+
+            const combined = [
+                ...(responseData.folders?.map((f: any) => ({...f, type: 'folder' as 'folder'})) || []),
+                ...(responseData.documents?.map((d: any) => ({...d, type: 'file' as 'file'})) || [])
+            ];
+
+            setDocuments(combined);
+            setExpandedFolders(new Set());
         } catch (err) {
             console.error('Error cargando docuemntos', err);
         } finally {
@@ -41,9 +49,28 @@ const DocumentsPage: React.FC = () => {
         }
     };
 
+    const loadChildren = async (folderId: string) => {
+        if(!communityId) return;
+        if(documents.some(d => d.parentId === folderId)) return;
+        try{
+            const res = await getDocuments(communityId, folderId);
+            const responseData = res.data as any;
+            const combined = [
+                ...(responseData.folders?.map((f: any) => ({...f, type: 'folder' as 'folder'})) || []),
+                ...(responseData.documents?.map((d: any) => ({...d, type: 'file' as 'file'})) || [])
+            ];
+            setDocuments(prev => [...prev, ...combined]);
+        } catch(err){
+            console.error('Error cargando subcarpetas', err);
+        }
+    };
+
     useEffect(() => {loadDocuments();}, [communityId]);
 
-    const toggleFolder = (folderId: string) => {
+    const toggleFolder = async (folderId: string) => {
+        if(!expandedFolders.has(folderId)){
+            await loadChildren(folderId);
+        }
         setExpandedFolders(prev => {
             const next = new Set(prev);
             next.has(folderId) ? next.delete(folderId) : next.add(folderId);
@@ -55,7 +82,7 @@ const DocumentsPage: React.FC = () => {
         const msg = type === 'folder' ? `¿Eliminar la carpeta "${name}" y todo su contenido?` : `¿Eliminar el documento "${name}"?`;
         if(!communityId || !confirm(msg)) return;
         try{
-            await deleteDocument(communityId, docId);
+            await deleteDocument(communityId, docId, type);
             await loadDocuments();
         } catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al eliminar.');
@@ -88,7 +115,7 @@ const DocumentsPage: React.FC = () => {
             <span className='text-xs text-gray-400 flex-shrink-0'>{formatDate(doc.createdAt)}</span>
             {isAdmin && (
                 <div className='flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0' onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-blue-600' onClick={() => setEditModal({open: true, docId: doc.id, name: doc.name})}>
+                    <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-blue-600' onClick={() => setEditModal({open: true, docId: doc.id, name: doc.name, type: doc.type})}>
                         <Pencil className='h-3.5 w-3.5' />
                     </Button>
                     <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-red-600' onClick={() => handleDelete(doc.id, doc.name, doc.type)}>
@@ -117,7 +144,7 @@ const DocumentsPage: React.FC = () => {
                     <span className='text-xs text-gray-400 flex-shrink-0'>{children.length} archivo {children.length !== 1 ? 's' : ''}</span>
                     {isAdmin && (
                         <div className='flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0' onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-blue-600' onClick={() => setEditModal({open: true, docId: folder.id, name: folder.name})}>
+                            <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-blue-600' onClick={() => setEditModal({open: true, docId: folder.id, name: folder.name, type: folder.type})}>
                                 <Pencil className='h-3.5 w-3.5' />
                             </Button>
                             <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-red-600' onClick={() => handleDelete(folder.id, folder.name, folder.type)}>
@@ -172,6 +199,7 @@ const DocumentsPage: React.FC = () => {
                 isOpen={folderModalOpen} 
                 onClose={() => setFolderModalOpen(false)}
                 communityId={communityId!}
+                folders={folders}
                 onSuccess={loadDocuments}
             />
 
@@ -185,10 +213,11 @@ const DocumentsPage: React.FC = () => {
 
             <EditDocumentModal
                 isOpen={editModal.open} 
-                onClose={() => setEditModal({open: false, docId: '', name: ''})}
+                onClose={() => setEditModal({open: false, docId: '', name: '', type: ''})}
                 communityId={communityId!}
                 docId={editModal.docId}
                 currentName={editModal.name}
+                type={editModal.type}
                 onSuccess={loadDocuments}
             />
 

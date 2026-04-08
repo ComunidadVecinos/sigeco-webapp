@@ -8,14 +8,16 @@ export interface DocItem {
     parentId: string | null;
     url?: string;
     createdAt: string;
-}
+};
 
 //Listar documentos y carpetas
-export const getDocuments = (communityId: string) =>
-    api.get(`/api/communities/${communityId}/documents`);
+export const getDocuments = (communityId: string, parentId?: string) =>{
+    const query = parentId ? `?parentId=${parentId}` : '';
+    return api.get(`/api/communities/${communityId}/documents${query}`);
 
+};
 //Crear carpeta
-export const createFolder = (communityId: string, data: {name: string}) => 
+export const createFolder = (communityId: string, data: {name: string, parentId?: string}) => 
     api.post(`/api/communities/${communityId}/documents/folders`, data);
 
 //Subir documentos
@@ -25,15 +27,19 @@ export const uploadDocument = (communityId: string, data: {name: string, descrip
     if(data.description) formData.append('description', data.description);
     if(data.folderId) formData.append('folderId', data.folderId);
     formData.append('file', data.file);
-    return api.post(`/api/communities/${communityId}/documents`, formData, {
+    return api.post(`/api/communities/${communityId}/documents/files`, formData, {
         headers: {'Content-Type': 'multipart/form-data'}
     });
 };
 
 //Editar nombre de documento o carpeta
-export const updateDocument = (communityId: string, docId: string, data: {name: string}) =>
-    api.patch(`/api/communities/${communityId}/documents/${docId}`, data);
+export const updateDocument = (communityId: string, docId: string, type: string, data: {name: string}) =>{
+    const route = type === 'folder' ? 'folders' : 'files';
+    return api.patch(`/api/communities/${communityId}/documents/${route}/${docId}`, data);
+};
 
 //Eliminar documento o carpeta
-export const deleteDocument = (communityId: string, docId: string) =>
-    api.delete(`/api/communities/${communityId}/documents/${docId}`);
+export const deleteDocument = (communityId: string, docId: string, type: string) => {
+    const route = type === 'folder' ? 'folders' : 'files';
+    return api.delete(`/api/communities/${communityId}/documents/${route}/${docId}`);
+};
