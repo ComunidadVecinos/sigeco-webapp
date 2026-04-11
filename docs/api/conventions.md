@@ -1,38 +1,38 @@
 # API Conventions
 
-This document describes the cross-cutting API conventions currently implemented in the SIGECO backend.
+This document describes the shared rules implemented by the current SIGECO backend.
 
 > Back to API hub: [docs/api/README.md](./README.md)
 
 ---
 
-## 1. Base path and payload formats
+## 1. Base path and formats
 
 - API base path: `/api`
 - Default payload format: `application/json`
-- File uploads currently use `multipart/form-data`
+- Image uploads use `multipart/form-data`
 - Field naming in payloads: `camelCase`
 - Most identifiers are UUID strings
-- Dates are returned as ISO 8601 strings
 
 Examples:
 
 - `GET /api/users/me`
-- `GET /api/communities/:communityId/members`
-- `PUT /api/users/me/avatar`
+- `GET /api/communities/:communityId/news`
+- `POST /api/communities/:communityId/voting`
+- `DELETE /api/communities/:communityId/news/:newsId/image`
 
 ---
 
-## 2. Authentication and credentials
+## 2. Authentication
 
 Authentication is stateful and cookie-based.
 
-- Session cookie name: `sid`
+- Session cookie: `sid`
 - No bearer token is used
 - Protected routes require a valid session cookie
 - Frontend requests must send credentials
 
-Frontend examples:
+Examples:
 
 ```ts
 fetch('/api/users/me', { credentials: 'include' });
@@ -42,28 +42,24 @@ fetch('/api/users/me', { credentials: 'include' });
 axios.get('/api/users/me', { withCredentials: true });
 ```
 
-If the session is missing, invalid or expired, the backend responds with `401 UNAUTHORIZED`.
-
 ---
 
-## 3. Success response shape
+## 3. Success shape
 
-There is no global success envelope such as `{ data: ... }`.
+There is no global success envelope like `{ data: ... }`.
 
-Each endpoint returns its domain payload directly. Common patterns:
+Common maintained patterns:
 
-### Single resource or summary
+### Single resource
 
 ```json
 {
-  "community": {
-    "id": "uuid",
-    "name": "Comunidad SIGECO"
-  }
+  "id": "uuid",
+  "name": "Comunidad SIGECO"
 }
 ```
 
-### List response with pagination
+### Paginated response
 
 ```json
 {
@@ -81,31 +77,16 @@ Each endpoint returns its domain payload directly. Common patterns:
 
 ```json
 {
-  "expelled": true,
-  "communityId": "uuid",
-  "memberId": "uuid"
+  "deleted": true,
+  "newsId": "uuid"
 }
 ```
-
-Some endpoints use top-level pagination fields instead:
-
-```json
-{
-  "page": 1,
-  "pageSize": 10,
-  "total": 2,
-  "items": []
-}
-```
-
-Frontend should read each endpoint contract explicitly and not assume a shared `data` field inside the JSON body.
-Frontend should also not assume a single pagination envelope across all modules.
 
 ---
 
-## 4. Error response shape
+## 4. Error shape
 
-All handled errors use the same envelope:
+Handled errors use the same envelope:
 
 ```json
 {
@@ -126,12 +107,11 @@ All handled errors use the same envelope:
 Notes:
 
 - `error.details` is optional
-- Validation errors usually include `field`, `location` and `message`
 - `location` can be `body`, `query`, `params` or `headers`
 
 ---
 
-## 5. HTTP status codes in use
+## 5. Status codes in use
 
 | Status | Typical meaning |
 |---|---|
@@ -151,43 +131,48 @@ Notes:
 
 ---
 
-## 6. Error codes commonly exposed
+## 6. Temporal contract
 
-| Code | Meaning |
-|---|---|
-| `VALIDATION_ERROR` | Invalid request payload or query |
-| `INTERNAL_ERROR` | Unexpected backend error handled by the global error layer |
-| `UNAUTHORIZED` | Missing, invalid or expired session |
-| `FORBIDDEN` | Authenticated user lacks required permissions |
-| `NOT_FOUND` | Requested route or resource does not exist |
-| `CONFLICT` | Business rule or uniqueness conflict |
-| `INVALID_CREDENTIALS` | Login or password confirmation failed |
-| `EMAIL_ALREADY_REGISTERED` | Email already exists |
-| `PHONE_ALREADY_REGISTERED` | Phone already exists |
-| `ACTIVE_COMMUNITY_INVALID` | Invalid active community payload |
-| `ACTIVE_COMMUNITY_NOT_FOUND` | Selected active community does not exist |
-| `CURRENT_PASSWORD_INVALID` | Current password is incorrect |
-| `ACCOUNT_DELETION_EMAIL_MISMATCH` | Account deletion email does not match the authenticated user |
-| `CONFIRMATION_TEXT_MISMATCH` | Confirmation text does not match |
-| `FILE_TOO_LARGE` | Uploaded file exceeds limit |
-| `FILE_TYPE_UNSUPPORTED` | Uploaded file type is not supported |
-| `EMAIL_SERVICE_UNAVAILABLE` | Email sending failed |
-| `STORAGE_UNAVAILABLE` | File storage operation failed |
-| `ACCOUNT_DELETION_FAILED` | Account deletion could not be completed |
+This is the shared rule that frontend must follow now:
+
+- Every field with date **and** time travels as **ISO 8601 UTC**
+- Fields that are only dates may still use `YYYY-MM-DD`
+- Backend keeps `Europe/Madrid` only as internal business timezone
+
+Examples of UTC instant fields:
+
+- `createdAt`
+- `updatedAt`
+- `startsAt`
+- `endsAt`
+- `closedAt`
+- `eventStartsAt`
+- `eventEndsAt`
+- `votedAt`
+
+Examples of date-only fields:
+
+- `month=YYYY-MM` in calendar month queries
+- `from=YYYY-MM-DD` and `to=YYYY-MM-DD` when a module filters by business day
+
+Frontend rule:
+
+- parse every `...At` field as a real UTC instant
+- display it in `Europe/Madrid`
+- do not build UI logic from the browser timezone
 
 ---
 
-## 7. Validation and normalization rules
+## 7. Validation and normalization
 
 Input validation is applied before controllers using Zod-based middleware.
 
-What frontend should expect:
+Frontend should expect:
 
-- Path params such as `communityId`, `memberId` and `requestId` are validated as UUIDs
+- UUID path params are validated
 - Numeric query params such as `page` and `pageSize` are accepted as strings and normalized to numbers
-- Optional text query params are trimmed; empty strings may be treated as missing values
-- Date query params are validated before being parsed
-- Invalid JSON body returns `400` with the standard error envelope
+- Optional text query params are trimmed
+- Invalid JSON body returns `400`
 - Schema validation failures return `422 VALIDATION_ERROR`
 
 Common pagination defaults where supported:
@@ -198,64 +183,35 @@ Common pagination defaults where supported:
 
 ---
 
-## 8. Common address summary shape
+## 8. File uploads
 
-Several modules return address objects built from the same helper.
-
-When an API field is documented as an address summary, frontend can expect this shape:
-
-```json
-{
-  "country": "España",
-  "province": "Madrid",
-  "municipality": "Madrid",
-  "streetType": "Calle",
-  "streetName": "Mayor",
-  "postalCode": "28001",
-  "streetNumberKm": "12",
-  "block": null,
-  "floor": null,
-  "door": null,
-  "formatted": "Calle Mayor 12"
-}
-```
-
-Notes:
-
-- `block`, `floor` and `door` may be `null`
-- `formatted` is a UI-friendly summary string already prepared by backend
-
----
-
-## 9. File upload conventions
-
-Current avatar upload endpoints use the same pattern:
+Current image upload endpoints use these patterns:
 
 - Content type: `multipart/form-data`
-- File field name: `avatar`
 - Allowed MIME types: `image/jpeg`, `image/png`
 - Max size: `5 MB`
 
-Typical frontend example:
+Current field names:
 
-```ts
-const formData = new FormData();
-formData.append('avatar', file);
+- `avatar` for user and community avatars
+- `image` for optional news images on `POST/PATCH /api/communities/:communityId/news`
 
-await axios.put('/api/users/me/avatar', formData, {
-  withCredentials: true,
-  headers: { 'Content-Type': 'multipart/form-data' }
-});
-```
+Some endpoints accept either JSON or multipart:
 
-Uploaded files are later exposed as public URLs under `/uploads/...`, and the API may return those URLs as fields such as `profileImageUrl` or `avatarUrl`.
+- `news` create/update accepts JSON when no image is sent
+- the same endpoints accept multipart when an optional image is included
+
+Image-bearing resources may also expose an explicit delete endpoint:
+
+- `PUT` uploads or replaces the file reference
+- `DELETE` removes the current file reference without deleting the parent resource
 
 ---
 
-## 10. Practical frontend notes
+## 9. Practical frontend notes
 
-- Always send credentials on protected routes.
-- Do not expect a global response wrapper on success.
-- Always read and surface `error.message`; use `error.details` for field-level form feedback.
-- Treat returned date fields as strings and format them in frontend.
-- Treat returned file/image URLs as already public and directly renderable.
+- Always send credentials on protected routes
+- Do not expect a global success wrapper
+- Read and surface `error.message`; use `error.details` for field feedback
+- Treat returned file URLs as already public
+- Treat every ISO timestamp as UTC and format it in `Europe/Madrid`

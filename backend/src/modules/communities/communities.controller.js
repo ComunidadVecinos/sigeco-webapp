@@ -25,6 +25,11 @@ async function updateCommunityAvatar(req, res) {
   return res.status(200).json(result);
 }
 
+async function deleteCommunityAvatar(req, res) {
+  const result = await communitiesService.deleteCommunityAvatar({ userId: req.user.id }, req.params.communityId, communitiesRepository);
+  return res.status(200).json(result);
+}
+
 async function deleteCommunity(req, res) {
   // El service necesita la sesión actual para recalcular el contexto activo del actor tras el borrado.
   const result = await communitiesService.deleteCommunity(
@@ -44,4 +49,12 @@ async function createCommunity(req, res) {
   return res.status(201).json(result);
 }
 
-module.exports = { getCommunitySummary, regenerateCommunityAccessCode, updateCommunity, updateCommunityAvatar, deleteCommunity, createCommunity };
+module.exports = {
+  getCommunitySummary,
+  regenerateCommunityAccessCode,
+  updateCommunity,
+  updateCommunityAvatar,
+  deleteCommunityAvatar,
+  deleteCommunity,
+  createCommunity
+};

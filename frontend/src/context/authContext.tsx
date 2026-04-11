@@ -5,6 +5,7 @@ import { getFullProfile } from '../services/userServices';
 import { SESSION_EXPIRED_EVENT } from '../services/api';
 
 interface UserCommunity {
+    membershipId: string;
     communityId: string;
     name: string;
     address: string | null;
@@ -60,16 +61,22 @@ export const AuthProvider: React.FC<{children: React.ReactNode }> = ({children})
             const nextUser = data as User;
             setUser(nextUser);
             return nextUser;
-        } catch {
-            clearAuthState(true);
-            return null;
-        } finally{
+        } catch (error: any) {
+            if (error?.response?.status === 401) {
+                clearAuthState(true);
+                return null;
+            }
+
+            return user;
+        } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        refreshUser();
+        refreshUser().catch(() => {
+            setLoading(false);
+        });
     }, []);
 
     useEffect(() => {
@@ -85,7 +92,11 @@ export const AuthProvider: React.FC<{children: React.ReactNode }> = ({children})
 
     const login = async (identifier: string, password: string) => {
         await loginService(identifier, password);
-        await refreshUser();
+        const refreshedUser = await refreshUser();
+
+        if (!refreshedUser) {
+            throw new Error('No se ha podido cargar la sesión');
+        }
     };
 
     const logout = async () =>{

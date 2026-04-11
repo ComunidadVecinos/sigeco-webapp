@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Upload } from "lucide-react";
+import { Upload, Trash2 } from "lucide-react";
 import { updateAvatar } from "@/services/userServices";
 import { getApiErrorMessage } from '@/lib/formErrors';
 
@@ -15,6 +15,8 @@ interface EditPhotoModalProps{
     saveLabel?: string;
     saveErrorFallback?: string;
     uploadPhoto?: (file: File) => Promise<{ data?: { profileImageUrl?: string; community?: { avatarUrl?: string } } }>;
+    onDeletePhoto?: () => Promise<void>;
+    defaultPhoto?: string;
 }
 
 const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
@@ -26,12 +28,15 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
     selectLabel = 'Seleccionar nueva foto',
     saveLabel = 'Guardar',
     saveErrorFallback = 'No se ha podido actualizar la foto de perfil.',
-    uploadPhoto
+    uploadPhoto,
+    onDeletePhoto,
+    defaultPhoto
 })=>{
     const [preview, setPreview] = useState<string>(currentPhoto);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [error, setError] = useState('');
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         setPreview(currentPhoto);
@@ -76,12 +81,30 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
         }
     };
 
+    const handleDelete = async () => {
+        if(!onDeletePhoto) return;
+        if(!window.confirm('¿Eliminar la imagen actual?')) return;
+        setDeleting(true);
+        setError('');
+        try{
+            await onDeletePhoto();
+            if(defaultPhoto){
+                onSave(defaultPhoto);
+            }
+            handleClose();
+        } catch (err){
+            setError(getApiErrorMessage(err, 'No se ha podido eliminar la imagen'));
+        }
+    }
+
     const handleClose = () => {
         setSelectedFile(null);
         setPreview(currentPhoto);
         setError('');
         onClose();
     };
+
+    const isDefaultPhoto = defaultPhoto && currentPhoto === defaultPhoto;
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => {if(!open) handleClose(); }}>
@@ -97,6 +120,11 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
                     <Button variant="outline" className="w-full" onClick={handleSelectFile}>
                         <Upload className="mr-2 h-4 w-4" />{selectLabel}
                     </Button>
+                    {onDeletePhoto && !isDefaultPhoto && (
+                        <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50" onClick={handleDelete} disabled={deleting}>
+                            <Trash2 className="mr-2 h-4 w-4" />{deleting ? 'Eliminando...' : 'Eliminar foto actual'}
+                        </Button>
+                    )}
                     {error && <p className='text-sm text-red-500'>{error}</p>}
                 </div>
                 <DialogFooter>

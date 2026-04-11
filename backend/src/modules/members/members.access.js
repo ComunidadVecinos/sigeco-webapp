@@ -20,7 +20,6 @@ function isMembershipOperational(membership) {
   if (!hasCommunityMembershipAccess(membership)) {
     return false;
   }
-
   // Un miembro suspendido sigue perteneciendo a la comunidad, pero deja de poder usar modulos restringidos.
   return !isMembershipCurrentlySuspended(membership);
 }
@@ -29,9 +28,4 @@ function hasAdministrativeMembershipAccess(membership) {
   return isMembershipOperational(membership) && hasAdministrativeRole(membership);
 }
 
-module.exports = {
-  hasCommunityMembershipAccess,
-  hasAdministrativeRole,
-  isMembershipOperational,
-  hasAdministrativeMembershipAccess
-};
+module.exports = { hasCommunityMembershipAccess, hasAdministrativeRole, isMembershipOperational, hasAdministrativeMembershipAccess };

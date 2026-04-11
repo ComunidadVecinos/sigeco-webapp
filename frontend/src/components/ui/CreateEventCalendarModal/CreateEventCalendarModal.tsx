@@ -11,7 +11,13 @@ interface CreateEventCalendarModalProps {
     onClose: () => void;
     onSave: (eventData: any) => void;
     selectedDate: Date | undefined;
-    editingEvent?: {id: number; title: string; time: string} | null;
+    editingEvent?: {
+        id: string;
+        title: string;
+        date: string;
+        startTime: string;
+        endTime: string;
+    } | null;
 }
 
 const CreateEventCalendarModal: React.FC<CreateEventCalendarModalProps> = ({isOpen, onClose, onSave, selectedDate, editingEvent}) => {
@@ -24,23 +30,28 @@ const CreateEventCalendarModal: React.FC<CreateEventCalendarModalProps> = ({isOp
     useEffect(() => {
         if(isOpen){
             if(editingEvent){
-                const [start, end] = editingEvent.time.split(' - ');
-                setFormData({title: editingEvent.title, startTime: start || '10:00', endTime: end || '11:00'});
+                setFormData({
+                    title: editingEvent.title,
+                    startTime: editingEvent.startTime,
+                    endTime: editingEvent.endTime
+                });
             } else {
                 setFormData({title: '', startTime: '10:00', endTime: '11:00'});
             }
         }
     }, [isOpen, editingEvent]);
 
-    const isValid = !!formData.title.trim();
+    const effectiveDate = editingEvent?.date ? new Date(`${editingEvent.date}T00:00:00`) : selectedDate;
+    const isValid = !!formData.title.trim() && formData.startTime < formData.endTime;
 
     const handleSave = () => {
-        if(!isValid || !selectedDate) return;
+        if(!isValid || !effectiveDate) return;
 
         const eventEvent = {
             title: formData.title,
-            time: `${formData.startTime} - ${formData.endTime}`,
-            date: selectedDate.toISOString()
+            date: format(effectiveDate, 'yyyy-MM-dd'),
+            startTime: formData.startTime,
+            endTime: formData.endTime
         };
 
         onSave(eventEvent);
@@ -53,7 +64,7 @@ const CreateEventCalendarModal: React.FC<CreateEventCalendarModalProps> = ({isOp
                     <DialogTitle>{editingEvent ? 'Editar Evento Personal' : 'Nuevo Evento Personal'}</DialogTitle>
                     <p className="text-sm text-gray-500 mt-1">
                         Para el dia: <span className="font-bold text-green-600">
-                            {selectedDate ? format(selectedDate, "d 'de' MMMM 'de' yyyy", {locale: es}) : ''}
+                            {effectiveDate ? format(effectiveDate, "d 'de' MMMM 'de' yyyy", {locale: es}) : ''}
                         </span>
                     </p>
                 </DialogHeader>
@@ -78,7 +89,7 @@ const CreateEventCalendarModal: React.FC<CreateEventCalendarModalProps> = ({isOp
 
                 <DialogFooter>
                     <Button variant="outline" onClick={onClose}>Cancelar</Button>
-                    <Button onClick={handleSave} disabled={!isValid || !selectedDate}>{editingEvent ? 'Guardar Cambios' : 'Guardar'}</Button>
+                    <Button onClick={handleSave} disabled={!isValid || !effectiveDate}>{editingEvent ? 'Guardar Cambios' : 'Guardar'}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

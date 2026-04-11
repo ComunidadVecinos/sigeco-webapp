@@ -17,6 +17,7 @@ Base path: `/api/communities`
 - Updates basic community data
 - Regenerates the community access code
 - Uploads/replaces the community avatar
+- Deletes the community avatar
 - Soft-deletes a community
 
 ### Related subresources mounted under the same path
@@ -25,6 +26,10 @@ These routes are mounted from `communities`, but belong to other modules:
 
 - `/api/communities/:communityId/members/*`
 - `/api/communities/:communityId/help/*`
+- `/api/communities/:communityId/calendar/*`
+- `/api/communities/:communityId/voting/*`
+- `/api/communities/:communityId/forum/*`
+- `/api/communities/:communityId/news/*`
 
 This page documents only the endpoints implemented in the `communities` module itself.
 
@@ -39,6 +44,7 @@ This page documents only the endpoints implemented in the `communities` module i
 | `POST /:communityId/admin/access-code/regenerate` | Administrative membership in that community |
 | `PATCH /:communityId` | Administrative membership in that community |
 | `PUT /:communityId/avatar` | Administrative membership in that community |
+| `DELETE /:communityId/avatar` | Administrative membership in that community |
 | `DELETE /:communityId` | Administrative membership in that community **and** actor must be `PRESIDENT` |
 
 Important:
@@ -105,6 +111,7 @@ Returned after operations that may change the caller's active context:
 | `POST` | `/api/communities/:communityId/admin/access-code/regenerate` | Regenerate access code |
 | `PATCH` | `/api/communities/:communityId` | Update editable community fields |
 | `PUT` | `/api/communities/:communityId/avatar` | Upload or replace avatar |
+| `DELETE` | `/api/communities/:communityId/avatar` | Delete current avatar |
 | `DELETE` | `/api/communities/:communityId` | Soft-delete community |
 
 ---
@@ -492,7 +499,53 @@ Upload rules:
 
 ---
 
-## 6. Delete community
+## 6. Delete community avatar
+
+`DELETE /api/communities/:communityId/avatar`
+
+Deletes the current avatar of the community without affecting the rest of the community data.
+
+### Request
+
+Requires:
+
+- valid `sid` cookie
+- `communityId` path param as UUID
+- administrative access in the target community
+
+No request body.
+
+### Backend behavior relevant to frontend
+
+- Backend removes the avatar reference from the database first
+- Stored file cleanup is attempted afterwards as a best-effort step
+- If the physical file is already missing, the avatar is still considered deleted from the API point of view
+
+### Success
+
+- Status: `200 OK`
+
+```json
+{
+  "community": {
+    "id": "uuid",
+    "avatarUrl": null
+  }
+}
+```
+
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
+| `403` | `FORBIDDEN` | User is not an active admin in that community |
+| `404` | `NOT_FOUND` | Community not found |
+| `409` | `CONFLICT` | Community does not currently have an avatar |
+
+---
+
+## 7. Delete community
 
 `DELETE /api/communities/:communityId`
 
@@ -584,6 +637,7 @@ ELIMINAR COMUNIDAD
 | User is not an active admin in the target community | `403` | `FORBIDDEN` |
 | Community UUID is valid but community does not exist | `404` | `NOT_FOUND` |
 | Body validation fails | `422` | `VALIDATION_ERROR` |
+| Community avatar deletion requested but no avatar exists | `409` | `CONFLICT` |
 | Duplicate CIF on create | `409` | `CONFLICT` |
 
 Standard error shape:

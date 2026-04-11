@@ -73,10 +73,22 @@ async function main() {
   const password = 'Sigeco-2026!';
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // Limpieza total para partir de un estado determinista en cada ejecucion.
+  // Limpieza total para partir de un estado determinista en cada ejecución.
+  // El orden importa: primero se eliminan los datos de módulos que todavía
+  // referencian memberships o comunidades para que el seed siga siendo
+  // reejecutable aunque la base ya contenga votaciones, foro, calendario o news.
   await prisma.session.deleteMany();
   await prisma.communityRequestDetails.deleteMany();
   await prisma.communityRequest.deleteMany();
+  await prisma.forumCommentLike.deleteMany();
+  await prisma.forumPostLike.deleteMany();
+  await prisma.pollVote.deleteMany();
+  await prisma.forumComment.deleteMany();
+  await prisma.forumPost.deleteMany();
+  await prisma.pollOption.deleteMany();
+  await prisma.poll.deleteMany();
+  await prisma.calendarEvent.deleteMany();
+  await prisma.communityNews.deleteMany();
   await prisma.communityHelpSection.deleteMany();
   await prisma.communityDocument.deleteMany();
   await prisma.communityFolder.deleteMany();

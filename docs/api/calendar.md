@@ -2,110 +2,147 @@
 
 > API index: [docs/api/README.md](./README.md)
 
-This page is reserved for the future `calendar` module.
+Community month view and personal event management.
 
-Planned base path: `/api/calendar`
-
----
-
-## Implementation status
-
-This module is not implemented in the current backend.
-
-What is currently visible in the codebase:
-
-- No dedicated module was found under `backend/src/modules/calendar`
-- No implemented HTTP routes were found for this module
-- No request or response contract is defined yet
-
-This document keeps a stable structure so it can be completed once the module exists.
+Base path: `/api/communities/:communityId/calendar`
 
 ---
 
-## Overview
+## Key rules
 
-### Planned scope
-
-- Placeholder: document community events and calendar entries
-- Placeholder: clarify whether personal events will exist in the same module
-- Placeholder: define whether this module also aggregates voting or reservation events
-
-### What is not defined yet
-
-- Endpoint list
-- Event model
-- Date and timezone rules
-- Module-specific error codes
+- All endpoints require session
+- Any community member, including suspended members, can use this module
+- Automatic and personal events share the same public DTO
+- The public API now exposes only `startsAt` and `endsAt` as **UTC ISO**
+- Backend still stores and segments events by business day in `Europe/Madrid`
 
 ---
 
-## Access rules
+## Event DTO
 
-Not defined yet.
+```json
+{
+  "id": "uuid",
+  "title": "Reserva pista 2",
+  "type": "RESERVATION",
+  "startsAt": "2026-04-10T16:00:00.000Z",
+  "endsAt": "2026-04-10T17:00:00.000Z"
+}
+```
 
-Placeholder topics to document later:
+`type` is one of:
 
-- Who can create or edit events
-- Whether residents can create personal events
-- Whether calendar visibility depends on community membership
-
----
-
-## Common response shapes
-
-Not defined yet.
-
-Placeholder topics to document later:
-
-- Calendar event summary
-- Event detail
-- Date range query response
+- `PERSONAL`
+- `NEWS`
+- `RESERVATION`
+- `VOTING`
 
 ---
 
 ## Endpoints
 
-No endpoints are currently implemented for this module.
-
-Placeholder sections to complete later:
-
-### 1. List calendar events
-
-Placeholder.
-
-### 2. Get event detail
-
-Placeholder.
-
-### 3. Create event
-
-Placeholder.
-
-### 4. Update event
-
-Placeholder.
-
-### 5. Delete or cancel event
-
-Placeholder.
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/communities/:communityId/calendar?month=YYYY-MM` | Get visible events of one month |
+| `POST` | `/api/communities/:communityId/calendar/personal` | Create a personal event |
+| `PATCH` | `/api/communities/:communityId/calendar/personal/:eventId` | Update one owned personal event |
+| `DELETE` | `/api/communities/:communityId/calendar/personal/:eventId` | Soft-delete one owned personal event |
 
 ---
 
-## Common calendar error cases
+## 1. Get month events
 
-Not defined yet.
+`GET /api/communities/:communityId/calendar?month=YYYY-MM`
 
-Placeholder topics to document later:
+Success:
 
-- Invalid date ranges
-- Event overlap conflicts
-- Permission errors
-- Not found cases
+```json
+{
+  "month": "2026-04",
+  "content": [
+    {
+      "id": "uuid",
+      "title": "Junta extraordinaria",
+      "type": "NEWS",
+      "startsAt": "2026-04-03T17:00:00.000Z",
+      "endsAt": "2026-04-03T18:00:00.000Z"
+    }
+  ]
+}
+```
+
+Notes:
+
+- there is no pagination
+- one automatic `NEWS` or `VOTING` source may appear as several entries in the same month
+- the selected month is still a business-month filter expressed as `YYYY-MM`
 
 ---
 
-## Frontend integration notes
+## 2. Create personal event
 
-- Do not integrate against this module yet
-- Reuse [API Conventions](./conventions.md) for shared rules until a real contract exists
-- Revisit this page when the backend module is implemented
+`POST /api/communities/:communityId/calendar/personal`
+
+```json
+{
+  "title": "Llamar al administrador",
+  "startsAt": "2026-04-12T08:00:00.000Z",
+  "endsAt": "2026-04-12T08:30:00.000Z"
+}
+```
+
+Validation:
+
+- `title`: required, max `160`
+- `startsAt`: required UTC ISO instant
+- `endsAt`: required UTC ISO instant
+
+Rules:
+
+- personal events must start and end on the same business day in `Europe/Madrid`
+- `endsAt` must be later than `startsAt`
+
+---
+
+## 3. Update personal event
+
+`PATCH /api/communities/:communityId/calendar/personal/:eventId`
+
+Any non-empty subset of:
+
+```json
+{
+  "title": "Llamar al presidente",
+  "startsAt": "2026-04-13T09:00:00.000Z",
+  "endsAt": "2026-04-13T09:30:00.000Z"
+}
+```
+
+The final merged event still has to respect:
+
+- same business day in `Europe/Madrid`
+- `endsAt > startsAt`
+
+---
+
+## 4. Delete personal event
+
+`DELETE /api/communities/:communityId/calendar/personal/:eventId`
+
+Success:
+
+```json
+{
+  "deleted": true,
+  "eventId": "uuid"
+}
+```
+
+---
+
+## Frontend notes
+
+- send personal event ranges as UTC ISO
+- derive the visible business day by converting `startsAt` to `Europe/Madrid`
+- render all event times in `Europe/Madrid`
+- do not expect public CRUD for automatic `NEWS` or `VOTING` events

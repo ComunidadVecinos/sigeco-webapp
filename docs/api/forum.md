@@ -2,110 +2,116 @@
 
 > API index: [docs/api/README.md](./README.md)
 
-This page is reserved for the future `forum` module.
+Community forum posts, comments, reactions, forum polls and pinned posts.
 
-Planned base path: `/api/forum`
-
----
-
-## Implementation status
-
-This module is not implemented in the current backend.
-
-What is currently visible in the codebase:
-
-- No dedicated module was found under `backend/src/modules/forum`
-- No implemented HTTP routes were found for this module
-- No request or response contract is defined yet
-
-This document keeps a stable structure so it can be completed once the module exists.
+Base path: `/api/communities/:communityId/forum`
 
 ---
 
-## Overview
+## Key rules
 
-### Planned scope
-
-- Placeholder: document threads, posts and community discussions
-- Placeholder: define whether moderation belongs to this module
-- Placeholder: document whether forum content is community-scoped
-
-### What is not defined yet
-
-- Endpoint list
-- Thread and post models
-- Pagination and sorting rules
-- Module-specific error codes
+- All endpoints require session
+- Forum requires operational community access
+- Suspended members cannot read or operate in forum
+- Category values sent by client use lower-case values: `announcement`, `request`, `question`, `poll`
+- Category values returned by backend use enum values: `ANNOUNCEMENT`, `REQUEST`, `QUESTION`, `POLL`
+- Forum polls do not sync with calendar
+- Poll closing now uses `poll.endsAt` as **UTC ISO**
 
 ---
 
-## Access rules
+## Poll shape returned by backend
 
-Not defined yet.
-
-Placeholder topics to document later:
-
-- Who can create threads
-- Who can reply or moderate content
-- Whether suspended members can still read forum content
-
----
-
-## Common response shapes
-
-Not defined yet.
-
-Placeholder topics to document later:
-
-- Thread summary
-- Thread detail
-- Post summary
-
----
-
-## Endpoints
-
-No endpoints are currently implemented for this module.
-
-Placeholder sections to complete later:
-
-### 1. List threads
-
-Placeholder.
-
-### 2. Get thread detail
-
-Placeholder.
-
-### 3. Create thread
-
-Placeholder.
-
-### 4. Reply to thread
-
-Placeholder.
-
-### 5. Edit, moderate or delete content
-
-Placeholder.
+```json
+{
+  "id": "uuid",
+  "title": "Horario de piscina de verano",
+  "description": "Consulta específica de la encuesta",
+  "startsAt": "2026-03-31T18:00:00.000Z",
+  "endsAt": "2026-04-05T18:00:00.000Z",
+  "status": "OPEN",
+  "totalVotes": 11,
+  "myVoteOptionId": "uuid",
+  "options": [
+    {
+      "id": "uuid",
+      "title": "Opción A",
+      "votes": 7
+    }
+  ]
+}
+```
 
 ---
 
-## Common forum error cases
+## Create poll post
 
-Not defined yet.
+`POST /api/communities/:communityId/forum/posts`
 
-Placeholder topics to document later:
+Poll example:
 
-- Not found cases
-- Permission errors
-- Validation errors
-- Moderation conflicts
+```json
+{
+  "title": "Debate sobre el horario de piscina",
+  "description": "Comentemos el posible cambio antes de votar",
+  "category": "poll",
+  "poll": {
+    "title": "Horario de piscina de verano",
+    "description": "¿Os parece bien adelantar el horario?",
+    "endsAt": "2026-04-05T18:00:00.000Z",
+    "options": [
+      { "title": "Sí" },
+      { "title": "No" }
+    ]
+  }
+}
+```
+
+Validation:
+
+- `poll.endsAt` is optional
+- if present, it must be a valid UTC ISO instant later than current backend time
+- forum polls may still have no end date
 
 ---
 
-## Frontend integration notes
+## Other maintained endpoints
 
-- Do not integrate against this module yet
-- Reuse [API Conventions](./conventions.md) for shared rules until a real contract exists
-- Revisit this page when the backend module is implemented
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/communities/:communityId/forum/posts` | List forum posts |
+| `GET` | `/api/communities/:communityId/forum/posts/:postId` | Get one post |
+| `PATCH` | `/api/communities/:communityId/forum/posts/:postId` | Update one post |
+| `DELETE` | `/api/communities/:communityId/forum/posts/:postId` | Soft-delete one post |
+| `POST` | `/api/communities/:communityId/forum/posts/:postId/comments` | Create comment |
+| `GET` | `/api/communities/:communityId/forum/posts/:postId/comments` | List comments |
+| `PATCH` | `/api/communities/:communityId/forum/comments/:commentId` | Update comment |
+| `DELETE` | `/api/communities/:communityId/forum/comments/:commentId` | Delete comment |
+| `POST` | `/api/communities/:communityId/forum/posts/:postId/likes/toggle` | Toggle post reaction |
+| `POST` | `/api/communities/:communityId/forum/comments/:commentId/likes/toggle` | Toggle comment reaction |
+| `POST` | `/api/communities/:communityId/forum/polls/:pollId/vote` | Vote in a forum poll |
+| `POST` | `/api/communities/:communityId/forum/posts/:postId/pin` | Pin a post |
+| `POST` | `/api/communities/:communityId/forum/posts/:postId/unpin` | Unpin a post |
+
+---
+
+## Frontend notes
+
+- treat every `...At` field as UTC
+- render `startsAt`, `endsAt`, `createdAt`, `editedAt`, `lastActivityAt` and `votedAt` in `Europe/Madrid`
+- send poll closing as `poll.endsAt`
+- do not rebuild separate `poll.endDate` / `poll.endTime`; the API no longer uses them
+
+---
+
+## Delete comment behavior
+
+`DELETE /api/communities/:communityId/forum/comments/:commentId`
+
+- does not remove the comment row from the thread
+- returns the updated comment item already anonymized
+- the visible content becomes:
+  - `El contenido ha sido eliminado por el autor`
+  - or `El contenido ha sido eliminado por el administrador`
+- `author` becomes `null`
+- `likesCount` becomes `0`

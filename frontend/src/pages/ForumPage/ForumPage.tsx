@@ -8,44 +8,72 @@ import { Menu, Filter, CalendarIcon } from 'lucide-react';
 import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { getPosts, createPost, updatePost, deletePost, toggleLike, getComments, addComment, updateComment, deleteComment, votePoll } from '@/services/forumService';
-import {format} from "date-fns";
+import { getPosts, createPost, updatePost, deletePost, toggleLike, getComments, addComment, updateComment, deleteComment, votePoll, pinPost, unpinPost, toggleCommentLike } from '@/services/forumService';
+import { format } from "date-fns";
 import { es } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DateRange } from 'react-day-picker';
+import { useNavigate } from 'react-router-dom';
 
 
-type PostCategory = 'pregunta' | 'encuesta' | 'anuncio' | 'solicitud';
+type PostCategory = 'question' | 'poll' | 'announcement' | 'request';
 
-interface Comment {
-    id: number;
-    authorName: string;
-    authorAvatar?: string;
-    content: string;
-    timestamp: string;
-    isOwner?: boolean;
+interface PollOption {
+    id: string;
+    title: string;
+    votes: number;
+}
+
+interface Poll {
+    id: string;
+    title: string;
+    description: string | null;
+    startsAt: string;
+    endsAt: string;
+    status: 'OPEN' | 'CLOSED';
+    totalVotes: number;
+    myVoteOptionId: string | null;
+    options: PollOption[];
+}
+
+interface PostAuthor {
+    membershipId: string;
+    alias: string | null;
+    profileImageUrl: string | null;
+    role: string;
 }
 
 interface Post {
-    id: number;
-    authorName: string;
-    authorAvatar?: string;
-    content: string;
-    timestamp: string;
+    id: string;
+    title: string;
+    description: string;
     category: PostCategory;
-    likes: number;
-    views: number;
-    commentCount: number;
-    pollOptions?: { text: string; votes: number }[];
-    hasLiked: boolean;
-    hasVoted: number | null;
-    isOwner: boolean;
+    pinned: boolean;
+    createdAt: string;
+    lastActivityAt: string;
+    editedAt: string | null;
+    author: PostAuthor | null;
+    likesCount: number;
+    commentsCount: number;
+    poll: Poll | null;
+}
+
+interface Comment {
+    id: string;
+    postId: string;
+    content: string;
+    createdAt: string;
+    editedAt: string;
+    isDeleted: boolean;
+    author: { membershipId: string; alias: string | null; profileImageUrl: string | null; role: string } | null;
+    likesCount: number;
 }
 
 
 const ForumPage: React.FC = () => {
-    const { user } = useAuth();
+    const navigate = useNavigate();
+    const { user, loading: authLoading } = useAuth();
     const communityId = user?.activeCommunityId;
 
     //Rol del usuario
@@ -62,14 +90,22 @@ const ForumPage: React.FC = () => {
     const [endDate, setEndDate] = useState('');
     const [loading, setLoading] = useState(false);
     const [featureUnavailable, setFeatureUnavailable] = useState(false);
+    const [sortBy, setSortBy] = useState<'createdAt' | 'likes' | 'lastActivityAt'>('createdAt');
 
     //Comentarios
     const [selectedPost, setSelectedPost] = useState<Post | null>(null);
     const [commentsList, setCommentsList] = useState<Comment[]>([]);
+    const [commentsSortby, setCommentsSortBy] = useState<'createdAt' | 'likes'>('createdAt');
 
     //Editar post
-    const [editingPostId, setEditingPostId] = useState<number | null>(null);
+    const [editingPostId, setEditingPostId] = useState<string | null>(null);
     const [editPostContent, setEditPostContent] = useState('');
+
+    useEffect(() => {
+        if (!authLoading && user && !communityId) {
+            navigate('/auth/me', { replace: true });
+        }
+    }, [authLoading, communityId, navigate, user]);
 
     //Cargar posts
     const loadPosts = async (pageNum: number, append: boolean = false) => {
@@ -77,12 +113,20 @@ const ForumPage: React.FC = () => {
         setLoading(true);
         try {
             setFeatureUnavailable(false);
-            const res = await getPosts(communityId, { page: pageNum, pageSize: 10, category: categoryFilter || undefined, startDate: startDate || undefined, endDate: endDate || undefined });
-            const newPosts = res.data.content || [];
-            setPosts(append ? [...posts, ...newPosts] : newPosts);
-            setHasMore(!res.data.last);
+            const res = await getPosts(communityId, {
+                page: pageNum + 1,
+                pageSize: 10,
+                category: (categoryFilter as any) || undefined,
+                from: startDate || undefined,
+                to: endDate || undefined,
+                sortBy
+            });
+            const newPosts = (res.data.items || []).map((p: any) => ({ ...p, category: p.category.toLowerCase() }));
+            setPosts(prev => append ? [...prev, ...newPosts] : newPosts);
+            const pagination = res.data.pagination;
+            setHasMore(pagination.page < pagination.totalPages);
         } catch (err: any) {
-            if(err?.response?.status === 404){
+            if (err?.response?.status === 404) {
                 setFeatureUnavailable(true);
                 setPosts([]);
                 setHasMore(false);
@@ -93,7 +137,7 @@ const ForumPage: React.FC = () => {
         }
     };
 
-    useEffect(() => {setPage(0); loadPosts(0); }, [communityId, categoryFilter, startDate, endDate]);
+    useEffect(() => { setPage(0); loadPosts(0); }, [communityId, categoryFilter, startDate, endDate, sortBy]);
 
     const handleLoadMore = () => {
         const nextPage = page + 1;
@@ -102,26 +146,35 @@ const ForumPage: React.FC = () => {
     }
 
     //Crear post
-    const handleNewPost = async (content: string, category: PostCategory, pollOptions?: string[]) => {
+    const handleNewPost = async (title: string, description: string, category: PostCategory, pollOptions?: string[]) => {
         if (!communityId) return;
         if (featureUnavailable) return;
         try {
-            await createPost(communityId, { content, category, pollOptions });
+            const data: any = { title, description, category }
+            if (category === 'poll' && pollOptions) {
+                data.poll = {
+                    title,
+                    options: pollOptions.map(opt => ({ title: opt }))
+                };
+            }
+            await createPost(communityId, data);
             setPage(0);
             loadPosts(0);
         }
         catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al crear publicaciópn');
+            alert(err.response?.data?.error?.message || 'Error al crear publicación');
         }
     };
 
     //Editar post
-    const handleEditPost = async (postId: number) => {
+    const handleEditPost = async (postId: string) => {
         if (!communityId || !editPostContent.trim()) return;
         if (featureUnavailable) return;
         try {
-            await updatePost(communityId, postId, { content: editPostContent });
-            setPosts(posts.map(p => p.id === postId ? { ...p, content: editPostContent } : p));
+            await updatePost(communityId, postId, { description: editPostContent });
+            setPosts(prev => prev.map(p => 
+                p.id === postId ? {...p, description: editPostContent, editedAt: new Date().toISOString()} : p
+            ));
             setEditingPostId(null);
             setEditPostContent('');
         } catch (err: any) {
@@ -130,7 +183,7 @@ const ForumPage: React.FC = () => {
     };
 
     //Eliminar post
-    const handleDeletePost = async (postId: number) => {
+    const handleDeletePost = async (postId: string) => {
         if (!communityId || !confirm('¿Eliminar esta publicación?')) return;
         if (featureUnavailable) return;
         try {
@@ -142,47 +195,58 @@ const ForumPage: React.FC = () => {
     };
 
     //Dar o quitar like
-    const handleLike = async (postId: number) => {
+    const handleLike = async (postId: string) => {
         if (!communityId) return;
         if (featureUnavailable) return;
         try {
             const res = await toggleLike(communityId, postId);
-            setPosts(posts.map(p => p.id === postId ? {
-                ...p,
-                hasLiked: res.data.liked,
-                likes: res.data.liked ? p.likes + 1 : p.likes - 1
-            } : p));
+            const newLikesCount = res.data.likesCount;
+            setPosts(posts.map(p => p.id === postId ? { ...p, likesCount: newLikesCount, } : p));
         } catch (err: any) {
             console.error('Error al dar like', err);
         }
     };
 
     // Votar encuesta
-    const handleVote = async (postId: number, optionIndex: number) => {
+    const handleVote = async (postId: string, pollId: string, optionId: string) => {
         if (!communityId) return;
         if (featureUnavailable) return;
         try {
-            await votePoll(communityId, postId, { optionIndex });
-            setPosts(posts.map(p => {
-                if (p.id !== postId || !p.pollOptions) return p;
-                const newOptions = p.pollOptions.map((opt, i) =>
-                    i === optionIndex ? { ...opt, votes: opt.votes + 1 } : opt
-                );
-                return { ...p, hasVoted: optionIndex, pollOptions: newOptions };
-            }));
+            await votePoll(communityId, pollId, { optionId });
+            setPage(0);
+            loadPosts(0);
         } catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al votar');
+        }
+    };
+
+    //Fijar/desfijar publicacion
+    const handleTogglePin = async (post: Post) => {
+        if (!communityId) return;
+        if (featureUnavailable) return;
+        try {
+            if (post.pinned) {
+                await unpinPost(communityId, post.id);
+            }
+            else {
+                await pinPost(communityId, post.id);
+            }
+            setPosts(prev => prev.map(p => p.id === post.id ? { ...p, pinned: !p.pinned } : p));
+        }
+        catch (err: any) {
+            alert(err.response?.data?.error?.message || 'Error al fijar/desfijar publicación');
         }
     };
 
     //Cargar comentarios
     const handleOpenComments = async (post: Post) => {
         setSelectedPost(post);
+        setCommentsSortBy('createdAt');
         if (!communityId) return;
         if (featureUnavailable) return;
         try {
-            const res = await getComments(communityId, post.id, { page: 0, pageSize: 50 });
-            setCommentsList(res.data.content || []);
+            const res = await getComments(communityId, post.id, { page: 1, pageSize: 50, sortBy: 'createdAt' });
+            setCommentsList(res.data.items || []);
         } catch (err) {
             console.error('Error cargando comentarios', err);
             setCommentsList([]);
@@ -196,34 +260,54 @@ const ForumPage: React.FC = () => {
         try {
             const res = await addComment(communityId, selectedPost.id, { content });
             setCommentsList([...commentsList, res.data]);
-            setPosts(posts.map(p => p.id === selectedPost.id ? { ...p, commentCount: p.commentCount + 1 } : p));
+            setPosts(posts.map(p => p.id === selectedPost.id ? { ...p, commentsCount: p.commentsCount + 1 } : p));
         } catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al comentar');
         }
     };
 
     // Editar comentario
-    const handleEditComment = async (commentId: number, content: string) => {
+    const handleEditComment = async (commentId: string, content: string) => {
         if (!communityId || !selectedPost) return;
         if (featureUnavailable) return;
         try {
-            await updateComment(communityId, selectedPost.id, commentId, { content });
-            setCommentsList(commentsList.map(c => c.id === commentId ? { ...c, content } : c));
+            await updateComment(communityId, commentId, { content });
+            setCommentsList(commentsList.map(c => c.id === commentId ? { ...c, content, editedAt: new Date().toISOString() } : c));
         } catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al editar comentario');
         }
     };
 
     // Eliminar comentario
-    const handleDeleteComment = async (commentId: number) => {
+    const handleDeleteComment = async (commentId: string) => {
         if (!communityId || !selectedPost || !confirm('¿Eliminar este comentario?')) return;
         if (featureUnavailable) return;
         try {
-            await deleteComment(communityId, selectedPost.id, commentId);
-            setCommentsList(commentsList.filter(c => c.id !== commentId));
-            setPosts(posts.map(p => p.id === selectedPost.id ? { ...p, commentCount: p.commentCount - 1 } : p));
+            const res = await deleteComment(communityId, commentId);
+            setCommentsList(commentsList.map(c => c.id === commentId ? res.data : c));
         } catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al eliminar comentario');
+        }
+    };
+
+    //Like en comentario
+    const handleLikeComment = async (commentId: string) => {
+        if (!communityId) return;
+        try {
+            const res = await toggleCommentLike(communityId, commentId);
+            setCommentsList(commentsList.map(c => c.id === commentId ? { ...c, likesCount: res.data.likesCount } : c));
+        } catch (err: any) {
+            console.error('Error al dar like al comentario', err);
+        }
+    };
+
+    const reloadComments = async (sort: 'createdAt' | 'likes') => {
+        if (!communityId || !selectedPost) return;
+        try {
+            const res = await getComments(communityId, selectedPost.id, { page: 1, pageSize: 50, sortBy: sort });
+            setCommentsList(res.data.items || []);
+        } catch (err) {
+            console.error('Error recargando comentarios', err);
         }
     };
 
@@ -249,11 +333,21 @@ const ForumPage: React.FC = () => {
                     </div>
                 )}
 
-                <div className='flex justify-end mb-4'>
-                    <Button variant={(categoryFilter || startDate || endDate) ? 'default' : 'outline'} size="sm" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className='flex items-center gap-2'>
-                        <Filter className='h-4 w-4' />
-                        Filtros {(categoryFilter || startDate || endDate) && "(Activos)"}
-                    </Button>
+                <div className='flex justify-between items-center mb-4'>
+                    <div className="flex gap-2">
+                        <Button variant={sortBy === 'createdAt' ? 'default' : 'outline'} size="sm" onClick={() => setSortBy('createdAt')}>
+                            Recientes
+                        </Button>
+                        <Button variant={sortBy === 'lastActivityAt' ? 'default' : 'outline'} size="sm" onClick={() => setSortBy('lastActivityAt')}>
+                            Actividad
+                        </Button>
+                        <Button variant={sortBy === 'likes' ? 'default' : 'outline'} size="sm" onClick={() => setSortBy('likes')}>
+                            Likes
+                        </Button>
+                        <Button variant={(categoryFilter || startDate || endDate) ? 'default' : 'outline'} size="sm" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className='flex items-center gap-2'>
+                            <Filter className='h-4 w-4' /> Filtros{(categoryFilter || startDate || endDate) && "(Activos)"}
+                        </Button>
+                    </div>
                 </div>
 
                 {showAdvancedFilters && (
@@ -264,10 +358,10 @@ const ForumPage: React.FC = () => {
                                 <label className='block text-sm font-bold text-gray-900 mb-3 border-b border-gray-100 pb-2'>Categoría</label>
                                 <div className='flex flex-col gap-2'>
                                     <Button variant={categoryFilter === '' ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter('')}>Todos</Button>
-                                    <Button variant={categoryFilter === 'pregunta' ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter('pregunta')}>❓ Preguntas</Button>
-                                    <Button variant={categoryFilter === 'encuesta' ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter('encuesta')}>📊 Encuestas</Button>
-                                    <Button variant={categoryFilter === 'anuncio' ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter('anuncio')}>📢 Anuncios</Button>
-                                    <Button variant={categoryFilter === 'solicitud' ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter('solicitud')}>🙋 Solicitudes</Button>
+                                    <Button variant={categoryFilter === 'question' ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter('question')}>❓ Preguntas</Button>
+                                    <Button variant={categoryFilter === 'poll' ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter('poll')}>📊 Encuestas</Button>
+                                    <Button variant={categoryFilter === 'announcement' ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter('announcement')}>📢 Anuncios</Button>
+                                    <Button variant={categoryFilter === 'request' ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter('request')}>🙋 Solicitudes</Button>
                                 </div>
                             </div>
 
@@ -334,24 +428,32 @@ const ForumPage: React.FC = () => {
                             <PostCard
                                 key={post.id}
                                 postId={post.id}
-                                authorName={post.authorName}
-                                authorAvatar={post.authorAvatar}
-                                content={post.content}
-                                timestamp={post.timestamp}
+                                title={post.title}
+                                authorName={post.author?.alias || 'Anonimo'}
+                                authorAvatar={post.author?.profileImageUrl || undefined}
+                                content={post.description}
+                                timestamp={post.createdAt}
                                 category={post.category}
-                                likes={post.likes}
-                                views={post.views}
-                                comments={post.commentCount}
-                                pollOptions={post.pollOptions}
-                                hasLiked={post.hasLiked}
-                                hasVoted={post.hasVoted}
-                                isOwner={post.isOwner}
+                                likes={post.likesCount}
+                                comments={post.commentsCount}
+                                pollOptions={post.poll?.options.map(opt => ({ text: opt.title, votes: opt.votes })) || undefined}
+                                hasLiked={false}
+                                hasVoted={post.poll?.myVoteOptionId ? post.poll.options.findIndex(o => o.id === post.poll!.myVoteOptionId) : null}
+                                isOwner={post.author?.membershipId === activeCommunity?.membershipId}
                                 isAdmin={isAdmin}
                                 onCommentsClick={() => handleOpenComments(post)}
                                 onLike={() => handleLike(post.id)}
-                                onVote={(optionIndex) => handleVote(post.id, optionIndex)}
-                                onEdit={() => { setEditingPostId(post.id); setEditPostContent(post.content); }}
+                                onVote={(optionIndex) => {
+                                    if (post.poll) {
+                                        const option = post.poll.options[optionIndex];
+                                        if (option) handleVote(post.id, post.poll.id, option.id);
+                                    }
+                                }}
+                                onEdit={post.category !== 'poll' ? () => { setEditingPostId(post.id); setEditPostContent(post.description); } : undefined}
                                 onDelete={() => handleDeletePost(post.id)}
+                                onPin={isAdmin ? () => handleTogglePin(post) : undefined}
+                                pinned={post.pinned}
+                                editedAt={post.editedAt}
                             />
                         )
                     ))}
@@ -379,13 +481,26 @@ const ForumPage: React.FC = () => {
             <CommentsModal
                 isOpen={selectedPost !== null}
                 onClose={() => { setSelectedPost(null); setCommentsList([]); }}
-                postContent={selectedPost?.content || ''}
-                postAuthor={selectedPost?.authorName || ''}
-                comments={commentsList}
+                postTitle={selectedPost?.title || ''}
+                postContent={selectedPost?.description || ''}
+                postAuthor={selectedPost?.author?.alias || ''}
+                comments={commentsList.map(c => ({
+                    id: c.id,
+                    authorName: c.author?.alias || 'Anonimo',
+                    authorAvatar: c.author?.profileImageUrl || undefined,
+                    content: c.content,
+                    timestamp: c.createdAt,
+                    isOwner: c.author?.membershipId === activeCommunity?.membershipId,
+                    likesCount: c.likesCount,
+                    editedAt: c.editedAt
+                }))}
                 isAdmin={isAdmin}
                 onAddComment={handleAddComment}
                 onEditComment={handleEditComment}
                 onDeleteComment={handleDeleteComment}
+                onLikeComment={handleLikeComment}
+                commentsSortBy={commentsSortby}
+                onChangeCommentsSortBy={async (sort) => { setCommentsSortBy(sort); await reloadComments(sort); }}
 
             />
         </div>

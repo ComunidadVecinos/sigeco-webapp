@@ -9,7 +9,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "db:reset": "prisma migrate reset --force && prisma db seed",
+    "db:reset": "prisma migrate reset --force",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio"
   },
@@ -19,6 +19,7 @@
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "luxon": "^3.7.2",
     "multer": "^2.1.1",
     "nodemailer": "^6.9.16",
     "zod": "^4.1.13"

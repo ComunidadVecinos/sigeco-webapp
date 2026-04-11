@@ -1,24 +1,26 @@
 const { FileTypeUnsupportedError } = require('../errors');
 
 /**
- * Inspección binaria para imágenes subidas por usuarios.
+ * Inspección binaria mínima para imágenes subidas por usuarios.
+ * - No confiar solo en el MIME declarado por el cliente.
+ * - Detectar de forma simple si el buffer parece realmente un JPG o un PNG.
+ * - Solo se admiten `image/jpeg` y `image/png`.
+ * - Solo devolvemos la metadata necesaria para persistir el archivo con una extensión coherente (`jpg` o `png`).
  */
 
-const ALLOWED_IMAGE_SIGNATURES = {
-  'image/jpeg': { extension: 'jpg' },
-  'image/png': { extension: 'png' }
-};
+const ALLOWED_IMAGE_SIGNATURES = { 'image/jpeg': { extension: 'jpg' }, 'image/png': { extension: 'png' } };
 
 function detectImageMimeType(buffer) {
   if (!buffer || buffer.length < 8) {
     // El archivo puede venir corrupto o incompleto; se devuelve un mensaje comprensible para el usuario.
     throw new FileTypeUnsupportedError('El archivo de imagen no es válido');
   }
-
+  // Firma binaria mínima de JPEG.
   if (buffer[0] === 0xff && buffer[1] === 0xd8) {
     return 'image/jpeg';
   }
 
+  // Firma binaria estándar de PNG.
   const isPng =
     buffer[0] === 0x89 &&
     buffer[1] === 0x50 &&
@@ -32,7 +34,6 @@ function detectImageMimeType(buffer) {
   if (isPng) {
     return 'image/png';
   }
-
   throw new FileTypeUnsupportedError('Solo se admiten imágenes JPG y PNG');
 }
 
@@ -40,13 +41,11 @@ function getImageExtension(mimeType) {
   return ALLOWED_IMAGE_SIGNATURES[mimeType]?.extension || null;
 }
 
-//Extrae metadata mínima necesaria para persistir una imagen validada.
+// Extrae metadata mínima necesaria para persistir una imagen validada (solo necesitamos la extensión final).
 function inspectImageBuffer(buffer) {
   const mimeType = detectImageMimeType(buffer);
 
-  return {
-    extension: getImageExtension(mimeType)
-  };
+  return { extension: getImageExtension(mimeType) };
 }
 
 module.exports = { inspectImageBuffer };

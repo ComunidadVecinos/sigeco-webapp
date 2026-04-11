@@ -10,9 +10,12 @@ import LogoutModal from '../../components/ui/LogoutModal/LogoutModal';
 import DeleteAccountModal from '../../components/ui/DeleteAccountModal/DeleteAccountModal';
 import { useAuth } from '../../context/authContext';
 import { changePassword } from '../../services/authServices';
+import { deleteAvatar } from '@/services/userServices';
 import { Button } from '@/components/ui/button';
 import {Pencil, Camera, ChevronRight, LogOut, Trash2, Plus, Archive} from 'lucide-react';
 import { getMyRequests, archiveRequest, cancelRequest } from '@/services/communityServices';
+import LeaveCommunityModal from '@/components/ui/LeaveCommunityModal/LeaveCommunityModal';
+
 
 const ProfilePage: React.FC = () =>{
 
@@ -37,6 +40,8 @@ const ProfilePage: React.FC = () =>{
         open: false,
         community: null
     });
+
+    const [leaveModal, setLeaveModal] = useState<{open: boolean; communityId: string; name: string}> ({open: false, communityId: '', name: ''});
 
     const navigate = useNavigate();
 
@@ -152,7 +157,7 @@ const ProfilePage: React.FC = () =>{
 
                             <div className="space-y-3">
                                 {user.communities.map((com: any) => (
-                                    <div key={com.communityId} className='border border-gray-200 rounded-xl p-4 flex items-center gap-4'>
+                                    <div key={com.communityId} className={`rounded-xl p-4 flex items-center gap-4 ${com.communityId === user?.activeCommunityId ? 'border-2 border-blue-300 bg-blue-50/40 ring-1 ring-blue-100' : 'border border-gray-200'}`}>
                                         <img src={imagen_generica} alt={com.name} className='w-16 h-16 rounded-full object-cover border-2 border-gray-200' />
                                         <div className="flex-1">
                                             <div className="flex items-start justify-between gap-3">
@@ -160,13 +165,16 @@ const ProfilePage: React.FC = () =>{
                                                     <h5 className="font-bold">{com.name}</h5>
                                                     <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{com.role}</span>
                                                 </div>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setCommunityInfoModal({ open: true, community: com })}
-                                                >
-                                                    <Pencil className='h-4 w-4 mr-1'/>Editar
-                                                </Button>
+                                                <div className="flex gap-2">
+                                                    <Button variant="outline" size="sm" onClick={() => setCommunityInfoModal({open: true, community: com})}>
+                                                        <Pencil className='h-4 w-4 mr-1'/>Editar
+                                                    </Button>
+                                                    {com.role !== 'PRESIDENT' && (
+                                                        <Button variant="outline" size="sm" className='text-red-600 border-red-200 hover:bg-red-50' onClick={() => setLeaveModal({open: true, communityId: com.communityId, name: com.name})}>
+                                                            <LogOut className='h-4 w-4 mr-1'/>Abandonar
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
                                             <p className="text-sm text-gray-500 mt-1">Alias: {com.alias}</p>
                                             <p className="text-sm text-gray-500">{com.address || 'Sin dirección asociada'}</p>
@@ -222,7 +230,7 @@ const ProfilePage: React.FC = () =>{
 
                     <h4 className='font-bold mb-2'>Configuración de la cuenta</h4>
 
-                    <p className='text-sm text-gray-500 mb-4'>Cambia tu contraseña y gestiona tus notificaciones</p>
+                    <p className='text-sm text-gray-500 mb-4'>Cambia tu contraseña y gestiona la configuración de tu cuenta</p>
                     
                     <div className="flex justify-between items-center py-4 border-b border-gray-100">
                         <div>
@@ -231,18 +239,6 @@ const ProfilePage: React.FC = () =>{
                         </div>
                         
                         <Button variant="outline" size="sm" onClick={() => setPasswordModalOpen(true)}>
-                            <ChevronRight className="h-4 w-4"/>
-                        </Button>
-                    </div>
-                    
-                    <div className="flex justify-between items-center py-4">
-                        <div>
-                            <h5 className='font-bold text-base'>Gestionar notificaciones</h5>
-                            <p className="text-sm text-gray-500">Modificar tus preferencias para recibir notificaciones.</p>
-                        </div>
-                    
-
-                        <Button variant="outline" size="sm">
                             <ChevronRight className="h-4 w-4"/>
                         </Button>
                     </div>
@@ -281,7 +277,9 @@ const ProfilePage: React.FC = () =>{
                     isOpen={photoModalOpen}
                     onClose={() => setPhotoModalOpen(false)}
                     currentPhoto={profilePhoto}
-                    onSave={(newPhoto) => setProfilePhoto(newPhoto)}
+                    onSave={async (newPhoto) => {setProfilePhoto(newPhoto); await refreshUser();}}
+                    onDeletePhoto={async () => {await deleteAvatar(); await refreshUser();}}
+                    defaultPhoto={imagen_generica}
                 />
 
                 <EditPasswordModal
@@ -322,6 +320,15 @@ const ProfilePage: React.FC = () =>{
                     }}
                 />
 
+                <LeaveCommunityModal
+                    isOpen={leaveModal.open}
+                    onClose={() => setLeaveModal({open: false, communityId: '', name: ''})}
+                    communityId={leaveModal.communityId}
+                    communityName={leaveModal.name}
+                    onSuccess={async () => {
+                        await refreshUser();
+                    }}
+                />
         </div>
     );
 

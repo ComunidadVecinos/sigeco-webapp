@@ -499,6 +499,47 @@ async function createRequestWithDetails(data) {
   });
 }
 
+async function cancelPendingRequestsByUserAndCommunity(db, { userId, communityId, cancelledAt = new Date() }) {
+  return db.communityRequest.updateMany({
+    where: {
+      userId,
+      communityId,
+      status: 'PENDING',
+      archivedAt: null
+    },
+    data: {
+      status: 'CANCELLED',
+      cancelledAt
+    }
+  });
+}
+
+async function archiveRequestsByUserId(db, { userId, archivedAt = new Date() }) {
+  // Las pendientes se cancelan antes de archivar para no dejar solicitudes "abiertas" de una cuenta inexistente.
+  await db.communityRequest.updateMany({
+    where: {
+      userId,
+      status: 'PENDING',
+      archivedAt: null
+    },
+    data: {
+      status: 'CANCELLED',
+      cancelledAt: archivedAt
+    }
+  });
+
+  // Al eliminar la cuenta desaparece la superficie de gestión del usuario; se archivan todas sus solicitudes visibles.
+  return db.communityRequest.updateMany({
+    where: {
+      userId,
+      archivedAt: null
+    },
+    data: {
+      archivedAt
+    }
+  });
+}
+
 module.exports = {
   findCommunityByAccessCode,
   findActiveMembershipByUserAndCommunity,
@@ -510,5 +551,7 @@ module.exports = {
   updateRequestState,
   approveRequest,
   rejectRequest,
-  createRequestWithDetails
+  createRequestWithDetails,
+  cancelPendingRequestsByUserAndCommunity,
+  archiveRequestsByUserId
 };

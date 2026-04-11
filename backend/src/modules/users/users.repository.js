@@ -1,5 +1,10 @@
 // Acceso a datos del módulo users.
 const prisma = require('../../lib/prisma');
+const calendarRepository = require('../calendar/calendar.repository');
+const forumRepository = require('../forum/forum.repository');
+const newsRepository = require('../news/news.repository');
+const requestsRepository = require('../requests/requests.repository');
+const votingRepository = require('../voting/voting.repository');
 
 async function findUserProfileById(userId) {
   const user = await prisma.user.findUnique({
@@ -130,6 +135,31 @@ async function replaceUserProfileImage(userId, fileData) {
   });
 }
 
+async function deleteUserProfileImage(userId) {
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        deletedAt: true,
+        avatar: { select: { id: true, storagePath: true } }
+      }
+    });
+
+    if (!user || user.deletedAt !== null) {
+      return null;
+    }
+
+    if (!user.avatar?.id) {
+      return { storagePath: null };
+    }
+
+    await tx.userAvatar.delete({ where: { userId } });
+
+    return { storagePath: user.avatar.storagePath };
+  });
+}
+
 async function deleteUserAccount(userId, deletionData) {
   // El borrado de cuenta es lógico: invalida acceso y relaciones activas, pero conserva trazabilidad mínima.
   return prisma.$transaction(async (tx) => {
@@ -154,6 +184,13 @@ async function deleteUserAccount(userId, deletionData) {
     const membershipIds = user.memberships.map((membership) => membership.id);
 
     if (membershipIds.length > 0) {
+      await calendarRepository.softDeletePersonalEventsByMembershipIds(tx, membershipIds, now);
+      await votingRepository.deleteVotesOfMembershipsInOpenPolls(tx, membershipIds, now);
+      await forumRepository.deleteForumLikesByMembershipIds(tx, membershipIds);
+      await forumRepository.softDeleteForumPostsByMembershipIds(tx, membershipIds, now);
+      await forumRepository.anonymizeForumCommentsByMembershipIds(tx, membershipIds);
+      await newsRepository.anonymizeNewsByMembershipIds(tx, membershipIds);
+      await requestsRepository.archiveRequestsByUserId(tx, { userId, archivedAt: now });
       // Se marca también la vivienda, porque su significado depende de la membership eliminada.
       await tx.property.updateMany({
         where: { membershipId: { in: membershipIds }, deletedAt: null
@@ -168,6 +205,9 @@ async function deleteUserAccount(userId, deletionData) {
         },
         data: { endedAt: now, endReason: 'USER_ACCOUNT_DELETED', deletedAt: now }
       });
+    }
+    else {
+      await requestsRepository.archiveRequestsByUserId(tx, { userId, archivedAt: now });
     }
 
     await tx.session.updateMany({
@@ -198,4 +238,12 @@ async function deleteUserAccount(userId, deletionData) {
   });
 }
 
-module.exports = { findUserProfileById, findUserProfileImageContext, updateActiveMembershipContext, updateUserProfile, replaceUserProfileImage, deleteUserAccount };
+module.exports = {
+  findUserProfileById,
+  findUserProfileImageContext,
+  updateActiveMembershipContext,
+  updateUserProfile,
+  replaceUserProfileImage,
+  deleteUserProfileImage,
+  deleteUserAccount
+};

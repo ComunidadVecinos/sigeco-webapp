@@ -8,22 +8,33 @@ import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getNews, createNews, updateNews, deleteNews } from '@/services/newsService';
+import { useNavigate } from 'react-router-dom';
 
 interface News {
-    id: number;
+    id: string;
     title: string;
     content: string;
     createdAt: string;
+    editedAt?: string | null;
+    authorAlias?: string | null;
+    isEvent?: boolean;
+    eventStartDate?: string;
+    eventStartTime?: string;
+    eventEndDate?: string;
+    eventEndTime?: string;
+    imageUrl?: string;
 }
 
 const NewsPage: React.FC = () => {
-    const {user} = useAuth();
+    const navigate = useNavigate();
+    const {user, loading: authLoading} = useAuth();
     const communityId = user?.activeCommunityId;
 
     //Rol del usuario
     const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
     const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
 
+    
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [newsList, setNewsList] = useState<News[]>([]);
     const [page, setPage] = useState(0);
@@ -37,8 +48,17 @@ const NewsPage: React.FC = () => {
 
     //Modal de crear/editar
     const [isFormOpen, setIsFormOpen] = useState(false);
-    const [editingNewsId, setEditingNewsId] = useState<number | null>(null);
-    const [formData, setFormData] = useState({title: '', content: ''});
+    const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
+    const [formData, setFormData] = useState({title: '', content: '', isEvent: false, eventStartDate: '', eventStartTime: '', eventEndDate: '', eventEndTime: '', imageFile: null as File | null, imagePreview: ''});
+
+    const [eventTypeFilter, setEventTypeFilter] = useState<'all' | 'event' | 'nonEvent'>('all');
+    
+    useEffect(() => {
+        if (!authLoading && user && !communityId) {
+            navigate('/auth/me', { replace: true });
+        }
+    }, [authLoading, communityId, navigate, user]);
+    
 
     //Cargar noticias
     const loadNews = async (pageNum: number, append: boolean = false) => {
@@ -51,7 +71,8 @@ const NewsPage: React.FC = () => {
                 pageSize: 10,
                 search: searchQuery || undefined,
                 startDate: startDate || undefined,
-                endDate: endDate || undefined
+                endDate: endDate || undefined,
+                eventType: eventTypeFilter
             });
             const fetchedNews = res.data.content || [];
             setNewsList(append ? [...newsList, ...fetchedNews] : fetchedNews);
@@ -68,7 +89,7 @@ const NewsPage: React.FC = () => {
         }
     };
 
-    useEffect(() => {setPage(0); loadNews(0);}, [communityId, searchQuery, startDate, endDate]);
+    useEffect(() => {setPage(0); loadNews(0);}, [communityId, searchQuery, startDate, endDate, eventTypeFilter]);
 
     const handleLoadMore = () => {
         const nextPage = page + 1;
@@ -87,7 +108,7 @@ const NewsPage: React.FC = () => {
                 await createNews(communityId, formData);
             }
             setIsFormOpen(false);
-            setFormData({title: '', content: ''});
+            setFormData({title: '', content: '', isEvent: false, eventStartDate: '', eventStartTime: '', eventEndDate: '', eventEndTime: '', imageFile: null as File | null, imagePreview: ''});
             setEditingNewsId(null);
             setPage(0);
             loadNews(0);
@@ -97,18 +118,28 @@ const NewsPage: React.FC = () => {
     };
 
     const handleOpenCreate = () => {
-        setFormData({title: '', content: ''});
+        setFormData({title: '', content: '', isEvent: false, eventStartDate: '', eventStartTime: '', eventEndDate: '', eventEndTime: '', imageFile: null as File | null, imagePreview: ''});
         setEditingNewsId(null);
         setIsFormOpen(true);
     };
 
     const handleOpenEdit = (news: News) => {
-        setFormData({title: news.title, content: news.content});
+        setFormData({
+            title: news.title,
+            content: news.content,
+            isEvent: news.isEvent || false,
+            eventStartDate: news.eventStartDate || '',
+            eventStartTime: news.eventStartTime || '',
+            eventEndDate: news.eventEndDate || '',
+            eventEndTime: news.eventEndTime || '',
+            imageFile: null,
+            imagePreview: news.imageUrl || ''
+        });
         setEditingNewsId(news.id);
         setIsFormOpen(true);
     };
 
-    const handleDeleteNews = async (newsId: number) => {
+    const handleDeleteNews = async (newsId: string) => {
         if(!communityId || !confirm('¿Estas seguro de eliminar esta noticia?')) return;
         if(featureUnavailable) return;
         try{
@@ -149,8 +180,8 @@ const NewsPage: React.FC = () => {
                         </Button>
                     ) : <div></div> }
 
-                    <Button variant={(startDate || endDate || searchQuery) ? 'default' : 'outline'} size="sm" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className='flex items-center gap-2'>
-                        <Filter className='h-4 w-4' /> Filtros {(startDate || endDate || searchQuery) && "(Activos)"}
+                    <Button variant={(startDate || endDate || searchQuery ||eventTypeFilter !== 'all') ? 'default' : 'outline'} size="sm" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className='flex items-center gap-2'>
+                        <Filter className='h-4 w-4' /> Filtros {(startDate || endDate || searchQuery || eventTypeFilter !== 'all') && "(Activos)"}
                     </Button>
                 </div>
 
@@ -167,6 +198,20 @@ const NewsPage: React.FC = () => {
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                     />
+                                </div>
+                                <div className='flex-1 border-t md:border-t-0 md:border-l border-gray-200 pt-5 md:pt-0 md:pl-8'>
+                                    <label className='block text-sm font-bold text-gray-900 mb-3 border-b border-gray-100 pb-2'>Tipo de noticia</label>
+                                    <div className='flex flex-col gap-2 mt-4'>
+                                        <Button variant={eventTypeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setEventTypeFilter('all')}>
+                                            Todas
+                                        </Button>
+                                        <Button variant={eventTypeFilter === 'event' ? 'default' : 'outline'} size="sm" onClick={() => setEventTypeFilter('event')}>
+                                            Solo eventos
+                                        </Button>
+                                        <Button variant={eventTypeFilter === 'nonEvent' ? 'default' : 'outline'} size="sm" onClick={() => setEventTypeFilter('nonEvent')}>
+                                            Sin eventos
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -197,8 +242,8 @@ const NewsPage: React.FC = () => {
                         </div>
 
                         <div className='mt-6 pt-4 flex justify-between items-center border-t border-gray-100'>
-                            {(startDate || endDate || searchQuery) ? (
-                                <Button variant="ghost" size="sm" className='text-red-500 hover:text-red-600 hover:bg-red-50' onClick={() => {setStartDate(''); setEndDate(''); setSearchQuery(''); }}>Limpiar filtros</Button>
+                            {(startDate || endDate || searchQuery || eventTypeFilter !== 'all') ? (
+                                <Button variant="ghost" size="sm" className='text-red-500 hover:text-red-600 hover:bg-red-50' onClick={() => {setStartDate(''); setEndDate(''); setSearchQuery(''); setEventTypeFilter('all')}}>Limpiar filtros</Button>
                             ) : <div></div> }
                             <Button variant="outline" size="sm" onClick={() => 
                                 setShowAdvancedFilters(false)}>Ocultar
@@ -215,6 +260,9 @@ const NewsPage: React.FC = () => {
                             title={news.title}
                             content={news.content}
                             createdAt={news.createdAt}
+                            editedAt={news.editedAt}
+                            authorAlias={news.authorAlias}
+                            imageUrl={news.imageUrl}
                             isAdmin={isAdmin}
                             onEdit={() => handleOpenEdit(news)}
                             onDelete={() => handleDeleteNews(news.id)}

@@ -20,32 +20,19 @@ const HelpPage: React.FC = () => {
     const [reordering, setReordering] = useState(false);
     const [tempSections, setTempSections] = useState<any[]>([]);
 
-    const loadGeneralHelp = async () => {
+    const loadHelp = async () => {
         try {
-            const res = await getGeneralHelp();
+            const res = communityId ? await getCommunityHelp(communityId) : await getGeneralHelp();
             setGeneralHelp(res.data.generalHelp || []);
-        } catch (err) {
-            console.error('Error cargando ayuda general', err);
-        }
-    };
-
-    const loadCommunityHelp = async () => {
-        if (!communityId) return;
-
-        try {
-            const res = await getCommunityHelp(communityId);
             setCommunitySections(res.data.communityHelpSections || []);
-        } catch (err) {
-            console.error('Error cargando ayuda de la comunidad', err);
+        } 
+        catch (err) {
+            console.error('Error cargando ayuda', err);
         }
     };
 
     useEffect(() => {
-        loadGeneralHelp();
-    }, []);
-
-    useEffect(() => {
-        loadCommunityHelp();
+        loadHelp();
     }, [communityId]);
 
     const handleDelete = async (sectionId: string) => {
@@ -53,8 +40,9 @@ const HelpPage: React.FC = () => {
 
         try {
             await deleteHelpSection(communityId!, sectionId);
-            loadCommunityHelp();
-        } catch (err: any) {
+            loadHelp();
+        } 
+        catch (err: any) {
             alert(err.response?.data?.error?.message || 'Error al eliminar la sección');
         }
     };
@@ -224,7 +212,7 @@ const HelpPage: React.FC = () => {
                 }}
                 communityId={communityId!}
                 section={editingSection}
-                onSuccess={loadCommunityHelp}
+                onSuccess={loadHelp}
             />
         </div>
     );

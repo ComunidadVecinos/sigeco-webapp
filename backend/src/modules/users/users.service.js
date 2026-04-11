@@ -29,6 +29,7 @@ function buildCommunityProfile(membership) {
   const property = selectRepresentativeProperty(membership);
 
   return {
+    membershipId: membership.id,
     communityId: membership.community.id,
     name: membership.community.name,
     role: membership.role,
@@ -200,21 +201,61 @@ async function updateMyAvatar(userId, file, usersRepository) {
     const result = await usersRepository.replaceUserProfileImage(userId, { storagePath: storedFile.storagePath, mimeType: file.mimetype, sizeBytes: file.size });
 
     if (!result) {
-      await storedFile.rollback().catch(() => {});
+      await storageService.rollbackStoredFileSafely(
+        storedFile,
+        'No se ha podido restaurar el avatar previo tras no encontrarse el usuario durante la actualización',
+        { userId }
+      );
       throw new NotFoundError('Usuario no encontrado');
     }
 
-    await storedFile.commit().catch((error) => { console.warn('No se ha podido finalizar la limpieza del almacenamiento del avatar', { userId, storagePath: storedFile.storagePath, error }) ;} );
+    await storageService.commitStoredFileSafely(
+      storedFile,
+      'No se ha podido finalizar la limpieza del almacenamiento del avatar',
+      { userId }
+    );
 
     return { profileImageUrl: storageService.getPublicFileUrl(result.file.storagePath) };
   } 
   catch (error) {
     // Restaurar avatar previo en caso de fallo para evitar inconsistencias entre BD y almacenamiento.
-    await storedFile.rollback().catch((rollbackError) => {
-      console.warn('No se ha podido restaurar el avatar previo tras un error al actualizar la imagen de perfil', { userId, storagePath: storedFile.storagePath, error: rollbackError });
-    });
+    await storageService.rollbackStoredFileSafely(
+      storedFile,
+      'No se ha podido restaurar el avatar previo tras un error al actualizar la imagen de perfil',
+      { userId }
+    );
     throw error;
   }
+}
+
+async function deleteMyAvatar(userId, usersRepository) {
+  const avatarContext = await usersRepository.findUserProfileImageContext(userId);
+
+  if (!avatarContext) {
+    throw new NotFoundError('Usuario no encontrado');
+  }
+
+  if (!avatarContext.avatar?.storagePath) {
+    throw new ConflictError('El usuario no tiene avatar');
+  }
+
+  const result = await usersRepository.deleteUserProfileImage(userId);
+
+  if (!result) {
+    throw new NotFoundError('Usuario no encontrado');
+  }
+
+  if (result.storagePath) {
+    // Primero se deja de exponer la referencia en BD y después se intenta limpiar
+    // el fichero físico. Si esta limpieza falla, no se revierte la operación.
+    await storageService.deleteStoredFileSafely(
+      result.storagePath,
+      'No se ha podido eliminar el archivo del avatar tras borrar la referencia en la BD',
+      { userId }
+    );
+  }
+
+  return { profileImageUrl: null };
 }
 
 async function deleteMyAccount(context, input, usersRepository) {
@@ -258,19 +299,29 @@ async function deleteMyAccount(context, input, usersRepository) {
 
   if (result.profileImageStoragePath) {
     // El fichero físico se limpia fuera de la transacción para no convertir un fallo de filesystem en un rollback completo.
-    storageService.deleteStoredFile(result.profileImageStoragePath).catch((error) => {
-      console.warn('No se ha podido eliminar la imagen de perfil tras el borrado de la cuenta', {
-        userId: context.userId,
-        storagePath: result.profileImageStoragePath,
-        error
-      });
-    });
+    await storageService.deleteStoredFileSafely(
+      result.profileImageStoragePath,
+      'No se ha podido eliminar la imagen de perfil tras el borrado de la cuenta',
+      { userId: context.userId }
+    );
   }
 
   return {
     message: 'Cuenta eliminada correctamente.',
-    futureDataPolicy: { votesCalendarReservations: 'pending_soft_delete_or_disassociation', authorship: 'pending_anonymization' }
+    futureDataPolicy: {
+      votesCalendarReservations: 'open_votes_removed_closed_votes_preserved_calendar_personal_events_soft_deleted',
+      forum: 'posts_soft_deleted_comments_anonymized',
+      news: 'preserved_author_anonymized_events_preserved'
+    }
   };
 }
 
-module.exports = { getMyProfile, updateMyProfile, changeMyActiveCommunity, updateMyAvatar, deleteMyAccount, ACCOUNT_DELETION_CONFIRMATION_TEXT };
+module.exports = {
+  getMyProfile,
+  updateMyProfile,
+  changeMyActiveCommunity,
+  updateMyAvatar,
+  deleteMyAvatar,
+  deleteMyAccount,
+  ACCOUNT_DELETION_CONFIRMATION_TEXT
+};

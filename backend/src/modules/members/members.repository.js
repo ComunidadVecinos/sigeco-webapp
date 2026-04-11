@@ -1,6 +1,8 @@
 // Acceso a datos del módulo members.
 const prisma = require('../../lib/prisma');
 const { isMembershipCurrentlySuspended } = require('../../lib/membership');
+const calendarRepository = require('../calendar/calendar.repository');
+const requestsRepository = require('../requests/requests.repository');
 
 function buildInactiveMembershipWhere(now) {
   return { suspendedUntil: { gt: now } };
@@ -67,6 +69,8 @@ async function findActiveCommunityById(communityId) {
       id: true,
       name: true,
       cif: true,
+      storageQuotaBytes: true,
+      storageUsedBytes: true,
       country: true,
       province: true,
       municipality: true,
@@ -173,6 +177,14 @@ async function finalizeMembershipAndResolveActiveContext({ userId, membershipId,
     if (updateResult.count !== 1) {
       return null;
     }
+
+    await calendarRepository.softDeletePersonalEventsByMembershipIds(tx, [membershipId], now);
+    // Al dejar de pertenecer a la comunidad, sus solicitudes pendientes de esa comunidad dejan de ser revisables.
+    await requestsRepository.cancelPendingRequestsByUserAndCommunity(tx, {
+      userId,
+      communityId,
+      cancelledAt: now
+    });
 
     const user = await tx.user.findUnique({
       where: { id: userId },

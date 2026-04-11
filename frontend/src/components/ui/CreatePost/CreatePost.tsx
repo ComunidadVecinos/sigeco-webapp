@@ -2,29 +2,31 @@ import React, {useState} from "react";
 import {Button} from '@/components/ui/button';
 import { CircleUserRound, X, Plus } from "lucide-react";
 
-type PostCategory = 'pregunta' | 'encuesta' | 'anuncio' | 'solicitud';
+type PostCategory = 'question' | 'poll' | 'announcement' | 'request';
 
 interface CreatePostProps{
     userAvatar?: string;
-    onSubmit: (content: string, category: PostCategory, pollOptions?: string[]) => void;
+    onSubmit: (title: string, description: string, category: PostCategory, pollOptions?: string[]) => void;
 }
 
 const CreatePost: React.FC<CreatePostProps> = ({userAvatar, onSubmit}) => {
+    const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [category, setCategory] = useState<PostCategory>('pregunta');
+    const [category, setCategory] = useState<PostCategory>('question');
     const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
 
     const handleSubmit = () => {
         if(content.trim()){
-            if(category === 'encuesta'){
+            if(category === 'poll'){
                 const validOptions = pollOptions.filter(opt => opt.trim());
                 if(validOptions.length >= 2){
-                    onSubmit(content, category, validOptions);
+                    onSubmit(title, content, category, validOptions);
                 }
             }
             else{
-                onSubmit(content, category);
+                onSubmit(title, content, category);
             }
+            setTitle('');
             setContent('');
             setPollOptions(['','']);
         }
@@ -58,14 +60,21 @@ const CreatePost: React.FC<CreatePostProps> = ({userAvatar, onSubmit}) => {
                 )}
             </div>
             <div className="flex-1 min-w-0">
+                <input 
+                    type="text"
+                    placeholder="Titulo de la publicacion"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:border-[#104084]" 
+                />
                 <textarea 
-                placeholder=  { category === 'encuesta' ? '¿Cúal es tu pregunta para la encuesta?' : "¿Qué quieres compartir con tu comunidad?"} 
+                placeholder=  { category === 'poll' ? '¿Cúal es tu pregunta para la encuesta?' : "¿Qué quieres compartir con tu comunidad?"} 
                 value={content} 
                 onChange={(e) => setContent(e.target.value)} 
                 rows={3}
                 className="w-full border border-gray-200 rounded-xl p-3 resize-none text-sm focus:outline-none focus:border-[#104084]"/>
 
-                {category === 'encuesta' && (
+                {category === 'poll' && (
                     <div className="mt-3">
                         {pollOptions.map((option, index) => (
                             <div className="flex gap-2 mb-2" key={index}>
@@ -89,12 +98,12 @@ const CreatePost: React.FC<CreatePostProps> = ({userAvatar, onSubmit}) => {
                         className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#104084]" 
                         value={category} 
                         onChange={(e) => setCategory(e.target.value as PostCategory)}>
-                        <option value="pregunta">❓ Pregunta</option>
-                        <option value="encuesta">📊 Encuesta</option>
-                        <option value="anuncio">📢 Anuncio</option>
-                        <option value="solicitud">🙋 Solicitud</option>
+                        <option value="question">❓ Pregunta</option>
+                        <option value="poll">📊 Encuesta</option>
+                        <option value="announcement">📢 Anuncio</option>
+                        <option value="request">🙋 Solicitud</option>
                     </select>
-                    <Button size="sm" onClick={handleSubmit} disabled={!content.trim()}>Publicar</Button>
+                    <Button size="sm" onClick={handleSubmit} disabled={!content.trim() || !title.trim()}>Publicar</Button>
                 </div>
             </div>
         </div>

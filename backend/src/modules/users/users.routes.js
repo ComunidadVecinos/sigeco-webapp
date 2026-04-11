@@ -15,6 +15,7 @@ router.get('/me', requireSession, asyncHandler(usersController.getMyProfile));
 router.patch('/me', requireSession, validate({ body: updateMyProfileSchema }), asyncHandler(usersController.updateMyProfile));
 router.put('/me/active-community', requireSession, validateChangeActiveCommunity, asyncHandler(usersController.changeMyActiveCommunity));
 router.put('/me/avatar', requireSession, uploadAvatar, asyncHandler(usersController.updateMyAvatar));
+router.delete('/me/avatar', requireSession, asyncHandler(usersController.deleteMyAvatar));
 router.delete('/me', requireSession, validate({ body: deleteMyAccountSchema }), asyncHandler(usersController.deleteMyAccount));
 
 module.exports = router;

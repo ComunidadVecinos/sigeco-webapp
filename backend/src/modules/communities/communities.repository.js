@@ -9,9 +9,7 @@ function buildDeletedCommunityCif(currentCif, communityId) {
   return `${currentCif}-D-${communitySuffix}`;
 }
 
-// Communities considera "activos" solo los lideres o miembros cuyo acceso no esta
-// suspendido efectivamente en este instante. La suspension vencida vuelve a contar
-// como activa sin necesidad de job de mantenimiento.
+// Communities considera "activos" solo los miembros cuyo acceso no está suspendido en este instante. 
 function buildCurrentlyActiveMembershipWhere(communityId, now = new Date()) {
   return {
     communityId,
@@ -128,6 +126,30 @@ async function replaceCommunityProfileImage(communityId, fileData) {
   });
 }
 
+async function deleteCommunityProfileImage(communityId) {
+  return prisma.$transaction(async (tx) => {
+    const community = await tx.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+      select: {
+        id: true,
+        avatar: { select: { id: true, storagePath: true } }
+      }
+    });
+
+    if (!community) {
+      return null;
+    }
+
+    if (!community.avatar?.id) {
+      return { communityId: community.id, storagePath: null };
+    }
+
+    await tx.communityAvatar.delete({ where: { communityId } });
+
+    return { communityId: community.id, storagePath: community.avatar.storagePath };
+  });
+}
+
 function selectNextActiveMembership(memberships, preferredMembershipId = null) {
   if (!memberships || memberships.length === 0) {
     return null;
@@ -153,7 +175,12 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
     const now = new Date();
     const community = await tx.community.findFirst({
       where: { id: communityId, deletedAt: null },
-      select: { cif: true }
+      select: {
+        cif: true,
+        avatar: { select: { storagePath: true } },
+        newsItems: { select: { imageStoragePath: true } },
+        documents: { select: { storagePath: true } }
+      }
     });
 
     if (!community) {
@@ -249,7 +276,14 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
       }
     }
 
-    return { nextActiveMembershipId };
+    return {
+      nextActiveMembershipId,
+      storedFiles: {
+        communityAvatarStoragePath: community.avatar?.storagePath || null,
+        newsImageStoragePaths: community.newsItems.map((item) => item.imageStoragePath).filter(Boolean),
+        documentStoragePaths: community.documents.map((document) => document.storagePath).filter(Boolean)
+      }
+    };
   });
 }
 
@@ -364,6 +398,7 @@ module.exports = {
   updateCommunityAccessCode,
   findCommunityProfileImageContext,
   replaceCommunityProfileImage,
+  deleteCommunityProfileImage,
   softDeleteCommunityWithActorContext,
   findCommunityLeaders,
   createCommunityWithCreatorContext

@@ -8,7 +8,8 @@ import {
     FileText,
     Pencil,
     Search,
-    Shield
+    Shield,
+    Key
 } from 'lucide-react';
 import Header from '../../components/common/Header/Header';
 import imagen_generica from '../../assets/images/perfil_generico.png';
@@ -19,7 +20,8 @@ import {
     getAdminSummary,
     getMembers,
     getRequests,
-    updateCommunityAvatar
+    updateCommunityAvatar,
+    deleteCommunityAvatar
 } from '@/services/adminService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +32,8 @@ import ExpelMemberModal from '@/components/ui/ExpelMemberModal/ExpelMemberModal'
 import TransferRoleModal from '@/components/ui/TransferRoleModal/TransferRoleModal';
 import DeleteCommunityModal from '@/components/ui/DeleteCommunityModal/DeleteCommunityModal';
 import EditPhotoModal from '@/components/ui/EditPhotoModal/EditPhotoModal';
+import GenerateCodeModal from '@/components/ui/GenerateCodeModal/GenerateCodeModal';
+
 
 type RequestFilterState = {
     type: string;
@@ -52,9 +56,9 @@ function formatDate(value?: string | null) {
 }
 
 function formatRole(role?: string | null) {
-    if (role === 'PRESIDENT') return 'Presidencia';
-    if (role === 'VICE_PRESIDENT') return 'Vicepresidencia';
-    if (role === 'MEMBER') return 'Vecino';
+    if (role === 'PRESIDENT') return 'Presidente';
+    if (role === 'VICE_PRESIDENT') return 'Vicepresidente';
+    if (role === 'MEMBER') return 'Vecino/a';
     return role || '-';
 }
 
@@ -104,6 +108,7 @@ const AdminPage: React.FC = () => {
         type: 'president'
     });
     const [deleteCommunityModalOpen, setDeleteCommunityModalOpen] = useState(false);
+    const [generateCodeModalOpen, setGenerateCodeModalOpen] = useState(false);
 
     useEffect(() => {
         if (loading) return;
@@ -247,6 +252,9 @@ const AdminPage: React.FC = () => {
                         <div className="flex items-start justify-between gap-4">
                             <h3 className="text-2xl font-bold text-gray-900">Datos de la Comunidad</h3>
                             <div className="flex flex-wrap items-center justify-end gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setGenerateCodeModalOpen(true)}>
+                                    <Key className='h-4 w-4 mr-2' /> Código de acceso
+                                </Button>
                                 <Button variant="outline" size="sm" onClick={() => setEditCommunityModalOpen(true)}>
                                     <Pencil className="h-4 w-4 mr-2" />Editar
                                 </Button>
@@ -358,11 +366,10 @@ const AdminPage: React.FC = () => {
                                                     {request.requesterName || request.proposedAlias || 'Solicitud pendiente'}
                                                 </h4>
                                                 <span
-                                                    className={`text-xs px-2 py-1 rounded-full ${
-                                                        request.type === 'JOIN'
+                                                    className={`text-xs px-2 py-1 rounded-full ${request.type === 'JOIN'
                                                             ? 'bg-blue-100 text-blue-700'
                                                             : 'bg-yellow-100 text-yellow-700'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {formatRequestType(request.type)}
                                                 </span>
@@ -663,6 +670,12 @@ const AdminPage: React.FC = () => {
                     setSummary((prev: any) => (prev ? { ...prev, community: { ...prev.community, avatar: newPhotoUrl } } : prev));
                     await reloadSummary();
                 }}
+                onDeletePhoto={async () => {
+                    await deleteCommunityAvatar(communityId);
+                    setSummary((prev: any) => (prev ? { ...prev, community: { ...prev.community, avatar: null } } : prev));
+                    await reloadSummary();
+                }}
+                defaultPhoto={imagen_generica}
             />
 
             <RequestActionModal
@@ -715,6 +728,19 @@ const AdminPage: React.FC = () => {
                 onClose={() => setDeleteCommunityModalOpen(false)}
                 communityId={communityId}
                 communityName={summary?.community?.name || ''}
+            />
+
+            <GenerateCodeModal
+                isOpen={generateCodeModalOpen}
+                onClose={() => setGenerateCodeModalOpen(false)}
+                communityId={communityId}
+                currentAccessCode={summary?.community?.accessCode || null}
+                onCodeRegenerated={(newCode) => {
+                    setSummary((prev : any) => prev ? {
+                        ...prev,
+                        community: { ...prev.community, accessCode: newCode }
+                    } : null);
+                }}
             />
         </div>
     );
