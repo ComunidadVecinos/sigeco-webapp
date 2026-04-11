@@ -2,6 +2,7 @@
 const prisma = require('../../lib/prisma');
 const calendarRepository = require('../calendar/calendar.repository');
 const forumRepository = require('../forum/forum.repository');
+const incidentsRepository = require('../incidents/incidents.repository');
 const newsRepository = require('../news/news.repository');
 const requestsRepository = require('../requests/requests.repository');
 const votingRepository = require('../voting/voting.repository');
@@ -190,6 +191,7 @@ async function deleteUserAccount(userId, deletionData) {
       await forumRepository.softDeleteForumPostsByMembershipIds(tx, membershipIds, now);
       await forumRepository.anonymizeForumCommentsByMembershipIds(tx, membershipIds);
       await newsRepository.anonymizeNewsByMembershipIds(tx, membershipIds);
+      await incidentsRepository.anonymizeIncidentsByMembershipIds(tx, membershipIds);
       await requestsRepository.archiveRequestsByUserId(tx, { userId, archivedAt: now });
       // Se marca también la vivienda, porque su significado depende de la membership eliminada.
       await tx.property.updateMany({

@@ -330,6 +330,7 @@ async function deleteCommunity(context, communityId, input, communitiesRepositor
   const storagePathsToDelete = collectUniqueStoragePaths([
     deletionResult.storedFiles?.communityAvatarStoragePath,
     ...(deletionResult.storedFiles?.newsImageStoragePaths || []),
+    ...(deletionResult.storedFiles?.incidentImageStoragePaths || []),
     ...(deletionResult.storedFiles?.documentStoragePaths || [])
   ]);
 

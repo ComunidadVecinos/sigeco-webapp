@@ -25,6 +25,13 @@ enum CommunityRequestStatus {
   CANCELLED
 }
 
+enum CommunityIncidentStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CANCELLED
+}
+
 enum CalendarEventType {
   PERSONAL
   NEWS
@@ -129,6 +136,7 @@ model Community {
   polls             Poll[]
   forumPosts        ForumPost[]
   newsItems         CommunityNews[]
+  incidents         CommunityIncident[]
 
   @@index([cif])
   @@index([accessCode])
@@ -182,6 +190,7 @@ model Membership {
   forumPostLikes            ForumPostLike[]     @relation("MembershipForumPostLikes")
   forumCommentLikes         ForumCommentLike[]  @relation("MembershipForumCommentLikes")
   createdNewsItems          CommunityNews[]     @relation("CommunityNewsAuthorMembership")
+  createdIncidents          CommunityIncident[] @relation("CommunityIncidentAuthorMembership")
 
   @@unique([userId, communityId])
   @@index([userId])
@@ -523,4 +532,27 @@ model CommunityNews {
   @@index([communityId, deletedAt, eventStartsAt, createdAt], map: "community_news_community_event_created_lookup_idx")
   @@index([authorMembershipId], map: "community_news_author_membership_lookup_idx")
   @@map("community_news")
+}
+
+model CommunityIncident {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  communityId        String                  @map("community_id") @db.Uuid
+  authorMembershipId String?                 @map("author_membership_id") @db.Uuid
+  title              String                  @db.VarChar(160)
+  description        String                  @db.Text
+  status             CommunityIncidentStatus @default(PENDING)
+  imageStoragePath   String?                 @map("image_storage_path")
+  imageMimeType      String?                 @map("image_mime_type") @db.VarChar(100)
+  imageSizeBytes     Int?                    @map("image_size_bytes")
+  editedAt           DateTime?               @db.Timestamptz(3) @map("edited_at")
+  createdAt          DateTime                @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt          DateTime                @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt          DateTime?               @db.Timestamptz(3) @map("deleted_at")
+
+  community        Community   @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  authorMembership Membership? @relation("CommunityIncidentAuthorMembership", fields: [authorMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([communityId, deletedAt, status, createdAt], map: "community_incidents_community_status_created_lookup_idx")
+  @@index([authorMembershipId], map: "community_incidents_author_membership_lookup_idx")
+  @@map("community_incidents")
 }

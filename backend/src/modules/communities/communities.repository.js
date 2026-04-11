@@ -179,6 +179,7 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
         cif: true,
         avatar: { select: { storagePath: true } },
         newsItems: { select: { imageStoragePath: true } },
+        incidents: { select: { imageStoragePath: true } },
         documents: { select: { storagePath: true } }
       }
     });
@@ -281,6 +282,7 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
       storedFiles: {
         communityAvatarStoragePath: community.avatar?.storagePath || null,
         newsImageStoragePaths: community.newsItems.map((item) => item.imageStoragePath).filter(Boolean),
+        incidentImageStoragePaths: community.incidents.map((item) => item.imageStoragePath).filter(Boolean),
         documentStoragePaths: community.documents.map((document) => document.storagePath).filter(Boolean)
       }
     };

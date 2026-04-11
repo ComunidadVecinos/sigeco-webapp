@@ -48,10 +48,10 @@ Development helpers:
 - [Forum](./forum.md)
 - [Calendar](./calendar.md)
 - [News](./news.md)
+- [Incidents](./incidents.md)
 - [Voting](./voting.md)
 
 Draft placeholders:
 
 - [Documents](./documents.md)
-- [Incidents](./incidents.md)
 - [Reservations](./reservations.md)

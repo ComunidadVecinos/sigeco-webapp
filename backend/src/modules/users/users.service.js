@@ -311,7 +311,8 @@ async function deleteMyAccount(context, input, usersRepository) {
     futureDataPolicy: {
       votesCalendarReservations: 'open_votes_removed_closed_votes_preserved_calendar_personal_events_soft_deleted',
       forum: 'posts_soft_deleted_comments_anonymized',
-      news: 'preserved_author_anonymized_events_preserved'
+      news: 'preserved_author_anonymized_events_preserved',
+      incidents: 'preserved_author_anonymized'
     }
   };
 }

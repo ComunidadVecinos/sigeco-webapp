@@ -8,6 +8,7 @@ const { FileTooLargeError, FileTypeUnsupportedError } = require('../errors');
  * Casos actuales:
  * - `avatar` en `users` y `communities`
  * - `image` en `news`
+ * - `image` en `incidents`
  *
  * Decisiones de diseño:
  * - Se usa `memoryStorage()` porque el archivo aún no debe persistirse al entrar en la request. Primero se valida y luego el servicio decide si lo guarda.
