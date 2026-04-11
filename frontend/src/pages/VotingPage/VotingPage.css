@@ -1,0 +1,16 @@
+@keyframes barGrow {
+    from {width: 0%;}
+}
+
+.voting-bar-animated {
+    animation: barGrow 0.7s ease-out;
+}
+
+@keyframes votingPulse {
+    0%, 100% {opacity: 1;}
+    50% {opacity: 0.4;}
+}
+
+.voting-pulse {
+    animation: votingPulse 2s ease-in-out infinite;
+}
