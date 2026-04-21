@@ -3,6 +3,7 @@ const prisma = require('../../lib/prisma');
 const { isMembershipCurrentlySuspended } = require('../../lib/membership');
 const calendarRepository = require('../calendar/calendar.repository');
 const requestsRepository = require('../requests/requests.repository');
+const reservationsRepository = require('../reservations/reservations.repository');
 
 function buildInactiveMembershipWhere(now) {
   return { suspendedUntil: { gt: now } };
@@ -179,6 +180,11 @@ async function finalizeMembershipAndResolveActiveContext({ userId, membershipId,
     }
 
     await calendarRepository.softDeletePersonalEventsByMembershipIds(tx, [membershipId], now);
+    const cancelledBookingIds = await reservationsRepository.cancelBookingsByOwnerMembershipIds(tx, [membershipId], {
+      cancelledAt: now,
+      cancellationReason: endReason
+    });
+    await calendarRepository.softDeleteReservationEventsBySourceEntityIds(tx, cancelledBookingIds, now);
     // Al dejar de pertenecer a la comunidad, sus solicitudes pendientes de esa comunidad dejan de ser revisables.
     await requestsRepository.cancelPendingRequestsByUserAndCommunity(tx, {
       userId,

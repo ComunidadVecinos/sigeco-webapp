@@ -2,7 +2,12 @@
 // Calendar almacena eventos automáticos y personales en una única tabla:
 // - `ownerMembershipId = null`: eventos automáticos de comunidad.
 // - `ownerMembershipId = <membershipId>`: eventos personales privados.
+// Calendar almacena en una única tabla:
+// - `ownerMembershipId = null`: eventos automáticos de comunidad.
+// - `type = PERSONAL`: eventos privados creados por el usuario.
+// - `type = RESERVATION`: proyecciones privadas de reservas del usuario.
 const prisma = require('../../lib/prisma');
+const RESERVATION_SOURCE_OCCURRENCE_KEY = 'BOOKING';
 
 const calendarEventSelect = {
   id: true,
@@ -166,12 +171,12 @@ async function replaceAutomaticEventsInDb(db, { communityId, type, sourceEntityI
 
   await Promise.all(normalizedEvents.map((event) => upsertAutomaticEventInDb(db, {
     communityId,
-    type,
-    sourceEntityId,
-    title: event.title,
-    eventDate: event.eventDate,
-    startTime: event.startTime,
-    endTime: event.endTime,
+      type,
+      sourceEntityId,
+      title: event.title,
+      eventDate: event.eventDate,
+      startTime: event.startTime,
+      endTime: event.endTime,
     sourceOccurrenceKey: event.sourceOccurrenceKey
   })));
 
@@ -218,6 +223,69 @@ async function softDeletePersonalEventsByMembershipIds(db, membershipIds, delete
   });
 }
 
+async function upsertOwnedReservationEventInDb(db, input) {
+  return db.calendarEvent.upsert({
+    where: {
+      communityId_type_sourceEntityId_sourceOccurrenceKey: {
+        communityId: input.communityId,
+        type: 'RESERVATION',
+        sourceEntityId: input.bookingId,
+        sourceOccurrenceKey: RESERVATION_SOURCE_OCCURRENCE_KEY
+      }
+    },
+    update: {
+      ownerMembershipId: input.ownerMembershipId,
+      title: input.title,
+      eventDate: input.eventDate,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      deletedAt: null
+    },
+    create: {
+      communityId: input.communityId,
+      ownerMembershipId: input.ownerMembershipId,
+      type: 'RESERVATION',
+      sourceEntityId: input.bookingId,
+      sourceOccurrenceKey: RESERVATION_SOURCE_OCCURRENCE_KEY,
+      title: input.title,
+      eventDate: input.eventDate,
+      startTime: input.startTime,
+      endTime: input.endTime
+    },
+    select: calendarEventSelect
+  });
+}
+
+async function softDeleteOwnedReservationEventInDb(db, { communityId, ownerMembershipId, bookingId, deletedAt = new Date() }) {
+  return db.calendarEvent.updateMany({
+    where: {
+      communityId,
+      ownerMembershipId,
+      type: 'RESERVATION',
+      sourceEntityId: bookingId,
+      sourceOccurrenceKey: RESERVATION_SOURCE_OCCURRENCE_KEY,
+      deletedAt: null
+    },
+    data: { deletedAt }
+  });
+}
+
+async function softDeleteReservationEventsBySourceEntityIds(db, bookingIds, deletedAt = new Date()) {
+  if (!bookingIds || bookingIds.length === 0) {
+    return { count: 0 };
+  }
+
+  return db.calendarEvent.updateMany({
+    where: {
+      type: 'RESERVATION',
+      sourceEntityId: { in: bookingIds },
+      sourceOccurrenceKey: RESERVATION_SOURCE_OCCURRENCE_KEY,
+      deletedAt: null
+    },
+    data: { deletedAt }
+  });
+}
+
 module.exports = {
   findVisibleCalendarEventsInRange,
   createPersonalEvent,
@@ -226,5 +294,8 @@ module.exports = {
   softDeleteOwnedPersonalEvent,
   replaceAutomaticEventsInDb,
   softDeleteAutomaticEventInDb,
-  softDeletePersonalEventsByMembershipIds
+  softDeletePersonalEventsByMembershipIds,
+  upsertOwnedReservationEventInDb,
+  softDeleteOwnedReservationEventInDb,
+  softDeleteReservationEventsBySourceEntityIds
 };
