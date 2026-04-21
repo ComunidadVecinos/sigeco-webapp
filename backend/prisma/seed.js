@@ -88,6 +88,8 @@ async function main() {
   await prisma.pollOption.deleteMany();
   await prisma.poll.deleteMany();
   await prisma.calendarEvent.deleteMany();
+  await prisma.reservationBooking.deleteMany();
+  await prisma.reservationSpace.deleteMany();
   await prisma.communityNews.deleteMany();
   await prisma.communityHelpSection.deleteMany();
   await prisma.communityDocument.deleteMany();

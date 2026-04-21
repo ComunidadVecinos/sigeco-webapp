@@ -14,6 +14,7 @@ const forumRoutes = require('../forum/forum.routes');
 const newsRoutes = require('../news/news.routes');
 const incidentsRoutes = require('../incidents/incidents.routes');
 const documentsRoutes = require('../documents/documents.routes');
+const reservationsRoutes = require('../reservations/reservations.routes');
 
 const communitiesController = require('./communities.controller');
 const { createCommunitySchema, communityIdParamSchema, updateCommunitySchema, deleteCommunitySchema } = require('./communities.validation');
@@ -29,6 +30,7 @@ router.use('/:communityId/forum', forumRoutes);
 router.use('/:communityId/news', newsRoutes);
 router.use('/:communityId/incidents', incidentsRoutes);
 router.use('/:communityId/documents', documentsRoutes);
+router.use('/:communityId/reservations', reservationsRoutes);
 
 // Orden:
 // - validate sanea entrada antes del controller
