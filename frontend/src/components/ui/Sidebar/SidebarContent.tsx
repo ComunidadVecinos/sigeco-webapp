@@ -25,7 +25,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({onClose}) => {
                 <Link to="/news" className={linkClass}><Megaphone className="h-[18px] w-[18px]"/>Tablón de noticias</Link>
                 <Link to="/forum" className={linkClass}><MessageCircle className="h-[18px] w-[18px]"/>Foro</Link>
                 <Link to="/" className={linkClass}><CalendarCheck className="h-[18px] w-[18px]"/>Reserva de espacios</Link>
-                <Link to="/" className={linkClass}><AlertTriangle className="h-[18px] w-[18px]"/>Incidencias</Link>
+                <Link to="/incidents" className={linkClass}><AlertTriangle className="h-[18px] w-[18px]"/>Incidencias</Link>
                 <Link to="/voting" className={linkClass}><CheckSquare className="h-[18px] w-[18px]"/>Votaciones</Link>
                 <Link to="/documents" className={linkClass}><Folder className="h-[18px] w-[18px]"/>Documentos</Link>
             </nav>        

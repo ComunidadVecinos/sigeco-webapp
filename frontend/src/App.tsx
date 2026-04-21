@@ -19,6 +19,7 @@ import CalendarPage from './pages/CalendarPage/CalendarPage';
 import NotFoundPage from './pages/NotFoundPage/NotFoundPage';
 import DocumentsPage from './pages/DocumentsPage/DocumentsPage';
 import VotingPage from './pages/VotingPage/VotingPage';
+import IncidentPage from './pages/IncidentPage/IncidentPage';
 
 const App: React.FC = () => {
     
@@ -43,6 +44,7 @@ const App: React.FC = () => {
                     <Route path='/calendar' element={<CalendarPage/>}/>
                     <Route path='/documents' element={<DocumentsPage/>}/>
                     <Route path='/voting' element={<VotingPage/>}/>
+                    <Route path='/incidents' element={<IncidentPage/>} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Routes>
             </div>

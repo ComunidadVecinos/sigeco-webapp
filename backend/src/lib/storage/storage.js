@@ -15,6 +15,7 @@ const { StorageUnavailableError } = require('../errors');
  * - Avatar de usuario:   `uploads/images/users/<userId>/avatar.<ext>`
  * - Avatar de comunidad: `uploads/images/communities/<communityId>/avatar.<ext>`
  * - Imagen de noticia:   `uploads/images/communities/<communityId>/news/<newsId>/image.<ext>`
+ * - Imagen de incidencia: `uploads/images/communities/<communityId>/incidents/<incidentId>/image.<ext>`
  * 
  * - En BD se persiste siempre una ruta relativa a `storage/`, nunca una ruta absoluta.
  * - Express publica `storage/uploads` bajo la URL `/uploads`.
@@ -59,6 +60,12 @@ function buildCommunityAvatarStoragePath(communityId, extension) {
 // Se fija por `communityId + newsId` para que cada noticia tenga como máximo una imagen pública.
 function buildCommunityNewsImageStoragePath(communityId, newsId, extension) {
   return normalizeStoragePath(path.join('uploads', 'images', 'communities', communityId, 'news', newsId, `image.${extension}`));
+}
+
+// Construye la ruta estable de la imagen asociada a una incidencia comunitaria.
+// Se fija por `communityId + incidentId` para que cada incidencia tenga como maximo una imagen publica.
+function buildCommunityIncidentImageStoragePath(communityId, incidentId, extension) {
+  return normalizeStoragePath(path.join('uploads', 'images', 'communities', communityId, 'incidents', incidentId, `image.${extension}`));
 }
 
 // Construye la ruta privada estable de un documento comunitario.
@@ -204,6 +211,11 @@ async function replaceCommunityNewsImageFile({ communityId, newsId, previousStor
   return replaceStoredFile(buildCommunityNewsImageStoragePath(communityId, newsId, extension), previousStoragePath, buffer);
 }
 
+// Reemplaza la imagen asociada a una incidencia comunitaria manteniendo una unica ruta publica estable por incidencia.
+async function replaceCommunityIncidentImageFile({ communityId, incidentId, previousStoragePath, buffer, extension }) {
+  return replaceStoredFile(buildCommunityIncidentImageStoragePath(communityId, incidentId, extension), previousStoragePath, buffer);
+}
+
 // Reemplaza el fichero asociado a un documento comunitario manteniendo una ruta privada estable por documento.
 async function replaceCommunityDocumentFile({ communityId, documentId, previousStoragePath, buffer, extension }) {
   return replaceStoredFile(buildCommunityDocumentStoragePath(communityId, documentId, extension), previousStoragePath, buffer);
@@ -284,6 +296,7 @@ module.exports = {
   replaceUserAvatarFile,
   replaceCommunityAvatarFile,
   replaceCommunityNewsImageFile,
+  replaceCommunityIncidentImageFile,
   replaceCommunityDocumentFile,
   createStoredFileReadStream,
   deleteStoredFile,
