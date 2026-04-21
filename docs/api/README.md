@@ -1,57 +1,56 @@
-# SIGECO API Documentation
+# API Documentation
 
-This directory is the API documentation hub for the current SIGECO backend.
+This directory contains the maintained HTTP contract for the SIGECO backend.
 
-- Base path: `/api`
-- Public uploaded assets: `/uploads/*`
-- Main formats: `application/json` and `multipart/form-data`
-- Auth model: signed session cookie (`sid`)
+Base API path: `/api`
 
----
-
-## Start here
-
-1. Read [API Conventions](./conventions.md).
-2. Read [Authentication](./auth.md) before integrating protected flows.
-3. Use module pages for maintained backend areas.
+Core technical reference: [conventions.md](./conventions.md)
 
 ---
 
-## Common contract notes
+## Top-level modules
 
-- Protected routes require browser credentials.
-- Success responses do not use a global `data` wrapper.
-- Error responses do use the standard `error.code`, `error.message`, `error.details`.
-- Most resource identifiers are UUID strings.
-- Every field with date and time now travels as **ISO 8601 UTC**.
-- Backend still uses `Europe/Madrid` internally as business timezone.
-- Frontend must render UTC instants in `Europe/Madrid`.
-
-Development helpers:
-
-- Prisma Studio from Docker:
-  `docker compose run --rm -p 5555:5555 backend npx prisma studio --hostname 0.0.0.0 --port 5555`
-- Quick SQL shell:
-  `docker compose exec db psql -U postgres -d appdb`
+| Module | Base path | Document |
+|---|---|---|
+| Authentication | `/api/auth` | [auth.md](./auth.md) |
+| Users | `/api/users` | [users.md](./users.md) |
+| Help | `/api/help` | [help.md](./help.md) |
+| Requests | `/api/requests` | [requests.md](./requests.md) |
+| Communities | `/api/communities` | [communities.md](./communities.md) |
 
 ---
 
-## Maintained module docs
+## Community subresources
 
-- [API Conventions](./conventions.md)
-- [Authentication](./auth.md)
-- [Communities](./communities.md)
-- [Help Center](./help.md)
-- [Members](./members.md)
-- [Requests](./requests.md)
-- [Users](./users.md)
-- [Forum](./forum.md)
-- [Calendar](./calendar.md)
-- [News](./news.md)
-- [Incidents](./incidents.md)
-- [Voting](./voting.md)
+These modules are mounted under `/api/communities/:communityId/...` and inherit the target community from the parent path.
 
-Draft placeholders:
+| Module | Base path | Document |
+|---|---|---|
+| Members | `/api/communities/:communityId/members` | [members.md](./members.md) |
+| Help | `/api/communities/:communityId/help` | [help.md](./help.md) |
+| Calendar | `/api/communities/:communityId/calendar` | [calendar.md](./calendar.md) |
+| Voting | `/api/communities/:communityId/voting` | [voting.md](./voting.md) |
+| Forum | `/api/communities/:communityId/forum` | [forum.md](./forum.md) |
+| News | `/api/communities/:communityId/news` | [news.md](./news.md) |
+| Incidents | `/api/communities/:communityId/incidents` | [incidents.md](./incidents.md) |
+| Documents | `/api/communities/:communityId/documents` | [documents.md](./documents.md) |
+| Reservations | `/api/communities/:communityId/reservations` | [reservations.md](./reservations.md) |
 
-- [Documents](./documents.md)
-- [Reservations](./reservations.md)
+---
+
+## Technical endpoints
+
+| Path | Description |
+|---|---|
+| `GET /api/health` | Lightweight health endpoint for deployment and diagnostics |
+| `/uploads/*` | Public static asset surface used by files already exposed by the API |
+
+`/uploads/*` is not a functional module. It is the public URL space used for stored images and similar assets referenced by JSON responses.
+
+---
+
+## Maintenance scope
+
+- Every file in this directory documents current routes mounted from `backend/src/app.js` and the corresponding module route files.
+- Success payloads are documented per module page.
+- Cross-cutting rules for authentication, validation, dates, pagination, errors and uploads are centralized in [conventions.md](./conventions.md).
