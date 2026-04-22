@@ -2,7 +2,7 @@
 
 > API index: [docs/api/README.md](./README.md)
 
-This module manages community member listing, voluntary leave, expulsion, administrative role transfer and membership suspension.
+This module manages community member listing, voluntary leave, expulsion, administrative role assignment or removal and membership suspension.
 
 Base path:
 
@@ -12,7 +12,7 @@ Base path:
 
 ## Scope
 
-This module manages community member listing, voluntary leave, expulsion, administrative role transfer and membership suspension.
+This module manages community member listing, voluntary leave, expulsion, administrative role assignment or removal and membership suspension.
 
 ---
 
@@ -127,7 +127,7 @@ Returned after actions that may change the caller's active context:
 | `GET` | `/api/communities/:communityId/members` | List community members |
 | `POST` | `/api/communities/:communityId/members/me/leave` | Leave current community |
 | `POST` | `/api/communities/:communityId/members/:memberId/expel` | Expel a member |
-| `PUT` | `/api/communities/:communityId/members/:memberId/roles/:role` | Transfer or assign an admin role |
+| `PUT` | `/api/communities/:communityId/members/:memberId/roles/:role` | Transfer, assign or remove an admin role |
 | `PUT` | `/api/communities/:communityId/members/:memberId/suspension` | Suspend a member |
 | `DELETE` | `/api/communities/:communityId/members/:memberId/suspension` | Cancel an active suspension |
 
@@ -341,14 +341,15 @@ Business rules:
 
 ---
 
-## 4. Transfer or assign admin role
+## 4. Transfer, assign or remove admin role
 
 `PUT /api/communities/:communityId/members/:memberId/roles/:role`
 
-Assigns one of the unique community administrative roles.
+Assigns one of the unique community administrative roles or removes the vice-presidency from the current vice-president.
 
 Allowed role values:
 
+- `MEMBER`
 - `PRESIDENT`
 - `VICE_PRESIDENT`
 
@@ -358,7 +359,7 @@ Requires:
 
 - valid `sid` cookie
 - `communityId` and `memberId` path params as UUID
-- `role` path param as `PRESIDENT` or `VICE_PRESIDENT`
+- `role` path param as `PRESIDENT`, `VICE_PRESIDENT` or `MEMBER`
 - active administrative access in the community
 
 No request body.
@@ -377,6 +378,13 @@ No request body.
 - Target cannot currently be `PRESIDENT`
 - A `PRESIDENT` cannot assign `VICE_PRESIDENT` to themself
 - The previous vice-president, if different, is downgraded to `MEMBER`
+
+#### When `role=MEMBER`
+
+- Only the current `PRESIDENT` can perform this action
+- The target must currently be the active `VICE_PRESIDENT`
+- No new vice-president is assigned automatically
+- The target is downgraded to `MEMBER`
 
 ### Success
 
@@ -398,6 +406,11 @@ No request body.
   }
 }
 ```
+
+Notes:
+
+- The final `targetMember.role` depends on the requested role
+- When `role=MEMBER`, the response returns the downgraded vice-president with role `MEMBER`
 
 ### Expected errors
 

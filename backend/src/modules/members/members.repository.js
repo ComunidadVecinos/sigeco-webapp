@@ -423,7 +423,7 @@ async function clearMembershipSuspension({ memberId, communityId }) {
   });
 }
 
-async function assignUniqueAdministrativeRole({ communityId, actorMembershipId, targetMembershipId, role }) {
+async function updateAdministrativeRole({ communityId, actorMembershipId, targetMembershipId, role }) {
   // Aquí se garantiza la unicidad de presidente y vicepresidente.
   return prisma.$transaction(async (tx) => {
     const membershipIds = Array.from(new Set([actorMembershipId, targetMembershipId]));
@@ -461,31 +461,18 @@ async function assignUniqueAdministrativeRole({ communityId, actorMembershipId, 
     }
 
     // La reasignación degrada primero al ocupante anterior del rol para evitar dos titulares simultáneos.
-    if (role === 'PRESIDENT') {
-      await tx.membership.updateMany({
-        where: {
-          communityId,
-          role: 'PRESIDENT',
-          deletedAt: null,
-          endedAt: null,
-          id: { not: targetMembershipId }
-        },
+    if (role === 'MEMBER') {
+      await tx.membership.update({
+        where: { id: targetMembershipId },
         data: { role: 'MEMBER' }
       });
-
-      if (targetMembership.role !== 'PRESIDENT') {
-        await tx.membership.update({
-          where: { id: targetMembershipId },
-          data: { role: 'PRESIDENT' }
-        });
-      }
     }
 
-    if (role === 'VICE_PRESIDENT') {
+    if (role === 'PRESIDENT' || role === 'VICE_PRESIDENT') {
       await tx.membership.updateMany({
         where: {
           communityId,
-          role: 'VICE_PRESIDENT',
+          role,
           deletedAt: null,
           endedAt: null,
           id: { not: targetMembershipId }
@@ -493,10 +480,10 @@ async function assignUniqueAdministrativeRole({ communityId, actorMembershipId, 
         data: { role: 'MEMBER' }
       });
 
-      if (targetMembership.role !== 'VICE_PRESIDENT') {
+      if (targetMembership.role !== role) {
         await tx.membership.update({
           where: { id: targetMembershipId },
-          data: { role: 'VICE_PRESIDENT' }
+          data: { role }
         });
       }
     }
@@ -535,5 +522,5 @@ module.exports = {
   finalizeMembershipAndResolveActiveContext,
   suspendMembership,
   clearMembershipSuspension,
-  assignUniqueAdministrativeRole
+  updateAdministrativeRole
 };
