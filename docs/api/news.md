@@ -78,16 +78,7 @@ JSON example:
 }
 ```
 
-Multipart example:
-
-```ts
-const formData = new FormData();
-formData.append('title', 'Junta extraordinaria');
-formData.append('description', 'Se convoca una reunión para aprobar el presupuesto.');
-formData.append('eventStartsAt', '2026-04-10T17:30:00.000Z');
-formData.append('eventEndsAt', '2026-04-10T18:30:00.000Z');
-formData.append('image', file);
-```
+Multipart requests use the same text fields and may also include an `image` file.
 
 Validation:
 
@@ -211,11 +202,3 @@ Success:
 - calendar responses still expose those segments as UTC instants
 - deleting the news item removes all linked automatic calendar entries
 
----
-
-## Frontend notes
-
-- treat `id` as UUID string
-- use `description`, not legacy `content`
-- show `createdAt`, `editedAt`, `eventStartsAt` and `eventEndsAt` by converting UTC to `Europe/Madrid`
-- do not rebuild a nested `event` object client-side; the API no longer uses it

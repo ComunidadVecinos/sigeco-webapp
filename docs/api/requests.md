@@ -10,28 +10,9 @@ Base path:
 
 ---
 
-## Overview
+## Scope
 
-### What this module does
-
-- Creates `JOIN` requests to access a community by access code
-- Creates `UPDATE_INFO` requests to modify community membership/property data
-- Lists the authenticated user's non-archived requests
-- Lists pending requests of a community for admins
-- Lets users cancel or archive their own requests
-- Lets admins approve or reject pending requests
-- Auto-cancels pending requests when the user leaves that community
-- Archives all visible requests when the user deletes the account
-
-### What frontend should know first
-
-- All endpoints require an authenticated session
-- Request types currently implemented are `JOIN` and `UPDATE_INFO`
-- Request statuses currently used are `PENDING`, `APPROVED`, `REJECTED` and `CANCELLED`
-- Archived requests are hidden from user-facing lists
-- Admin review endpoints operate on the community of the request itself
-- If the user leaves a community, pending requests of that same community are cancelled automatically
-- If the account is deleted, all visible requests are archived and any pending ones are first cancelled
+This module manages user-created community requests and the corresponding administrative review flows.
 
 ---
 
@@ -437,10 +418,9 @@ Business rules:
 - User must belong to `communityId`
 - User must not already have a pending visible request for that community
 
-Important for frontend:
+Contract note:
 
-- `proposedAlias` is required by backend for `UPDATE_INFO`
-- The current frontend service may treat alias as optional, but the backend contract does not
+- `proposedAlias` is required for `UPDATE_INFO`
 
 ### Success
 
@@ -659,13 +639,6 @@ Effects when approving `UPDATE_INFO`:
 | `404` | `NOT_FOUND` | Request not found or archived |
 | `409` | `CONFLICT` | Request is no longer approvable because of its state or current membership state |
 | `422` | `VALIDATION_ERROR` | Invalid params/body |
-
-### Frontend notes
-
-- Approval can modify memberships and properties immediately
-- After approval, frontend should refresh both the pending requests list and the affected user/community context views
-
----
 
 ## 7. Reject request
 

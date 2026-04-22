@@ -8,17 +8,9 @@ Base path: `/api/communities`
 
 ---
 
-## Overview
+## Scope
 
-### What this module does
-
-- Creates a community and assigns the creator as `PRESIDENT`
-- Returns the administrative summary of a community
-- Updates basic community data
-- Regenerates the community access code
-- Uploads/replaces the community avatar
-- Deletes the community avatar
-- Soft-deletes a community
+This page documents only the endpoints implemented in the `communities` module itself.
 
 ### Related subresources mounted under the same path
 
@@ -30,8 +22,9 @@ These routes are mounted from `communities`, but belong to other modules:
 - `/api/communities/:communityId/voting/*`
 - `/api/communities/:communityId/forum/*`
 - `/api/communities/:communityId/news/*`
-
-This page documents only the endpoints implemented in the `communities` module itself.
+- `/api/communities/:communityId/incidents/*`
+- `/api/communities/:communityId/documents/*`
+- `/api/communities/:communityId/reservations/*`
 
 ---
 
@@ -228,14 +221,6 @@ Same required address fields as `community`, plus:
 | `422` | `VALIDATION_ERROR` | Invalid request body |
 | `409` | `CONFLICT` | CIF already used or community creation context invalid |
 
-### Frontend notes
-
-- Successful creation changes the caller's active membership to the new community
-- The generated `accessCode` is returned in the response
-- The returned `cif` may be normalized, for example `H12345678` -> `H-12345678`
-
----
-
 ## 2. Get community administrative summary
 
 `GET /api/communities/:communityId/summary`
@@ -346,13 +331,6 @@ No request body.
 | `403` | `FORBIDDEN` | User is not an active admin in that community |
 | `404` | `NOT_FOUND` | Community not found |
 | `500` | `INTERNAL_ERROR` | Rare failure generating a unique code after retries |
-
-### Frontend notes
-
-- The returned code is already persisted
-- The backend retries internally on unique constraint collisions
-
----
 
 ## 4. Update community basic data
 
@@ -492,13 +470,6 @@ Upload rules:
 | `415` | `FILE_TYPE_UNSUPPORTED` | Rejected MIME type |
 | `422` | `VALIDATION_ERROR` | Missing file or invalid binary image |
 
-### Frontend notes
-
-- The response returns the new public `avatarUrl`
-- Backend stores the file first and only commits it after DB update succeeds
-
----
-
 ## 6. Delete community avatar
 
 `DELETE /api/communities/:communityId/avatar`
@@ -515,7 +486,7 @@ Requires:
 
 No request body.
 
-### Backend behavior relevant to frontend
+### Behavior notes
 
 - Backend removes the avatar reference from the database first
 - Stored file cleanup is attempted afterwards as a best-effort step
@@ -621,13 +592,6 @@ ELIMINAR COMUNIDAD
 | `422` | `VALIDATION_ERROR` | Invalid body |
 | `422` | `CONFIRMATION_TEXT_MISMATCH` | Confirmation text does not match |
 | `422` | `CURRENT_PASSWORD_INVALID` | Current password is wrong |
-
-### Frontend notes
-
-- Deleting a community can change the caller's active membership immediately
-- Frontend should refresh user/profile context after this operation
-
----
 
 ## Common community error cases
 

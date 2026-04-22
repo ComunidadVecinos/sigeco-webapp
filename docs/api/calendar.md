@@ -37,8 +37,6 @@ Base path: `/api/communities/:communityId/calendar`
 - `RESERVATION`
 - `VOTING`
 
----
-
 ## Endpoints
 
 | Method | Path | Description |
@@ -138,11 +136,3 @@ Success:
 }
 ```
 
----
-
-## Frontend notes
-
-- send personal event ranges as UTC ISO
-- derive the visible business day by converting `startsAt` to `Europe/Madrid`
-- render all event times in `Europe/Madrid`
-- do not expect public CRUD for automatic `NEWS` or `VOTING` events

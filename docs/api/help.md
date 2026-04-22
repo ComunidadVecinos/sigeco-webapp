@@ -11,21 +11,9 @@ Base paths:
 
 ---
 
-## Overview
+## Scope
 
-### What this module does
-
-- Returns global platform help for authenticated users
-- Optionally combines global help with community-specific help
-- Lets community administrators create, edit, delete and reorder help sections
-
-### What frontend should know first
-
-- All endpoints in this module require an authenticated session
-- Community help read access requires membership in that community
-- Community help write access requires active administrative access
-- Responses always include `generalHelp`
-- Community section lists are returned already ordered
+This module exposes the top-level help endpoint at `/api/help/sections` and the community-scoped help endpoints mounted under `/api/communities/:communityId/help`.
 
 ---
 
@@ -208,13 +196,6 @@ With community:
 | `404` | `NOT_FOUND` | Community does not exist |
 | `422` | `VALIDATION_ERROR` | Invalid `communityId` query param |
 
-### Frontend notes
-
-- This route is authenticated even when fetching only global help
-- Community help is only returned when `communityId` is provided and accessible
-
----
-
 ## 2. Get community help sections
 
 `GET /api/communities/:communityId/help/sections`
@@ -329,13 +310,6 @@ Additional rules:
 | `404` | `NOT_FOUND` | Community not found |
 | `409` | `CONFLICT` | Help section limit reached or section could not be created |
 | `422` | `VALIDATION_ERROR` | Invalid body |
-
-### Frontend notes
-
-- New sections are appended at the end of the current ordered list
-- The backend limit is `8` active sections per community
-
----
 
 ## 4. Update community help section
 
@@ -539,13 +513,6 @@ Backend returns not found when:
 | `404` | `NOT_FOUND` | At least one section ID does not exist in current active set |
 | `409` | `CONFLICT` | Provided order does not match current community state |
 | `422` | `VALIDATION_ERROR` | Invalid body or duplicated IDs |
-
-### Frontend notes
-
-- Always send the complete current ordered set, not a partial subset
-- Use the `sections` array returned by backend as the source of truth after reorder
-
----
 
 ## Common help error cases
 

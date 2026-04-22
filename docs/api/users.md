@@ -8,22 +8,9 @@ Base path: `/api/users`
 
 ---
 
-## Overview
+## Scope
 
-### What this module does
-
-- Returns the aggregated profile of the authenticated user
-- Updates the user's basic profile data
-- Changes the active community context used by the current session
-- Uploads or replaces the user's avatar
-- Deletes the user's avatar
-- Soft-deletes the current account
-
-### What this module does not do
-
-- It does **not** expose public profile lookup endpoints
-- It does **not** expose administrative user management
-- All routes in this module operate only on `/me`
+This module exposes self-service operations for the authenticated user profile.
 
 ---
 
@@ -145,7 +132,7 @@ No request body.
 
 Response shape: see [Profile response](#profile-response).
 
-### Backend behavior relevant to frontend
+### Behavior notes
 
 - `profileImageUrl` is derived from the stored avatar file and may be `null`
 - `communities[].address` uses the property's formatted address when available, otherwise the property label, otherwise `null`
@@ -238,7 +225,7 @@ Cookie: sid=<session_cookie>
 |---|---|
 | `communityId` | Required, valid UUID |
 
-### Backend behavior relevant to frontend
+### Behavior notes
 
 - Backend updates both the current session and `lastActiveMembershipId` on the user
 - The target community must exist and the user must still belong to it
@@ -281,19 +268,7 @@ Form field:
 |---|---|---|
 | `avatar` | File | Required, JPG or PNG, max `5 MB` |
 
-Example:
-
-```ts
-const formData = new FormData();
-formData.append('avatar', file);
-
-await axios.put('/api/users/me/avatar', formData, {
-  withCredentials: true,
-  headers: { 'Content-Type': 'multipart/form-data' }
-});
-```
-
-### Backend behavior relevant to frontend
+### Behavior notes
 
 - Backend validates both the reported MIME type and the binary signature of the uploaded file
 - Upload replaces the previous avatar if one already exists
@@ -334,7 +309,7 @@ Requires valid `sid` cookie.
 
 No request body.
 
-### Backend behavior relevant to frontend
+### Behavior notes
 
 - Backend removes the avatar reference from the database first
 - Stored file cleanup is attempted afterwards as a best-effort step
@@ -387,7 +362,7 @@ Cookie: sid=<session_cookie>
 | `email` | Required, valid email, normalized to lowercase, must match the authenticated user's current email |
 | `confirmationText` | Required, non-empty string, must be exactly `ELIMINAR MI CUENTA` |
 
-### Backend behavior relevant to frontend
+### Behavior notes
 
 - On success, backend invalidates all active sessions of the user
 - The current response clears the `sid` cookie
@@ -464,11 +439,3 @@ Standard error shape:
 }
 ```
 
----
-
-## Frontend integration notes
-
-- Call `GET /api/users/me` after login if frontend needs the full profile, avatar and community summaries
-- Treat `PATCH /api/users/me` as a full form submit, not as a partial patch
-- Use the `activeCommunityId` in this module together with the auth `context` when frontend needs to keep community-scoped UI synchronized
-- Treat returned `profileImageUrl` values as directly renderable public URLs

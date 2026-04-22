@@ -2,7 +2,7 @@
 
 > API index: [docs/api/README.md](./README.md)
 
-This module manages community member listing, voluntary leave, expulsion, administrative role transfer and membership suspension.
+This module manages community member listing, voluntary leave, expulsion, administrative role assignment or removal and membership suspension.
 
 Base path:
 
@@ -10,23 +10,9 @@ Base path:
 
 ---
 
-## Overview
+## Scope
 
-### What this module does
-
-- Lists the members of a community for admins
-- Lets a user leave their current community
-- Lets admins expel members
-- Lets admins transfer `PRESIDENT` and `VICE_PRESIDENT` roles
-- Lets admins suspend and reactivate members
-
-### What frontend should know first
-
-- All endpoints require an authenticated session
-- Suspended memberships still count as belonging to a community
-- Administrative write actions require an operational admin membership
-- The list endpoint is admin-only
-- Leaving or deleting a membership can change the caller's active membership context
+This module manages community member listing, voluntary leave, expulsion, administrative role assignment or removal and membership suspension.
 
 ---
 
@@ -141,7 +127,7 @@ Returned after actions that may change the caller's active context:
 | `GET` | `/api/communities/:communityId/members` | List community members |
 | `POST` | `/api/communities/:communityId/members/me/leave` | Leave current community |
 | `POST` | `/api/communities/:communityId/members/:memberId/expel` | Expel a member |
-| `PUT` | `/api/communities/:communityId/members/:memberId/roles/:role` | Transfer or assign an admin role |
+| `PUT` | `/api/communities/:communityId/members/:memberId/roles/:role` | Transfer, assign or remove an admin role |
 | `PUT` | `/api/communities/:communityId/members/:memberId/suspension` | Suspend a member |
 | `DELETE` | `/api/communities/:communityId/members/:memberId/suspension` | Cancel an active suspension |
 
@@ -298,13 +284,6 @@ Business rules:
 | `409` | `CONFLICT` | User is `PRESIDENT` or membership state is not valid |
 | `422` | `VALIDATION_ERROR` | Invalid body |
 
-### Frontend notes
-
-- This action can change the caller's active membership immediately
-- Frontend should refresh the user profile/context after success
-
----
-
 ## 3. Expel a member
 
 `POST /api/communities/:communityId/members/:memberId/expel`
@@ -362,14 +341,15 @@ Business rules:
 
 ---
 
-## 4. Transfer or assign admin role
+## 4. Transfer, assign or remove admin role
 
 `PUT /api/communities/:communityId/members/:memberId/roles/:role`
 
-Assigns one of the unique community administrative roles.
+Assigns one of the unique community administrative roles or removes the vice-presidency from the current vice-president.
 
 Allowed role values:
 
+- `MEMBER`
 - `PRESIDENT`
 - `VICE_PRESIDENT`
 
@@ -379,7 +359,7 @@ Requires:
 
 - valid `sid` cookie
 - `communityId` and `memberId` path params as UUID
-- `role` path param as `PRESIDENT` or `VICE_PRESIDENT`
+- `role` path param as `PRESIDENT`, `VICE_PRESIDENT` or `MEMBER`
 - active administrative access in the community
 
 No request body.
@@ -398,6 +378,13 @@ No request body.
 - Target cannot currently be `PRESIDENT`
 - A `PRESIDENT` cannot assign `VICE_PRESIDENT` to themself
 - The previous vice-president, if different, is downgraded to `MEMBER`
+
+#### When `role=MEMBER`
+
+- Only the current `PRESIDENT` can perform this action
+- The target must currently be the active `VICE_PRESIDENT`
+- No new vice-president is assigned automatically
+- The target is downgraded to `MEMBER`
 
 ### Success
 
@@ -420,6 +407,11 @@ No request body.
 }
 ```
 
+Notes:
+
+- The final `targetMember.role` depends on the requested role
+- When `role=MEMBER`, the response returns the downgraded vice-president with role `MEMBER`
+
 ### Expected errors
 
 | Status | Code | Notes |
@@ -429,13 +421,6 @@ No request body.
 | `404` | `NOT_FOUND` | Target member or community not found |
 | `409` | `CONFLICT` | Requested role transition is not allowed or update failed |
 | `422` | `VALIDATION_ERROR` | Invalid params |
-
-### Frontend notes
-
-- The operation can affect both the target membership and the actor membership
-- Frontend should refresh both the member list and the user profile/context after success
-
----
 
 ## 5. Suspend a member
 
