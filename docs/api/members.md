@@ -10,23 +10,9 @@ Base path:
 
 ---
 
-## Overview
+## Scope
 
-### What this module does
-
-- Lists the members of a community for admins
-- Lets a user leave their current community
-- Lets admins expel members
-- Lets admins transfer `PRESIDENT` and `VICE_PRESIDENT` roles
-- Lets admins suspend and reactivate members
-
-### What frontend should know first
-
-- All endpoints require an authenticated session
-- Suspended memberships still count as belonging to a community
-- Administrative write actions require an operational admin membership
-- The list endpoint is admin-only
-- Leaving or deleting a membership can change the caller's active membership context
+This module manages community member listing, voluntary leave, expulsion, administrative role transfer and membership suspension.
 
 ---
 
@@ -298,13 +284,6 @@ Business rules:
 | `409` | `CONFLICT` | User is `PRESIDENT` or membership state is not valid |
 | `422` | `VALIDATION_ERROR` | Invalid body |
 
-### Frontend notes
-
-- This action can change the caller's active membership immediately
-- Frontend should refresh the user profile/context after success
-
----
-
 ## 3. Expel a member
 
 `POST /api/communities/:communityId/members/:memberId/expel`
@@ -429,13 +408,6 @@ No request body.
 | `404` | `NOT_FOUND` | Target member or community not found |
 | `409` | `CONFLICT` | Requested role transition is not allowed or update failed |
 | `422` | `VALIDATION_ERROR` | Invalid params |
-
-### Frontend notes
-
-- The operation can affect both the target membership and the actor membership
-- Frontend should refresh both the member list and the user profile/context after success
-
----
 
 ## 5. Suspend a member
 
