@@ -1,5 +1,5 @@
 import React from 'react';
-import {Clock, Users, CalendarDays, XCircle, Divide } from 'lucide-react';
+import {Clock, Users, CalendarDays, XCircle } from 'lucide-react';
 import { Button } from '../button';
 import { formatBusinessDateOnly } from '@/lib/businessDateTime';
 import type { Booking } from '@/services/reservationService';
@@ -17,7 +17,7 @@ const BookingCard: React.FC<BookingCardProps> = ({booking, showOwner = false, on
     return (
         <div className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-shadow hover:shadow-md ${isActive ? 'border-gray-100' : 'border-gray-200 opacity-75'}`}>
             <div className="flex">
-                <div className='w-1.5 shrink-0 rounded-l-2xl' style={{backgroundColor: booking.space.color}} />
+                <div className='w-1.5 shrink-0 rounded-l-2xl' style={{backgroundColor: booking.space.colorHex}} />
 
                 <div className='flex-1 p-5'>
                     <div className='flex items-start justify-between gap-3'>
@@ -27,7 +27,7 @@ const BookingCard: React.FC<BookingCardProps> = ({booking, showOwner = false, on
                                     <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-red-500'}`} />
                                     {isActive ? 'Activa' : 'Cancelada'}
                                 </span>
-                                <span className='inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border' style={{backgroundColor: booking.space.color + '15', borderColor: booking.space.color + '40', color: booking.space.color}}>
+                                <span className='inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border' style={{backgroundColor: booking.space.colorHex + '15', borderColor: booking.space.colorHex + '40', color: booking.space.colorHex}}>
                                     {booking.space.name}
                                 </span>
                             </div>
@@ -48,7 +48,7 @@ const BookingCard: React.FC<BookingCardProps> = ({booking, showOwner = false, on
                                         ({booking.slotCount} {booking.slotCount === 1 ? 'slot' : 'slots'})
                                     </span>
                                 </div>
-                                {booking.space.type === 'SHARED' && (
+                                {booking.space.occupancyMode === 'SHARED' && (
                                     <div className='flex items-center gap-2'>
                                         <Users className='w-4 h-4 text-gray-400' />
                                         <span>{booking.requestedSeats} {booking.requestedSeats === 1 ? 'plaza' : 'plazas'}</span>

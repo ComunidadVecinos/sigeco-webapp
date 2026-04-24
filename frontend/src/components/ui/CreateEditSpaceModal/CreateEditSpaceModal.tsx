@@ -59,7 +59,7 @@ const CreateEditSpaceModal: React.FC<CreateEditSpaceModalProps> = ({isOpen, onCl
         onSave({
             name: name.trim(),
             description: description.trim() || undefined,
-            color,
+            colorHex: color,
             isActive: true,
             totalCapacity,
             occupancyMode,
@@ -79,7 +79,7 @@ const CreateEditSpaceModal: React.FC<CreateEditSpaceModalProps> = ({isOpen, onCl
     const handleClose = () => {
         setName('');
         setDescription('');
-        setColor('1F6FEB');
+        setColor('#1F6FEB');
         setTotalCapacity(10);
         setOccupancyMode('EXCLUSIVE');
         setMaxSeatsPerBooking('');

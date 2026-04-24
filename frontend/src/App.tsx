@@ -20,6 +20,8 @@ import NotFoundPage from './pages/NotFoundPage/NotFoundPage';
 import DocumentsPage from './pages/DocumentsPage/DocumentsPage';
 import VotingPage from './pages/VotingPage/VotingPage';
 import IncidentPage from './pages/IncidentPage/IncidentPage';
+import ReservationsPage from './pages/ReservationsPage/ReservationPage';
+import SpaceManagementPage from './pages/SpaceManagementPage/SpaceManagementPage';
 
 const App: React.FC = () => {
     
@@ -45,6 +47,8 @@ const App: React.FC = () => {
                     <Route path='/documents' element={<DocumentsPage/>}/>
                     <Route path='/voting' element={<VotingPage/>}/>
                     <Route path='/incidents' element={<IncidentPage/>} />
+                    <Route path='/reservations' element={<ReservationsPage/>} />
+                    <Route path='/space-management' element={<SpaceManagementPage/>} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Routes>
             </div>

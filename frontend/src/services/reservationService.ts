@@ -1,4 +1,3 @@
-import { Space } from 'lucide-react';
 import api from './api';
 
 export type Type = 'SHARED' | 'EXCLUSIVE';
@@ -16,11 +15,11 @@ export interface Days{
 export interface Space {
     id: string;
     name: string;
-    descripticon: string | null;
-    color: string;
+    description: string | null;
+    colorHex: string;
     isActive: boolean;
     totalCapacity: number;
-    type: Type;
+    occupancyMode: Type;
     maxSeatsPerBooking: number | null;
     openingTime: string;
     closingTime: string;
@@ -31,15 +30,15 @@ export interface Space {
     maxAdvanceDays: number;
     cancellationNoticeMinutes: number;
     createdAt: string;
-    updateAt: string;
+    updatedAt: string;
 }
 
 export interface SpaceRef{
     id: string;
     name: string;
-    color: string;
+    colorHex: string;
     isActive: boolean;
-    type: Type;
+    occupancyMode: Type;
     totalCapacity: number;
     maxSeatsPerBooking: number | null;
 }
@@ -61,7 +60,7 @@ export interface Booking {
     startsAt: string;
     endsAt: string;
     createdAt: string;
-    updateAt: string;
+    updatedAt: string;
     cancelledAt: string | null;
     cancellationReason: string | null;
     canCancel: boolean;
