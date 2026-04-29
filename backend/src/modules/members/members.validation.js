@@ -7,7 +7,7 @@ const { positiveIntegerQuerySchema, optionalTrimmedStringSchema, optionalDateQue
 
 const communityIdParamSchema = uuidParamSchema('communityId');
 const communityMemberParamsSchema = uuidParamSchema('communityId', 'memberId');
-const communityMemberRoleParamsSchema = uuidParamSchema('communityId', 'memberId').extend({ role: z.enum(['PRESIDENT', 'VICE_PRESIDENT']) });
+const communityMemberRoleParamsSchema = uuidParamSchema('communityId', 'memberId').extend({ role: z.enum(['PRESIDENT', 'VICE_PRESIDENT', 'MEMBER']) });
 
 const leaveCommunitySchema = z.object({ confirm: z.literal(true, { message: 'Debes confirmar la operación' }) });
 const expelMemberSchema = z.object({ confirm: z.literal(true, { message: 'Debes confirmar la operación' }), reason: optionalCommentSchema });

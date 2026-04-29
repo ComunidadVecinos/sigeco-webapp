@@ -8,20 +8,9 @@ Base path: `/api/auth`
 
 ---
 
-## Overview
+## Scope
 
-### What this module does
-
-- Creates user accounts
-- Opens and closes the current session
-- Changes the password of the authenticated user
-- Resets password by email with a temporary password
-
-### What this module does not do
-
-- It does **not** expose `GET /api/auth/me`
-- Authenticated profile data is returned by the `users` module (`GET /api/users/me`)
-- Registration does **not** create a session automatically
+This module creates accounts, manages the current authenticated session and handles password changes and password reset.
 
 ---
 
@@ -38,14 +27,6 @@ Authentication is stateful and cookie-based.
 | `SameSite` | Configurable, default `lax` |
 | `Secure` | Configurable, forced to `true` when `SameSite=none` |
 | Session TTL | From `SESSION_TTL_DAYS` |
-
-Frontend must send credentials on protected routes.
-
-Example with Axios:
-
-```ts
-axios.post('/api/auth/sessions', body, { withCredentials: true });
-```
 
 ---
 
@@ -242,14 +223,6 @@ Example with phone:
 | `422` | `VALIDATION_ERROR` | Missing `identifier` or `password` |
 | `401` | `INVALID_CREDENTIALS` | Unknown user or wrong password |
 
-### Frontend notes
-
-- The session token is not returned in the JSON body, only in the cookie
-- Frontend should persist no auth token manually
-- After login, the usual next step is calling `GET /api/users/me` to load full profile data
-
----
-
 ## 3. Logout current session
 
 `DELETE /api/auth/sessions/current`
@@ -373,7 +346,7 @@ Content-Type: application/json
 }
 ```
 
-### Backend behavior relevant to frontend
+### Behavior notes
 
 - The endpoint returns the same success response whether the user exists or not
 - It does not require the email to belong to `@ucm.es`
@@ -383,12 +356,6 @@ Content-Type: application/json
   - sends email
   - invalidates all active sessions for that user
 - If email sending fails, backend restores the previous password state
-
-### Local development note
-
-In the local Docker environment, reset emails are delivered to MailPit:
-
-- UI: `http://localhost:8025`
 
 ### Expected errors
 
@@ -427,12 +394,3 @@ Standard error shape:
 }
 ```
 
----
-
-## Frontend integration notes
-
-- Always use `withCredentials: true` or equivalent on protected requests
-- Do not store auth tokens in frontend state or local storage
-- Registration must usually be followed by an explicit login
-- After login, call the `users` module for the complete authenticated profile
-- Logout can be treated as idempotent in UX, but the backend still returns `401` if the session was already invalid

@@ -184,10 +184,3 @@ Success:
 - the public API still returns only UTC instants
 - if a voting ends at business `00:00`, the reminder is projected to the previous business day
 
----
-
-## Frontend notes
-
-- send `endsAt` as UTC ISO
-- render `createdAt`, `startsAt`, `endsAt`, `votedAt` and `closedAt` in `Europe/Madrid`
-- do not rebuild `endDate` / `endTime`; the API no longer exposes them

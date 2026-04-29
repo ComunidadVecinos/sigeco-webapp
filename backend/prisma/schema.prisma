@@ -39,6 +39,16 @@ enum CalendarEventType {
   VOTING
 }
 
+enum ReservationSpaceOccupancyMode {
+  EXCLUSIVE
+  SHARED
+}
+
+enum ReservationBookingStatus {
+  ACTIVE
+  CANCELLED
+}
+
 enum PollKind {
   COMMUNITY_VOTING
   FORUM_POLL
@@ -133,6 +143,8 @@ model Community {
   folders           CommunityFolder[]
   documents         CommunityDocument[]
   calendarEvents    CalendarEvent[]
+  reservationSpaces ReservationSpace[]
+  reservationBookings ReservationBooking[]
   polls             Poll[]
   forumPosts        ForumPost[]
   newsItems         CommunityNews[]
@@ -182,6 +194,8 @@ model Membership {
   resolvedCommunityRequests CommunityRequest[]  @relation("CommunityRequestResolvedByMembership")
   uploadedDocuments         CommunityDocument[] @relation("CommunityDocumentUploadedBy")
   calendarEvents            CalendarEvent[]     @relation("CalendarEventOwnerMembership")
+  reservationBookings       ReservationBooking[] @relation("ReservationBookingOwnerMembership")
+  cancelledReservationBookings ReservationBooking[] @relation("ReservationBookingCancelledByMembership")
   createdPolls              Poll[]              @relation("PollCreatedByMembership")
   closedPolls               Poll[]              @relation("PollClosedByMembership")
   pollVotes                 PollVote[]          @relation("MembershipPollVotes")
@@ -369,6 +383,71 @@ model CalendarEvent {
   @@index([communityId, eventDate, deletedAt], map: "calendar_events_month_lookup_idx")
   @@index([communityId, ownerMembershipId, eventDate, deletedAt], map: "calendar_events_owner_month_lookup_idx")
   @@map("calendar_events")
+}
+
+model ReservationSpace {
+  id                        String                         @id @default(uuid()) @db.Uuid
+  communityId               String                         @map("community_id") @db.Uuid
+  name                      String                         @db.VarChar(160)
+  description               String?                        @db.Text
+  colorHex                  String                         @map("color_hex") @db.VarChar(7)
+  isActive                  Boolean                        @default(true) @map("is_active")
+  totalCapacity             Int                            @map("total_capacity")
+  occupancyMode             ReservationSpaceOccupancyMode  @map("occupancy_mode")
+  maxSeatsPerBooking        Int?                           @map("max_seats_per_booking")
+  mondayEnabled             Boolean                        @default(true) @map("monday_enabled")
+  tuesdayEnabled            Boolean                        @default(true) @map("tuesday_enabled")
+  wednesdayEnabled          Boolean                        @default(true) @map("wednesday_enabled")
+  thursdayEnabled           Boolean                        @default(true) @map("thursday_enabled")
+  fridayEnabled             Boolean                        @default(true) @map("friday_enabled")
+  saturdayEnabled           Boolean                        @default(true) @map("saturday_enabled")
+  sundayEnabled             Boolean                        @default(true) @map("sunday_enabled")
+  openingTime               String                         @map("opening_time") @db.VarChar(5)
+  closingTime               String                         @map("closing_time") @db.VarChar(5)
+  slotMinutes               Int                            @map("slot_minutes")
+  maxConsecutiveSlots       Int                            @default(1) @map("max_consecutive_slots")
+  minAdvanceMinutes         Int                            @default(60) @map("min_advance_minutes")
+  maxAdvanceDays            Int                            @default(30) @map("max_advance_days")
+  cancellationNoticeMinutes Int                            @default(120) @map("cancellation_notice_minutes")
+  createdAt                 DateTime                       @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt                 DateTime                       @updatedAt @db.Timestamptz(3) @map("updated_at")
+  deletedAt                 DateTime?                      @db.Timestamptz(3) @map("deleted_at")
+
+  community Community            @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  bookings  ReservationBooking[]
+
+  @@index([communityId, deletedAt, isActive, createdAt], map: "reservation_spaces_community_status_created_lookup_idx")
+  @@index([communityId, deletedAt, name], map: "reservation_spaces_community_name_lookup_idx")
+  @@map("reservation_spaces")
+}
+
+model ReservationBooking {
+  id                      String                   @id @default(uuid()) @db.Uuid
+  communityId             String                   @map("community_id") @db.Uuid
+  spaceId                 String                   @map("space_id") @db.Uuid
+  ownerMembershipId       String                   @map("owner_membership_id") @db.Uuid
+  status                  ReservationBookingStatus @default(ACTIVE)
+  bookingDate             DateTime                 @map("booking_date") @db.Date
+  startSlotIndex          Int                      @map("start_slot_index")
+  slotCount               Int                      @map("slot_count")
+  startTime               String                   @map("start_time") @db.VarChar(5)
+  endTime                 String                   @map("end_time") @db.VarChar(5)
+  requestedSeats          Int                      @default(1) @map("requested_seats")
+  cancelledAt             DateTime?                @db.Timestamptz(3) @map("cancelled_at")
+  cancelledByMembershipId String?                  @map("cancelled_by_membership_id") @db.Uuid
+  cancellationReason      String?                  @map("cancellation_reason") @db.Text
+  createdAt               DateTime                 @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @db.Timestamptz(3) @map("updated_at")
+
+  community         Community        @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  space             ReservationSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  ownerMembership   Membership       @relation("ReservationBookingOwnerMembership", fields: [ownerMembershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cancelledByMembership Membership?  @relation("ReservationBookingCancelledByMembership", fields: [cancelledByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([communityId, ownerMembershipId, status, bookingDate], map: "reservation_bookings_owner_status_date_lookup_idx")
+  @@index([communityId, spaceId, status, bookingDate], map: "reservation_bookings_space_status_date_lookup_idx")
+  @@index([cancelledByMembershipId], map: "reservation_bookings_cancelled_by_lookup_idx")
+  @@map("reservation_bookings")
 }
 
 model Poll {

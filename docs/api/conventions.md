@@ -1,65 +1,131 @@
 # API Conventions
 
-This document describes the shared rules implemented by the current SIGECO backend.
+> API index: [docs/api/README.md](./README.md)
 
-> Back to API hub: [docs/api/README.md](./README.md)
-
----
-
-## 1. Base path and formats
-
-- API base path: `/api`
-- Default payload format: `application/json`
-- Image uploads use `multipart/form-data`
-- Field naming in payloads: `camelCase`
-- Most identifiers are UUID strings
-
-Examples:
-
-- `GET /api/users/me`
-- `GET /api/communities/:communityId/news`
-- `POST /api/communities/:communityId/voting`
-- `DELETE /api/communities/:communityId/news/:newsId/image`
+This page defines the shared documentation rules for the SIGECO backend API.
 
 ---
 
-## 2. Authentication
+## 1. Base paths
+
+- Global API base path: `/api`
+- Community-scoped modules are mounted under `/api/communities/:communityId/...`
+- Static uploaded assets are exposed under `/uploads/*`
+
+Technical endpoints mounted directly by the application:
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/health` | Health check endpoint |
+| `GET` | `/uploads/*` | Public static file delivery when a payload references a stored asset |
+
+---
+
+## 2. Request and response formats
+
+- Most endpoints use `application/json`
+- File uploads use `multipart/form-data`
+- Document binary delivery uses streamed file content
+- Successful JSON responses do not use a universal envelope; each endpoint returns its own resource-specific payload
+
+Typical success statuses:
+
+| Status | Meaning |
+|---|---|
+| `200 OK` | Successful read, update, delete or custom action |
+| `201 Created` | Successful resource creation |
+
+---
+
+## 3. Authentication model
 
 Authentication is stateful and cookie-based.
 
-- Session cookie: `sid`
-- No bearer token is used
-- Protected routes require a valid session cookie
-- Frontend requests must send credentials
+| Item | Value |
+|---|---|
+| Session cookie | `sid` |
+| Transport | `Set-Cookie` / `Cookie` headers |
+| Cookie access | `HttpOnly` |
+| Protected routes | Require a valid persisted session |
 
-Examples:
-
-```ts
-fetch('/api/users/me', { credentials: 'include' });
-```
-
-```ts
-axios.get('/api/users/me', { withCredentials: true });
-```
+Modules document any additional access control on top of session validation, such as community membership, operational membership, ownership or administrative roles.
 
 ---
 
-## 3. Success shape
+## 4. Error shape
 
-There is no global success envelope like `{ data: ... }`.
-
-Common maintained patterns:
-
-### Single resource
+All HTTP errors are normalized to the same structure:
 
 ```json
 {
-  "id": "uuid",
-  "name": "Comunidad SIGECO"
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Error de validación",
+    "details": [
+      {
+        "field": "page",
+        "location": "query",
+        "message": "El campo page debe ser un entero positivo"
+      }
+    ]
+  }
 }
 ```
 
-### Paginated response
+Notes:
+
+- `details` is optional
+- `details` is typically present on validation failures
+- `location` usually identifies `body`, `query` or `params`
+
+Common status families:
+
+| Status | Typical meaning |
+|---|---|
+| `400` | Malformed request body, including malformed JSON |
+| `401` | Missing, invalid or expired session |
+| `403` | Authenticated actor lacks the required access |
+| `404` | Resource not found or not visible |
+| `409` | State conflict or forbidden transition |
+| `413` | Uploaded file exceeds the allowed size |
+| `415` | Uploaded file type is not supported |
+| `422` | Semantic validation failed |
+| `500+` | Internal or infrastructure failure |
+
+---
+
+## 5. Validation rules
+
+- Route params, query params and request bodies are validated before controller execution
+- Schemas are strict unless a module explicitly documents otherwise
+- Unknown fields in strict JSON bodies are rejected
+- Multipart endpoints may sanitize the text body and reject unsupported extra fields
+- UUID, date and enum formats are validated at the HTTP boundary
+
+---
+
+## 6. Date and time rules
+
+The API uses more than one temporal format depending on the module contract.
+
+| Format | Example | Typical use |
+|---|---|---|
+| UTC ISO instant | `2026-04-10T17:30:00.000Z` | Timestamps and timestamped schedule fields |
+| Business date | `2026-04-10` | Reservation dates and day-based filters |
+| Business month | `2026-04` | Month calendar views |
+| Time-only | `18:30` | Reservation slot boundaries |
+
+Shared documentation rule:
+
+- `createdAt`, `updatedAt`, `editedAt`, `startsAt`, `endsAt`, `closedAt`, `cancelledAt` and similar timestamp fields are documented as UTC ISO instants whenever they are present in the public contract
+- Some modules evaluate day-based business rules in `Europe/Madrid` while still exposing UTC instants in their public payloads
+- Reservations use `YYYY-MM-DD` and `YYYY-MM` for business-day and business-month filters
+
+---
+
+## 7. Pagination
+
+When an endpoint is paginated, the response uses this shape:
 
 ```json
 {
@@ -73,145 +139,27 @@ Common maintained patterns:
 }
 ```
 
-### Action result
+Shared rules:
 
-```json
-{
-  "deleted": true,
-  "newsId": "uuid"
-}
-```
+- Pagination is 1-based
+- Query parameter names are `page` and `pageSize`
+- The maximum allowed `pageSize` is documented per module, commonly `100`
 
----
-
-## 4. Error shape
-
-Handled errors use the same envelope:
-
-```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Error de validación",
-    "details": [
-      {
-        "field": "email",
-        "location": "body",
-        "message": "El correo electrónico no es válido"
-      }
-    ]
-  }
-}
-```
-
-Notes:
-
-- `error.details` is optional
-- `location` can be `body`, `query`, `params` or `headers`
+Some modules add extra top-level properties such as `summary`, `community`, `storage` or `breadcrumbs`.
 
 ---
 
-## 5. Status codes in use
+## 8. Uploads and public file URLs
 
-| Status | Typical meaning |
-|---|---|
-| `200 OK` | Successful read or state change |
-| `201 Created` | Resource created |
-| `400 Bad Request` | Malformed JSON body |
-| `401 Unauthorized` | Missing, invalid or expired session |
-| `403 Forbidden` | Authenticated but without enough permissions |
-| `404 Not Found` | Route or resource not found |
-| `409 Conflict` | Business/state conflict |
-| `413 Payload Too Large` | Uploaded file exceeds max size |
-| `415 Unsupported Media Type` | Uploaded file type is not allowed |
-| `422 Unprocessable Entity` | Schema validation error |
-| `500 Internal Server Error` | Unexpected backend failure |
-| `502 Bad Gateway` | External email service failure |
-| `503 Service Unavailable` | Storage layer unavailable |
+- Image and document endpoints may return public URLs
+- Image assets are usually exposed under `/uploads/...`
+- Community documents are downloaded or streamed through `/api/communities/:communityId/documents/files/:documentId/content`
+- Upload constraints such as allowed MIME types, binary signature checks, file size limits and quota checks are documented by each module
 
 ---
 
-## 6. Temporal contract
+## 9. Documentation scope
 
-This is the shared rule that frontend must follow now:
-
-- Every field with date **and** time travels as **ISO 8601 UTC**
-- Fields that are only dates may still use `YYYY-MM-DD`
-- Backend keeps `Europe/Madrid` only as internal business timezone
-
-Examples of UTC instant fields:
-
-- `createdAt`
-- `updatedAt`
-- `startsAt`
-- `endsAt`
-- `closedAt`
-- `eventStartsAt`
-- `eventEndsAt`
-- `votedAt`
-
-Examples of date-only fields:
-
-- `month=YYYY-MM` in calendar month queries
-- `from=YYYY-MM-DD` and `to=YYYY-MM-DD` when a module filters by business day
-
-Frontend rule:
-
-- parse every `...At` field as a real UTC instant
-- display it in `Europe/Madrid`
-- do not build UI logic from the browser timezone
-
----
-
-## 7. Validation and normalization
-
-Input validation is applied before controllers using Zod-based middleware.
-
-Frontend should expect:
-
-- UUID path params are validated
-- Numeric query params such as `page` and `pageSize` are accepted as strings and normalized to numbers
-- Optional text query params are trimmed
-- Invalid JSON body returns `400`
-- Schema validation failures return `422 VALIDATION_ERROR`
-
-Common pagination defaults where supported:
-
-- `page`: default `1`
-- `pageSize`: default `10`
-- `pageSize` maximum: `100`
-
----
-
-## 8. File uploads
-
-Current image upload endpoints use these patterns:
-
-- Content type: `multipart/form-data`
-- Allowed MIME types: `image/jpeg`, `image/png`
-- Max size: `5 MB`
-
-Current field names:
-
-- `avatar` for user and community avatars
-- `image` for optional news images on `POST/PATCH /api/communities/:communityId/news`
-
-Some endpoints accept either JSON or multipart:
-
-- `news` create/update accepts JSON when no image is sent
-- the same endpoints accept multipart when an optional image is included
-
-Image-bearing resources may also expose an explicit delete endpoint:
-
-- `PUT` uploads or replaces the file reference
-- `DELETE` removes the current file reference without deleting the parent resource
-
----
-
-## 9. Practical frontend notes
-
-- Always send credentials on protected routes
-- Do not expect a global success wrapper
-- Read and surface `error.message`; use `error.details` for field feedback
-- Treat returned file URLs as already public
-- Treat every ISO timestamp as UTC and format it in `Europe/Madrid`
+- Module pages document concrete endpoint contracts, access rules and resource payloads
+- This file documents only shared conventions
+- The source of truth for route coverage is the application router and the corresponding module route files

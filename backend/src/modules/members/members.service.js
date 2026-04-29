@@ -221,6 +221,36 @@ async function expelCommunityMember(context, input, membersRepository) {
   };
 }
 
+function validateAdministrativeRoleChange(actorMembership, targetMembership, role) {
+  switch (role) {
+    case 'PRESIDENT':
+      if (actorMembership.role !== 'PRESIDENT') {
+        throw new ForbiddenError('Solo la presidencia actual puede transferir la presidencia');
+      }
+      return;
+
+    case 'VICE_PRESIDENT':
+      if (targetMembership.role === 'PRESIDENT') {
+        throw new ConflictError('La presidencia de la comunidad no puede reasignarse como vicepresidencia');
+      }
+
+      if (actorMembership.role === 'PRESIDENT' && actorMembership.id === targetMembership.id) {
+        throw new ConflictError('La presidencia de la comunidad no puede autoasignarse como vicepresidencia');
+      }
+      return;
+
+    case 'MEMBER':
+      if (actorMembership.role !== 'PRESIDENT') {
+        throw new ForbiddenError('Solo la presidencia actual puede retirar la vicepresidencia');
+      }
+
+      if (targetMembership.role !== 'VICE_PRESIDENT') {
+        throw new ConflictError('Solo se puede retirar la vicepresidencia al vicepresidente actual');
+      }
+      return;
+  }
+}
+
 async function assignCommunityMemberRole(context, input, membersRepository) {
   const { membership: actorMembership } = await requireAdministrativeCommunityAccess(
     context.userId,
@@ -230,23 +260,9 @@ async function assignCommunityMemberRole(context, input, membersRepository) {
 
   const targetMembership = await requireActiveCommunityMember(input, membersRepository);
 
-  if (input.role === 'PRESIDENT' && actorMembership.role !== 'PRESIDENT') {
-    throw new ForbiddenError('Solo la presidencia actual puede transferir la presidencia');
-  }
+  validateAdministrativeRoleChange(actorMembership, targetMembership, input.role);
 
-  if (input.role === 'VICE_PRESIDENT' && !['PRESIDENT', 'VICE_PRESIDENT'].includes(actorMembership.role)) {
-    throw new ForbiddenError('Se requieren permisos administrativos en esta comunidad');
-  }
-
-  if (input.role === 'VICE_PRESIDENT' && targetMembership.role === 'PRESIDENT') {
-    throw new ConflictError('La presidencia de la comunidad no puede reasignarse como vicepresidencia');
-  }
-
-  if (input.role === 'VICE_PRESIDENT' && actorMembership.role === 'PRESIDENT' && actorMembership.id === targetMembership.id) {
-    throw new ConflictError('La presidencia de la comunidad no puede autoasignarse como vicepresidencia');
-  }
-
-  const result = await membersRepository.assignUniqueAdministrativeRole({
+  const result = await membersRepository.updateAdministrativeRole({
     communityId: input.communityId,
     actorMembershipId: actorMembership.id,
     targetMembershipId: targetMembership.id,

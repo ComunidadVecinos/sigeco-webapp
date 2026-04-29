@@ -5,6 +5,7 @@ const forumRepository = require('../forum/forum.repository');
 const incidentsRepository = require('../incidents/incidents.repository');
 const newsRepository = require('../news/news.repository');
 const requestsRepository = require('../requests/requests.repository');
+const reservationsRepository = require('../reservations/reservations.repository');
 const votingRepository = require('../voting/voting.repository');
 
 async function findUserProfileById(userId) {
@@ -186,6 +187,11 @@ async function deleteUserAccount(userId, deletionData) {
 
     if (membershipIds.length > 0) {
       await calendarRepository.softDeletePersonalEventsByMembershipIds(tx, membershipIds, now);
+      const cancelledBookingIds = await reservationsRepository.cancelBookingsByOwnerMembershipIds(tx, membershipIds, {
+        cancelledAt: now,
+        cancellationReason: 'USER_ACCOUNT_DELETED'
+      });
+      await calendarRepository.softDeleteReservationEventsBySourceEntityIds(tx, cancelledBookingIds, now);
       await votingRepository.deleteVotesOfMembershipsInOpenPolls(tx, membershipIds, now);
       await forumRepository.deleteForumLikesByMembershipIds(tx, membershipIds);
       await forumRepository.softDeleteForumPostsByMembershipIds(tx, membershipIds, now);

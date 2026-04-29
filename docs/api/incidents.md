@@ -80,14 +80,7 @@ JSON example:
 }
 ```
 
-Multipart example:
-
-```ts
-const formData = new FormData();
-formData.append('title', 'Luz fundida en portal');
-formData.append('description', 'La bombilla de la entrada principal no funciona.');
-formData.append('image', file);
-```
+Multipart requests use the same text fields and may also include an `image` file.
 
 Validation:
 
@@ -267,12 +260,3 @@ Returns the updated `Incident item`.
 - `422 Unprocessable Entity` for an update request that sends no editable fields and no image
 - `422 Unprocessable Entity` for invalid body, params, query or multipart fields
 
----
-
-## Frontend integration notes
-
-- use `status` from the API as-is; do not infer it from summary counts
-- default list view should request `status = open`
-- do not assume the list is ordered by `createdAt`; the backend prioritizes the most recently updated incidents
-- render `createdAt` and `editedAt` by converting UTC to `Europe/Madrid`
-- use `author.alias` and not a legacy `creator` field
