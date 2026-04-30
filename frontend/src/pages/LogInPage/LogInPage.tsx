@@ -4,6 +4,7 @@ import { useAuth } from '../../context/authContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';   
+import {Eye, EyeOff} from 'lucide-react';
 
 
 const LogInPage: React.FC = () => {
@@ -15,6 +16,8 @@ const LogInPage: React.FC = () => {
     const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<{identifier?: string; password?: string}>({});
     const [touched, setTouched] = useState<{identifier?: boolean; password?: boolean}>({});
+
+    const [showPassword, setShowPassword] = useState(false);
 
     //Validar identificador
     const validateIdentifier = (value: string): string | undefined => {
@@ -103,17 +106,22 @@ const LogInPage: React.FC = () => {
 
                     <div className="space-y-2">
                         <Label htmlFor="login-password">Contraseña</Label>
-                        <Input 
-                            id="login-password"
-                            name="password"
-                            type="password" 
-                            autoComplete="current-password"
-                            className={touched.password ? (errors.password ? 'border-red-500' : 'border-green-500') : ''} 
-                            placeholder='********' 
-                            value={password} 
-                            onChange={(e) => setPassword(e.target.value)} 
-                            onBlur={() => handleBlur('password')} 
-                        />
+                        <div className='relative'>
+                            <Input 
+                                id="login-password"
+                                name="password"
+                                type={showPassword ? 'text' : 'password'} 
+                                autoComplete="current-password"
+                                className={`pr-10 ${touched.password ? (errors.password ? 'border-red-500' : 'border-green-500') : ''}`}
+                                placeholder='********' 
+                                value={password} 
+                                onChange={(e) => setPassword(e.target.value)} 
+                                onBlur={() => handleBlur('password')} 
+                            />
+                            <button type="button" tabIndex={-1} className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600' onClick={() => setShowPassword(p => !p)}>
+                                {showPassword ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
+                            </button>
+                        </div>
                         {touched.password && errors.password && (<div className='text-sm text-red-500'>{errors.password}</div>)}
                     </div>
 
