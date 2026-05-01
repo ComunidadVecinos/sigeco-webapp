@@ -162,6 +162,27 @@ async function deleteUserProfileImage(userId) {
   });
 }
 
+async function findActivePresidenciesByUserId(userId) {
+  return prisma.membership.findMany({
+    where: {
+      userId,
+      role: 'PRESIDENT',
+      deletedAt: null,
+      endedAt: null,
+      community: { deletedAt: null }
+    },
+    orderBy: { joinedAt: 'asc' },
+    select: {
+      community: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    }
+  });
+}
+
 async function deleteUserAccount(userId, deletionData) {
   // El borrado de cuenta es lógico: invalida acceso y relaciones activas, pero conserva trazabilidad mínima.
   return prisma.$transaction(async (tx) => {
@@ -253,5 +274,6 @@ module.exports = {
   updateUserProfile,
   replaceUserProfileImage,
   deleteUserProfileImage,
+  findActivePresidenciesByUserId,
   deleteUserAccount
 };

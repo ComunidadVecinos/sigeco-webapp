@@ -31,7 +31,7 @@ const GENERAL_HELP = [
   {
     key: 'roles-and-permissions',
     title: 'Roles y permisos de usuario',
-    description: 'SIGECO distingue entre vecinos y perfiles administrativos. Los usuarios con rol de presidente o vicepresidente pueden acceder al panel de administración, revisar solicitudes, gestionar miembros, actualizar datos de la comunidad, administrar documentos, configurar espacios reservables y mantener contenidos de ayuda comunitaria.'
+    description: 'SIGECO distingue entre miembros y perfiles administrativos. Los usuarios con rol de presidente o vicepresidente pueden acceder al panel de administración, revisar solicitudes, gestionar miembros, actualizar datos de la comunidad, administrar documentos, configurar espacios reservables y mantener contenidos de ayuda comunitaria.'
   },
   {
     key: 'community-services',

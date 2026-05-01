@@ -364,6 +364,7 @@ Cookie: sid=<session_cookie>
 
 ### Behavior notes
 
+- Users who are president of one or more active communities cannot delete their account until they transfer those presidencies
 - On success, backend invalidates all active sessions of the user
 - The current response clears the `sid` cookie
 - Memberships are ended and soft-deleted
@@ -398,6 +399,7 @@ Cookie: sid=<session_cookie>
 |---|---|---|
 | `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
 | `409` | `CONFLICT` | Account could not be deleted in its current state |
+| `409` | `ACCOUNT_DELETION_BLOCKED_BY_PRESIDENCY` | User is president of one or more active communities |
 | `422` | `VALIDATION_ERROR` | Invalid body |
 | `422` | `ACCOUNT_DELETION_EMAIL_MISMATCH` | `email` does not match the authenticated user |
 | `422` | `CONFIRMATION_TEXT_MISMATCH` | `confirmationText` is not exactly `ELIMINAR MI CUENTA` |
@@ -420,6 +422,7 @@ Cookie: sid=<session_cookie>
 | User tries to delete an avatar but none exists | `409` | `CONFLICT` |
 | Invalid account deletion confirmation text | `422` | `CONFIRMATION_TEXT_MISMATCH` |
 | Email mismatch during account deletion | `422` | `ACCOUNT_DELETION_EMAIL_MISMATCH` |
+| User tries to delete their account while still holding a presidency | `409` | `ACCOUNT_DELETION_BLOCKED_BY_PRESIDENCY` |
 
 Standard error shape:
 
@@ -438,4 +441,3 @@ Standard error shape:
   }
 }
 ```
-

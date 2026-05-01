@@ -97,6 +97,13 @@ function buildAccountDeletionEmail(currentEmail) {
   return `${localPart}@deleted.local`;
 }
 
+function mapPresidencyBlocker(membership) {
+  return {
+    id: membership.community.id,
+    name: membership.community.name
+  };
+}
+
 async function updateMyProfile(userId, input, usersRepository) {
   try {
     await usersRepository.updateUserProfile(userId, input);
@@ -272,6 +279,17 @@ async function deleteMyAccount(context, input, usersRepository) {
         message: 'El texto de confirmación no coincide',
         code: errorCodes.CONFIRMATION_TEXT_MISMATCH
       });
+  }
+
+  const activePresidencies = await usersRepository.findActivePresidenciesByUserId(context.userId);
+
+  if (activePresidencies.length > 0) {
+    throw new ConflictError('No puedes eliminar tu cuenta porque eres presidente de una o más comunidades. Transfiere primero la presidencia y vuelve a intentarlo.', {
+      code: errorCodes.ACCOUNT_DELETION_BLOCKED_BY_PRESIDENCY,
+      details: {
+        communities: activePresidencies.map(mapPresidencyBlocker)
+      }
+    });
   }
 
   const tombstonePasswordHash = await passwordService.hashPassword(crypto.randomUUID());

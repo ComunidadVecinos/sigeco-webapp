@@ -34,8 +34,8 @@ const updateCommunitySchema = z
 // El borrado exige doble confirmación (texto + password actual) porque elimina y afecta a otros usuarios de la comunidad.
 const deleteCommunitySchema = z
   .object({
-    confirmationText: z.string().trim().min(1, 'El texto de confirmacion es obligatorio'),
-    currentPassword: z.string().trim().min(1, 'La contrasena actual es obligatoria')
+    confirmationText: z.string().trim().min(1, 'El texto de confirmación es obligatorio'),
+    currentPassword: z.string().trim().min(1, 'La contraseña actual es obligatoria')
   }).strict();
 
 module.exports = { createCommunitySchema, communityIdParamSchema, updateCommunitySchema, deleteCommunitySchema };
