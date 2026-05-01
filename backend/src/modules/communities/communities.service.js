@@ -6,6 +6,7 @@ const { Prisma } = require('@prisma/client');
 
 const passwordService = require('../../lib/password');
 const { formatAddress, buildAddressSummary } = require('../../lib/address');
+const mailService = require('../../lib/mail');
 const { ConflictError, ForbiddenError, NotFoundError, ValidationError, errorCodes } = require('../../lib/errors');
 const { inspectImageBuffer } = require('../../lib/storage/imageMetadata');
 const storageService = require('../../lib/storage/storage');
@@ -52,6 +53,54 @@ function constraintMatchesField(constraintTarget, fieldName) {
 
 function buildCreatorPropertyLabel(alias) {
   return `Vivienda de ${alias}`;
+}
+
+async function sendCommunityDeletionMail({ to, subject, text, context }) {
+  if (!to) {
+    return;
+  }
+
+  try {
+    await mailService.sendMail({ to, subject, text });
+  } catch (error) {
+    console.warn('No se ha podido enviar el correo de eliminación de comunidad', { ...context, error });
+  }
+}
+
+async function notifyCommunityDeleted({ community, deletedMembers, actorMembership }) {
+  const communityName = community?.name || 'la comunidad';
+
+  for (const member of deletedMembers || []) {
+    const text = [
+      `Hola ${member.alias || 'miembro'},`,
+      '',
+      `La comunidad "${communityName}" ha sido eliminada en SIGECO.`,
+      '',
+      'Tu pertenencia a esta comunidad ha finalizado.'
+    ].join('\n');
+
+    await sendCommunityDeletionMail({
+      to: member.user?.email,
+      subject: `SIGECO - Comunidad eliminada: ${communityName}`,
+      text,
+      context: { communityId: community?.id, membershipId: member.id }
+    });
+  }
+
+  const confirmationText = [
+    `Hola ${actorMembership.alias || 'administrador'},`,
+    '',
+    `La comunidad "${communityName}" se ha eliminado correctamente.`,
+    '',
+    'La operación ya está reflejada en SIGECO.'
+  ].join('\n');
+
+  await sendCommunityDeletionMail({
+    to: actorMembership.user?.email,
+    subject: `SIGECO - Eliminación completada: ${communityName}`,
+    text: confirmationText,
+    context: { communityId: community?.id, membershipId: actorMembership.id }
+  });
 }
 
 function mapLeaderMembership(membership) {
@@ -326,6 +375,12 @@ async function deleteCommunity(context, communityId, input, communitiesRepositor
   if (!deletionResult) {
     throw new ConflictError('No se ha podido eliminar la comunidad por su estado actual');
   }
+
+  await notifyCommunityDeleted({
+    community: deletionResult.community,
+    deletedMembers: deletionResult.deletedMembers,
+    actorMembership
+  });
 
   const storagePathsToDelete = collectUniqueStoragePaths([
     deletionResult.storedFiles?.communityAvatarStoragePath,

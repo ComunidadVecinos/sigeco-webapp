@@ -17,11 +17,59 @@ async function findActiveMembershipByUserAndCommunity(userId, communityId) {
   });
 }
 
+async function findUpdateInfoContext(userId, communityId) {
+  return prisma.membership.findFirst({
+    where: { userId, communityId, deletedAt: null, endedAt: null },
+    select: {
+      id: true,
+      alias: true,
+      property: {
+        select: {
+          country: true,
+          province: true,
+          municipality: true,
+          streetType: true,
+          streetName: true,
+          postalCode: true,
+          streetNumberKm: true,
+          block: true,
+          floor: true,
+          door: true,
+          deletedAt: true
+        }
+      }
+    }
+  });
+}
+
 async function findPendingRequestByUserAndCommunity(userId, communityId) {
   // Solo se permite una petición pendiente por usuario y comunidad.
   return prisma.communityRequest.findFirst({
     where: { userId, communityId, status: 'PENDING', archivedAt: null },
-    select: {  id: true, type: true, status: true }
+    select: { id: true, type: true, status: true }
+  });
+}
+
+async function findCommunityNotificationLeaders(communityId) {
+  return prisma.membership.findMany({
+    where: {
+      communityId,
+      role: { in: ['PRESIDENT', 'VICE_PRESIDENT'] },
+      deletedAt: null,
+      endedAt: null,
+      OR: [{ suspendedUntil: null }, { suspendedUntil: { lte: new Date() } }]
+    },
+    select: {
+      id: true,
+      alias: true,
+      role: true,
+      user: {
+        select: {
+          email: true
+        }
+      }
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
   });
 }
 
@@ -59,7 +107,9 @@ async function findRequestsByUserId(userId) {
 async function findPendingRequestsByCommunity({ communityId, type, page, pageSize }) {
   const where = { communityId, status: 'PENDING', archivedAt: null };
 
-  if (type) {  where.type = type; }
+  if (type) {
+    where.type = type;
+  }
 
   const skip = (page - 1) * pageSize;
 
@@ -139,6 +189,13 @@ async function findRequestForReviewById(requestId) {
       cancelledAt: true,
       community: {
         select: { id: true, name: true }
+      },
+      user: {
+        select: {
+          email: true,
+          firstName: true,
+          lastName: true
+        }
       },
       details: {
         select: {
@@ -543,7 +600,9 @@ async function archiveRequestsByUserId(db, { userId, archivedAt = new Date() }) 
 module.exports = {
   findCommunityByAccessCode,
   findActiveMembershipByUserAndCommunity,
+  findUpdateInfoContext,
   findPendingRequestByUserAndCommunity,
+  findCommunityNotificationLeaders,
   findRequestsByUserId,
   findPendingRequestsByCommunity,
   findRequestById,

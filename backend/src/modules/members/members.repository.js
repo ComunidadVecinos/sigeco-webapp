@@ -5,6 +5,22 @@ const calendarRepository = require('../calendar/calendar.repository');
 const requestsRepository = require('../requests/requests.repository');
 const reservationsRepository = require('../reservations/reservations.repository');
 
+const roleMembershipSelect = {
+  id: true,
+  userId: true,
+  communityId: true,
+  role: true,
+  alias: true,
+  createdAt: true,
+  suspendedAt: true,
+  suspendedUntil: true,
+  suspensionReason: true,
+  endedAt: true,
+  deletedAt: true,
+  user: { select: { email: true } },
+  community: { select: { id: true, name: true } }
+};
+
 function buildInactiveMembershipWhere(now) {
   return { suspendedUntil: { gt: now } };
 }
@@ -100,8 +116,8 @@ async function findMembershipByUserAndCommunity(userId, communityId) {
       suspensionReason: true,
       endedAt: true,
       deletedAt: true,
-      community: { select: { id: true, name: true }
-      }
+      user: { select: { email: true } },
+      community: { select: { id: true, name: true } }
     }
   });
 }
@@ -121,6 +137,8 @@ async function findMembershipByIdAndCommunity(memberId, communityId) {
       suspensionReason: true,
       endedAt: true,
       deletedAt: true,
+      user: { select: { email: true } },
+      community: { select: { id: true, name: true } },
       property: {
         select: {
           id: true,
@@ -344,6 +362,8 @@ async function suspendMembership({ memberId, communityId, suspendedUntil, suspen
         suspensionReason: true,
         endedAt: true,
         deletedAt: true,
+        user: { select: { email: true } },
+        community: { select: { id: true, name: true } },
         property: {
           select: {
             id: true,
@@ -401,6 +421,8 @@ async function clearMembershipSuspension({ memberId, communityId }) {
         suspensionReason: true,
         endedAt: true,
         deletedAt: true,
+        user: { select: { email: true } },
+        community: { select: { id: true, name: true } },
         property: {
           select: {
             id: true,
@@ -434,19 +456,7 @@ async function updateAdministrativeRole({ communityId, actorMembershipId, target
         deletedAt: null,
         endedAt: null
       },
-      select: {
-        id: true,
-        userId: true,
-        communityId: true,
-        role: true,
-        alias: true,
-        createdAt: true,
-        suspendedAt: true,
-        suspendedUntil: true,
-        suspensionReason: true,
-        endedAt: true,
-        deletedAt: true
-      }
+      select: roleMembershipSelect
     });
 
     const actorMembership = memberships.find((membership) => membership.id === actorMembershipId) || null;
@@ -457,7 +467,22 @@ async function updateAdministrativeRole({ communityId, actorMembershipId, target
     }
 
     if (targetMembershipId === actorMembershipId && actorMembership.role === role) {
-      return { actorMembership, targetMembership };
+      return { actorMembership, targetMembership, downgradedMemberships: [] };
+    }
+
+    let previousRoleHolders = [];
+
+    if (role === 'PRESIDENT' || role === 'VICE_PRESIDENT') {
+      previousRoleHolders = await tx.membership.findMany({
+        where: {
+          communityId,
+          role,
+          deletedAt: null,
+          endedAt: null,
+          id: { not: targetMembershipId }
+        },
+        select: roleMembershipSelect
+      });
     }
 
     // La reasignación degrada primero al ocupante anterior del rol para evitar dos titulares simultáneos.
@@ -492,24 +517,19 @@ async function updateAdministrativeRole({ communityId, actorMembershipId, target
       where: {
         id: { in: membershipIds }
       },
-      select: {
-        id: true,
-        userId: true,
-        communityId: true,
-        role: true,
-        alias: true,
-        createdAt: true,
-        suspendedAt: true,
-        suspendedUntil: true,
-        suspensionReason: true,
-        endedAt: true,
-        deletedAt: true
-      }
+      select: roleMembershipSelect
     });
 
     return {
       actorMembership: updatedMemberships.find((membership) => membership.id === actorMembershipId) || null,
-      targetMembership: updatedMemberships.find((membership) => membership.id === targetMembershipId) || null
+      targetMembership: updatedMemberships.find((membership) => membership.id === targetMembershipId) || null,
+      downgradedMemberships: previousRoleHolders.map((previousRoleHolder) => {
+        const updatedMembership = updatedMemberships.find(
+          (membership) => membership.id === previousRoleHolder.id
+        );
+
+        return updatedMembership || { ...previousRoleHolder, role: 'MEMBER' };
+      })
     };
   });
 }

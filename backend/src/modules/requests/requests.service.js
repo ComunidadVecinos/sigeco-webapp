@@ -1,9 +1,10 @@
 const { Prisma } = require('@prisma/client');
 
-// Servicio del módulo help.
-//   - Orquesta ciclo de vida de las solicitudes de comunidad. Depeende de members.
+// Servicio del módulo requests.
+//   - Orquesta ciclo de vida de las solicitudes de comunidad. Depende de members.
 
 const { buildAddressSummary } = require('../../lib/address');
+const mailService = require('../../lib/mail');
 const { ConflictError, NotFoundError, ForbiddenError } = require('../../lib/errors');
 const membersRepository = require('../members/members.repository');
 const membersService = require('../members/members.service');
@@ -24,6 +25,59 @@ function buildRequestResponse(message, result, community) {
     },
     details: { proposedAlias: result.details.proposedAlias, label: result.details.label }
   };
+}
+
+function formatRequestType(type) {
+  if (type === 'JOIN') {
+    return 'alta en la comunidad';
+  }
+
+  if (type === 'UPDATE_INFO') {
+    return 'actualización de datos';
+  }
+
+  return 'solicitud';
+}
+
+function formatRequestAddress(details) {
+  const address = buildAddressSummary(details);
+
+  return address.formatted || [
+    details?.streetType,
+    details?.streetName,
+    details?.streetNumberKm,
+    details?.block ? `Bloque ${details.block}` : null,
+    details?.floor ? `Piso ${details.floor}` : null,
+    details?.door ? `Puerta ${details.door}` : null,
+    details?.postalCode,
+    details?.municipality,
+    details?.province
+  ].filter(Boolean).join(', ');
+}
+
+function normalizeComparableValue(value) {
+  return (value || '').trim();
+}
+
+function updateInfoHasChanges(input, membership) {
+  const property = membership.property && !membership.property.deletedAt ? membership.property : {};
+  const comparisons = [
+    [input.proposedAlias, membership.alias],
+    [input.country, property.country],
+    [input.province, property.province],
+    [input.municipality, property.municipality],
+    [input.streetType, property.streetType],
+    [input.streetName, property.streetName],
+    [input.postalCode, property.postalCode],
+    [input.streetNumberKm, property.streetNumberKm],
+    [input.block, property.block],
+    [input.floor, property.floor],
+    [input.door, property.door]
+  ];
+
+  return comparisons.some(([proposedValue, currentValue]) => (
+    normalizeComparableValue(proposedValue) !== normalizeComparableValue(currentValue)
+  ));
 }
 
 function mapMyRequest(request) {
@@ -59,6 +113,114 @@ function isKnownApprovalStateError(error) {
     'REQUEST_APPROVAL_JOIN_USER_NOT_FOUND',
     'REQUEST_APPROVAL_UPDATE_INFO_MEMBERSHIP_NOT_FOUND'
   ].includes(error?.message);
+}
+
+function getRequesterGreeting(request) {
+  const fullName = [request.user?.firstName, request.user?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  return fullName || request.details?.proposedAlias || 'usuario';
+}
+
+function buildRequestResolutionBody(request, approved, resolutionMessage) {
+  const communityName = request.community?.name || 'tu comunidad';
+  const greeting = getRequesterGreeting(request);
+  const reasonLine = resolutionMessage ? [`Motivo: "${resolutionMessage}"`, ''] : [];
+
+  if (approved) {
+    return [
+      `Hola ${greeting},`,
+      '',
+      `Tu solicitud para la comunidad "${communityName}" ha sido aprobada.`,
+      request.type === 'JOIN'
+        ? 'Te damos la bienvenida a la comunidad.'
+        : 'Los datos de tu comunidad han sido actualizados.',
+      '',
+      ...reasonLine,
+      'Puedes consultarlo desde SIGECO.'
+    ];
+  }
+
+  return [
+    `Hola ${greeting},`,
+    '',
+    `Tu solicitud para la comunidad "${communityName}" ha sido rechazada.`,
+    '',
+    ...reasonLine,
+    'Puedes consultar el estado desde SIGECO.'
+  ];
+}
+
+async function notifyRequestResolution(request, status, resolutionMessage) {
+  const targetEmail = request.user?.email;
+
+  if (!targetEmail) {
+    return;
+  }
+
+  const communityName = request.community?.name || 'tu comunidad';
+  const approved = status === 'APPROVED';
+  const subject = approved
+    ? `SIGECO - Solicitud aprobada en ${communityName}`
+    : `SIGECO - Solicitud rechazada en ${communityName}`;
+  const body = buildRequestResolutionBody(request, approved, resolutionMessage);
+
+  try {
+    await mailService.sendMail({
+      to: targetEmail,
+      subject,
+      text: body.join('\n')
+    });
+  } catch (error) {
+    console.warn('No se ha podido enviar el correo de resolución de solicitud', {
+      requestId: request.id,
+      communityId: request.communityId,
+      status,
+      error
+    });
+  }
+}
+
+async function notifyNewRequestToLeaders({ request, details, community, requestComment }, requestsRepository) {
+  const leaders = await requestsRepository.findCommunityNotificationLeaders(community.id);
+  const recipients = leaders.map((leader) => leader.user?.email).filter(Boolean);
+
+  if (recipients.length === 0) {
+    return;
+  }
+
+  const requestType = formatRequestType(request.type);
+  const address = formatRequestAddress(details);
+  const noteLine = requestComment ? [`Nota: "${requestComment}"`, ''] : [];
+  const text = [
+    'Hola,',
+    '',
+    `Hay una nueva solicitud de ${requestType} en la comunidad "${community.name}".`,
+    '',
+    ...noteLine,
+    'Datos de la solicitud:',
+    `- Alias propuesto: ${details.proposedAlias || '-'}`,
+    `- Vivienda: ${address || '-'}`,
+    `- Tipo: ${requestType}`,
+    '',
+    'Puedes revisarla desde el panel de administración de SIGECO.'
+  ].join('\n');
+
+  try {
+    await mailService.sendMail({
+      to: recipients.join(', '),
+      subject: `SIGECO - Nueva solicitud en ${community.name}`,
+      text
+    });
+  } catch (error) {
+    console.warn('No se ha podido enviar el correo de nueva solicitud', {
+      requestId: request.id,
+      communityId: community.id,
+      error
+    });
+  }
 }
 
 function mapCommunityPendingRequest(request) {
@@ -140,6 +302,13 @@ async function createCommunityRequest(context, input, requestsRepository, option
     requestComment: input.requestComment
   });
 
+  await notifyNewRequestToLeaders({
+    request: result.request,
+    details: result.details,
+    community: options.community,
+    requestComment: input.requestComment
+  }, requestsRepository);
+
   return buildRequestResponse(options.successMessage, result, options.community);
 }
 
@@ -167,6 +336,11 @@ async function createJoinRequest(context, input, requestsRepository) {
 async function createUpdateInfoRequest(context, input, requestsRepository) {
   // UPDATE_INFO exige pertenencia previa a la comunidad.
   const { community } = await membersService.requireCommunityMembershipAccess(context.userId, input.communityId, membersRepository);
+  const membership = await requestsRepository.findUpdateInfoContext(context.userId, input.communityId);
+
+  if (!membership || !updateInfoHasChanges(input, membership)) {
+    throw new ConflictError('Debes modificar al menos un dato para enviar la solicitud.');
+  }
 
   return createCommunityRequest(context, input, requestsRepository, {
     community,
@@ -272,6 +446,8 @@ async function approveRequest(userId, requestId, input, requestsRepository) {
     throw new ConflictError('Solo se pueden aprobar las solicitudes pendientes');
   }
 
+  await notifyRequestResolution(request, 'APPROVED', input.resolutionMessage);
+
   return { message: 'Solicitud aprobada correctamente.', request: mapManagedRequest(updatedRequest) };
 }
 
@@ -292,6 +468,8 @@ async function rejectRequest(userId, requestId, input, requestsRepository) {
   if (!updatedRequest) {
     throw new ConflictError('Solo se pueden rechazar las solicitudes pendientes');
   }
+
+  await notifyRequestResolution(request, 'REJECTED', input.resolutionMessage);
 
   return { message: 'Solicitud rechazada correctamente.', request: mapManagedRequest(updatedRequest) };
 }

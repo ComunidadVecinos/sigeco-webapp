@@ -9,6 +9,7 @@ const {
 
 const { isMembershipCurrentlySuspended } = require('../../lib/membership');
 const { buildAddressSummary } = require('../../lib/address');
+const mailService = require('../../lib/mail');
 const storageService = require('../../lib/storage/storage');
 const { hasCommunityMembershipAccess, hasAdministrativeMembershipAccess, isMembershipOperational } = require('./members.access');
 const authRepository = require('../auth/auth.repository');
@@ -82,6 +83,143 @@ function mapRoleMember(membership) {
     alias: membership.alias || null,
     role: membership.role
   };
+}
+
+function formatRoleLabel(role) {
+  if (role === 'PRESIDENT') {
+    return 'presidente';
+  }
+
+  if (role === 'VICE_PRESIDENT') {
+    return 'vicepresidente';
+  }
+
+  return 'miembro';
+}
+
+function buildRoleActorLabel(actorMembership) {
+  if (!actorMembership.alias) {
+    return 'La administración';
+  }
+
+  const roleLabel = actorMembership.role === 'PRESIDENT' ? 'presidente' : 'vicepresidente';
+  return `El ${roleLabel} ${actorMembership.alias}`;
+}
+
+async function notifyRoleChange({ actorMembership, targetMembership }) {
+  const targetEmail = targetMembership.user?.email;
+
+  if (!targetEmail) {
+    return;
+  }
+
+  const communityName = targetMembership.community?.name || actorMembership.community?.name || 'tu comunidad';
+  const actorLabel = buildRoleActorLabel(actorMembership);
+  const greetingAlias = targetMembership.alias || 'miembro';
+  const roleLabel = formatRoleLabel(targetMembership.role);
+  const text = [
+    `Hola ${greetingAlias},`,
+    '',
+    `${actorLabel} de la comunidad "${communityName}" ha actualizado tu rol a ${roleLabel}.`,
+    '',
+    'Puedes consultar tus cambios en la comunidad desde el portal de SIGECO.'
+  ].join('\n');
+
+  try {
+    await mailService.sendMail({
+      to: targetEmail,
+      subject: `SIGECO - Cambio de rol en ${communityName}`,
+      text
+    });
+  } catch (error) {
+    console.warn('No se ha podido enviar el correo de cambio de rol', {
+      targetMembershipId: targetMembership.id,
+      communityId: targetMembership.communityId,
+      error
+    });
+  }
+}
+
+async function sendMemberMail({ membership, subject, text, logMessage }) {
+  const targetEmail = membership.user?.email;
+
+  if (!targetEmail) {
+    return;
+  }
+
+  try {
+    await mailService.sendMail({ to: targetEmail, subject, text });
+  } catch (error) {
+    console.warn(logMessage, {
+      membershipId: membership.id,
+      communityId: membership.communityId,
+      error
+    });
+  }
+}
+
+async function notifyMembershipEnded({ membership, reason, actorMembership = null }) {
+  const communityName = membership.community?.name || 'tu comunidad';
+  const greetingAlias = membership.alias || 'miembro';
+  const isExpelled = reason === 'EXPELLED';
+  const actorText = actorMembership?.alias ? ` por ${actorMembership.alias}` : '';
+  const message = isExpelled
+    ? `Has sido expulsado${actorText} de la comunidad "${communityName}".`
+    : `Confirmamos que has abandonado la comunidad "${communityName}".`;
+  const extraLines = isExpelled
+    ? [
+        'Si quieres volver a acceder, deberás solicitar unirte de nuevo desde tu perfil de usuario.',
+        ''
+      ]
+    : [
+        'A partir de ahora dejarás de tener acceso a sus contenidos y gestiones.',
+        'Si necesitas volver a formar parte de la comunidad, podrás solicitar unirte de nuevo desde tu perfil de usuario.',
+        ''
+      ];
+
+  await sendMemberMail({
+    membership,
+    subject: `SIGECO - ${isExpelled ? 'Expulsión' : 'Salida'} de ${communityName}`,
+    text: [
+      `Hola ${greetingAlias},`,
+      '',
+      message,
+      '',
+      ...extraLines,
+      'Este cambio ya está reflejado en SIGECO.'
+    ].join('\n'),
+    logMessage: 'No se ha podido enviar el correo de baja de comunidad'
+  });
+}
+
+async function notifySuspensionChange({ membership, action }) {
+  const communityName = membership.community?.name || 'tu comunidad';
+  const greetingAlias = membership.alias || 'miembro';
+  const suspended = action === 'SUSPENDED';
+  const reasonLine = suspended && membership.suspensionReason
+    ? [`Motivo: "${membership.suspensionReason}"`, '']
+    : [];
+  const untilLine = suspended && membership.suspendedUntil
+    ? [`Hasta: ${membership.suspendedUntil.toISOString()}`, '']
+    : [];
+  const message = suspended
+    ? `Se ha registrado tu suspensión en la comunidad "${communityName}".`
+    : `Se ha retirado tu suspensión en la comunidad "${communityName}".`;
+
+  await sendMemberMail({
+    membership,
+    subject: `SIGECO - ${suspended ? 'Suspensión' : 'Suspensión retirada'} en ${communityName}`,
+    text: [
+      `Hola ${greetingAlias},`,
+      '',
+      message,
+      '',
+      ...reasonLine,
+      ...untilLine,
+      'Puedes consultar tu estado desde SIGECO.'
+    ].join('\n'),
+    logMessage: 'No se ha podido enviar el correo de cambio de suspensión'
+  });
 }
 
 async function requireActiveCommunityMember(input, membersRepository) {
@@ -191,11 +329,13 @@ async function leaveMyCommunity(context, input, membersRepository) {
     storedSession.activeMembershipId || storedSession.user.lastActiveMembershipId
   );
 
+  await notifyMembershipEnded({ membership, reason: 'LEFT_COMMUNITY' });
+
   return { leftCommunity: true, communityId: input.communityId, activeMembership: mapActiveMembership(accessContext.activeMembership) };
 }
 
 async function expelCommunityMember(context, input, membersRepository) {
-  await requireAdministrativeCommunityAccess(context.userId, input.communityId, membersRepository);
+  const { membership: actorMembership } = await requireAdministrativeCommunityAccess(context.userId, input.communityId, membersRepository);
 
   const targetMembership = await requireActiveCommunityMember(input, membersRepository);
 
@@ -213,6 +353,8 @@ async function expelCommunityMember(context, input, membersRepository) {
   if (!result) {
     throw new ConflictError('La pertenencia a la comunidad no está en un estado válido para esta operación');
   }
+
+  await notifyMembershipEnded({ membership: targetMembership, reason: 'EXPELLED', actorMembership });
 
   return {
     expelled: true,
@@ -273,6 +415,14 @@ async function assignCommunityMemberRole(context, input, membersRepository) {
     throw new ConflictError('No se han podido actualizar los roles de la comunidad');
   }
 
+  if (targetMembership.role !== result.targetMembership.role) {
+    await notifyRoleChange({ actorMembership, targetMembership: result.targetMembership });
+  }
+
+  for (const downgradedMembership of result.downgradedMemberships || []) {
+    await notifyRoleChange({ actorMembership, targetMembership: downgradedMembership });
+  }
+
   return { targetMember: mapRoleMember(result.targetMembership), actorMembership: mapRoleMember(result.actorMembership) };
 }
 
@@ -298,6 +448,8 @@ async function suspendCommunityMember(context, input, membersRepository) {
     throw new ConflictError('No ha sido posible suspender al miembro de la comunidad');
   }
 
+  await notifySuspensionChange({ membership: updatedMembership, action: 'SUSPENDED' });
+
   return { member: mapSuspendedMember(updatedMembership) };
 }
 
@@ -315,6 +467,8 @@ async function cancelCommunityMemberSuspension(context, input, membersRepository
   if (!updatedMembership) {
     throw new ConflictError('No ha sido posible cancelar la suspensión del miembro de la comunidad');
   }
+
+  await notifySuspensionChange({ membership: updatedMembership, action: 'UNSUSPENDED' });
 
   return { member: mapSuspendedMember(updatedMembership) };
 }

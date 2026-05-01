@@ -176,6 +176,8 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
     const community = await tx.community.findFirst({
       where: { id: communityId, deletedAt: null },
       select: {
+        id: true,
+        name: true,
         cif: true,
         avatar: { select: { storagePath: true } },
         newsItems: { select: { imageStoragePath: true } },
@@ -191,7 +193,13 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
     const deletedCif = buildDeletedCommunityCif(community.cif, communityId);
     const communityMemberships = await tx.membership.findMany({
       where: { communityId, deletedAt: null, endedAt: null },
-      select: { id: true, userId: true }
+      select: {
+        id: true,
+        userId: true,
+        alias: true,
+        role: true,
+        user: { select: { email: true } }
+      }
     });
     const deletedMembershipIds = communityMemberships.map((membership) => membership.id);
 
@@ -279,6 +287,8 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
 
     return {
       nextActiveMembershipId,
+      community: { id: community.id, name: community.name },
+      deletedMembers: communityMemberships,
       storedFiles: {
         communityAvatarStoragePath: community.avatar?.storagePath || null,
         newsImageStoragePaths: community.newsItems.map((item) => item.imageStoragePath).filter(Boolean),
