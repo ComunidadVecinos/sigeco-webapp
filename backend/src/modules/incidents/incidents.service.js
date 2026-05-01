@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 
 const { ConflictError, ForbiddenError, NotFoundError } = require('../../lib/errors');
+const mailService = require('../../lib/mail');
 const { inspectImageBuffer } = require('../../lib/storage/imageMetadata');
 const storageService = require('../../lib/storage/storage');
 const { hasAdministrativeRole } = require('../members/members.access');
@@ -185,6 +186,41 @@ async function runIncidentMutation(incidentsRepository, operation, failureMessag
   return incident;
 }
 
+async function notifyNewIncidentToLeaders({ communityId, incident, authorAlias }, incidentsRepository) {
+  try {
+    const leaders = await incidentsRepository.findIncidentNotificationLeaders(communityId);
+    const recipients = leaders.map((leader) => leader.user?.email).filter(Boolean);
+
+    if (recipients.length === 0) {
+      return;
+    }
+
+    const communityName = leaders[0]?.community?.name || 'la comunidad';
+    const text = [
+      'Hola,',
+      '',
+      `Se ha registrado una nueva incidencia en la comunidad "${communityName}".`,
+      '',
+      `Título: ${incident.title}`,
+      `Abierta por: ${authorAlias || 'Usuario de la comunidad'}`,
+      '',
+      'Puedes revisarla desde el panel de incidencias de SIGECO.'
+    ].join('\n');
+
+    await mailService.sendMail({
+      to: recipients.join(', '),
+      subject: `SIGECO - Nueva incidencia en ${communityName}`,
+      text
+    });
+  } catch (error) {
+    console.warn('No se ha podido enviar el correo de nueva incidencia', {
+      incidentId: incident.id,
+      communityId,
+      error
+    });
+  }
+}
+
 async function createIncident(context, communityId, input, incidentsRepository) {
   const { membership } = await requireOperationalAccess(context.userId, communityId);
   const incidentId = crypto.randomUUID();
@@ -210,6 +246,11 @@ async function createIncident(context, communityId, input, incidentsRepository) 
       })
     );
     await commitStoredIncidentImage(storedImage, { communityId, incidentId });
+    await notifyNewIncidentToLeaders({
+      communityId,
+      incident: createdIncident,
+      authorAlias: membership.alias
+    }, incidentsRepository);
     return incidentView(createdIncident);
   }
   catch (error) {

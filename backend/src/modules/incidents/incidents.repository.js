@@ -91,6 +91,35 @@ async function createIncident(db, input) {
   });
 }
 
+async function findIncidentNotificationLeaders(communityId) {
+  return prisma.membership.findMany({
+    where: {
+      communityId,
+      role: { in: ['PRESIDENT', 'VICE_PRESIDENT'] },
+      deletedAt: null,
+      endedAt: null,
+      OR: [{ suspendedUntil: null }, { suspendedUntil: { lte: new Date() } }]
+    },
+    select: {
+      id: true,
+      alias: true,
+      role: true,
+      user: {
+        select: {
+          email: true
+        }
+      },
+      community: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
+  });
+}
+
 // --- Listados y agregados ---
 async function findIncidentPage({ communityId, status, page, pageSize }) {
   const where = listWhere({ communityId, status });
@@ -185,6 +214,7 @@ async function anonymizeIncidentsByMembershipIds(db, membershipIds) {
 module.exports = {
   withTransaction,
   createIncident,
+  findIncidentNotificationLeaders,
   findIncidentPage,
   findIncidentSummaryCounts,
   findIncidentById,

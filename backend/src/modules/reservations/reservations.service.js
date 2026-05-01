@@ -1,6 +1,7 @@
 // Servicio del módulo reservations.
 // Centraliza permisos, validaciones de horarios/reglas y sincronización con calendar.
 const { ConflictError, ForbiddenError, NotFoundError, ValidationError } = require('../../lib/errors');
+const mailService = require('../../lib/mail');
 const { addMinutesToInstant, buildBusinessDateOnly, buildBusinessDateTime, formatBusinessDate, formatBusinessTime } = require('../calendar/calendar.datetime');
 const calendarRepository = require('../calendar/calendar.repository');
 const { hasAdministrativeRole } = require('../members/members.access');
@@ -404,6 +405,54 @@ function mapBooking(booking, actorMembership, now = new Date()) {
   };
 }
 
+function formatBookingDateForMail(bookingDate) {
+  return new Intl.DateTimeFormat('es-ES', {
+    dateStyle: 'long',
+    timeZone: 'UTC'
+  }).format(bookingDate);
+}
+
+function formatParticipants(requestedSeats) {
+  return `${requestedSeats} ${requestedSeats === 1 ? 'persona' : 'personas'}`;
+}
+
+async function notifyBookingCreated({ booking, membership }) {
+  const targetEmail = membership.user?.email;
+
+  if (!targetEmail) {
+    return;
+  }
+
+  const greeting = membership.alias || 'usuario';
+  const communityName = membership.community?.name || 'tu comunidad';
+  const text = [
+    `Hola ${greeting},`,
+    '',
+    `Tu reserva en la comunidad "${communityName}" se ha confirmado correctamente.`,
+    '',
+    `Espacio reservado: ${booking.space.name}`,
+    `Número de plazas reservadas: ${formatParticipants(booking.requestedSeats)}`,
+    `Fecha: ${formatBookingDateForMail(booking.bookingDate)}`,
+    `Hora: ${booking.startTime} - ${booking.endTime}`,
+    '',
+    'Puedes consultar o cancelar la reserva desde SIGECO.'
+  ].join('\n');
+
+  try {
+    await mailService.sendMail({
+      to: targetEmail,
+      subject: `SIGECO - Reserva confirmada en ${booking.space.name}`,
+      text
+    });
+  } catch (error) {
+    console.warn('No se ha podido enviar el correo de confirmación de reserva', {
+      bookingId: booking.id,
+      communityId: booking.communityId,
+      error
+    });
+  }
+}
+
 // --- Access ---
 async function requireReservationsAccess(userId, communityId) {
   return membersService.requireOperationalCommunityAccess(userId, communityId, membersRepository);
@@ -644,6 +693,8 @@ async function createBooking(context, communityId, input, reservationsRepository
     });
     return booking;
   });
+
+  await notifyBookingCreated({ booking: createdBooking, membership });
 
   return { booking: mapBooking(createdBooking, membership) };
 }
