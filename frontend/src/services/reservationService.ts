@@ -79,7 +79,7 @@ export interface Slot {
 }
 
 export interface BookingRules {
-    maxConsecutivesSlots: number;
+    maxConsecutiveSlots: number;
     minAdvanceMinutes: number;
     maxAdvanceDays: number;
     cancellationNoticeMinutes: number;

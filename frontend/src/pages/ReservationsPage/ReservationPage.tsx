@@ -122,7 +122,7 @@ const ReservationsPage: React.FC = () => {
             if (prev.length === 0) return [slotIndex];
 
             //Si ya se alcanzo el maximo, no se puede añadir mas
-            if (prev.length >= bookingRules.maxConsecutivesSlots) return prev;
+            if (prev.length >= bookingRules.maxConsecutiveSlots) return prev;
 
             //Verificar que es consecutivo al ultimo seleccionado
             if (slotIndex === prev[prev.length - 1] + 1) {
@@ -358,7 +358,7 @@ const ReservationsPage: React.FC = () => {
                                             {bookingRules && (
                                                 <>
                                                     <span>·</span>
-                                                    <span>Máx. {bookingRules.maxConsecutivesSlots} consecutivos</span>
+                                                    <span>Máx. {bookingRules.maxConsecutiveSlots} consecutivos</span>
                                                 </>
                                             )}
                                         </div>

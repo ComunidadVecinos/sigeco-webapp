@@ -1,7 +1,9 @@
+// Rutas HTTP del módulo reservations: conecta endpoints de espacios y reservas con sus validaciones.
+// Flujo cubierto: sesión -> validación de params/query/body -> controlador.
+// Expone el router de Express con CRUD de espacios, disponibilidad/calendario y reservas de usuario/admin.
+// Lo consume el router de comunidades, montado como subrecurso con communityId.
 const express = require('express');
 
-// Rutas HTTP del módulo reservations.
-// Se monta como subrecurso de comunidad para compartir `communityId` y mantener la API agrupada.
 const asyncHandler = require('../../lib/http/asyncHandler');
 const validate = require('../../lib/validation/validate');
 const { requireSession } = require('../auth/auth.middleware');
@@ -25,15 +27,7 @@ const {
 
 const router = express.Router({ mergeParams: true });
 
-// --- Espacios ---
-router.post(
-  '/spaces',
-  requireSession,
-  normalizeNullableSpaceBody,
-  validate({ params: communityIdParamSchema, body: createSpaceSchema }),
-  asyncHandler(reservationsController.createSpace)
-);
-
+// --- Espacios: GET de consulta ---
 router.get(
   '/spaces',
   requireSession,
@@ -62,6 +56,16 @@ router.get(
   asyncHandler(reservationsController.getSpaceDetail)
 );
 
+// --- Espacios: POST de creación ---
+router.post(
+  '/spaces',
+  requireSession,
+  normalizeNullableSpaceBody,
+  validate({ params: communityIdParamSchema, body: createSpaceSchema }),
+  asyncHandler(reservationsController.createSpace)
+);
+
+// --- Espacios: PATCH de edición ---
 router.patch(
   '/spaces/:spaceId/status',
   requireSession,
@@ -77,6 +81,7 @@ router.patch(
   asyncHandler(reservationsController.updateSpace)
 );
 
+// --- Espacios: DELETE de borrado lógico ---
 router.delete(
   '/spaces/:spaceId',
   requireSession,
@@ -84,26 +89,12 @@ router.delete(
   asyncHandler(reservationsController.deleteSpace)
 );
 
-// --- Reservas de usuario ---
-router.post(
-  '/bookings',
-  requireSession,
-  validate({ params: communityIdParamSchema, body: createBookingSchema }),
-  asyncHandler(reservationsController.createBooking)
-);
-
+// --- Reservas propias: GET de consulta ---
 router.get(
   '/bookings/me',
   requireSession,
   validate({ params: communityIdParamSchema, query: listMyBookingsQuerySchema }),
   asyncHandler(reservationsController.getMyBookings)
-);
-
-router.post(
-  '/bookings/:bookingId/cancel',
-  requireSession,
-  validate({ params: bookingParamsSchema, body: cancelBookingSchema }),
-  asyncHandler(reservationsController.cancelBooking)
 );
 
 router.get(
@@ -113,7 +104,22 @@ router.get(
   asyncHandler(reservationsController.getBookingDetail)
 );
 
-// --- Administración de reservas ---
+// --- Reservas propias: POST de creación/cancelación ---
+router.post(
+  '/bookings',
+  requireSession,
+  validate({ params: communityIdParamSchema, body: createBookingSchema }),
+  asyncHandler(reservationsController.createBooking)
+);
+
+router.post(
+  '/bookings/:bookingId/cancel',
+  requireSession,
+  validate({ params: bookingParamsSchema, body: cancelBookingSchema }),
+  asyncHandler(reservationsController.cancelBooking)
+);
+
+// --- Administración de reservas: GET de consulta ---
 router.get(
   '/bookings',
   requireSession,

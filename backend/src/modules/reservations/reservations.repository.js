@@ -1,9 +1,11 @@
+// Acceso a datos del módulo reservations: encapsula consultas Prisma de espacios y reservas.
+// Flujo cubierto: filtros del servicio -> queries Prisma -> entidades seleccionadas para mapear.
+// Expone transacciones, CRUD de espacios, consultas de reservas, cancelaciones y destinatarios de correo.
+// Lo consume reservations.service.js.
 const prisma = require('../../lib/prisma');
 
-/**
- * Capa de acceso a datos del modulo reservations.
- */
-
+// --- Selects compartidos ---
+// Campos que el servicio necesita para mapear espacios sin exponer columnas internas innecesarias.
 const spaceSelect = {
   id: true,
   communityId: true,
@@ -33,6 +35,7 @@ const spaceSelect = {
   deletedAt: true
 };
 
+// Incluye espacio, propietario y cancelador porque las respuestas y correos se construyen en servicio.
 const bookingSelect = {
   id: true,
   communityId: true,
@@ -63,20 +66,53 @@ const bookingSelect = {
       deletedAt: true
     }
   },
-  ownerMembership: { select: { id: true, alias: true, role: true } },
-  cancelledByMembership: { select: { id: true, alias: true, role: true } }
+  ownerMembership: {
+    select: {
+      id: true,
+      alias: true,
+      role: true,
+      deletedAt: true,
+      endReason: true,
+      user: { select: { email: true } }
+    }
+  },
+  cancelledByMembership: { select: { id: true, alias: true, role: true, deletedAt: true, endReason: true } }
 };
 
-// --- Common ---
+// --- Helpers comunes ---
+// Transacción genérica para que el servicio mantenga juntas operaciones de reservas y calendar.
+async function withTransaction(callback) {
+  return prisma.$transaction(callback);
+}
+
+function buildPageArgs(page, pageSize) {
+  return { skip: (page - 1) * pageSize, take: pageSize };
+}
+
+// Paginación consistente: cuenta y trae página dentro de la misma transacción de lectura.
+async function findPage(modelName, { where, select, orderBy, page, pageSize }) {
+  const model = prisma[modelName];
+  const { skip, take } = buildPageArgs(page, pageSize);
+  const [total, items] = await prisma.$transaction([model.count({ where }), model.findMany({ where, select, orderBy, skip, take })]);
+  return { total, items };
+}
+
+// Usa updateMany para respetar filtros de concurrencia y vuelve a leer el registro ya actualizado.
+async function updateOneAndFind(db, modelName, { updateWhere, data, findWhere, select }) {
+  const updated = await db[modelName].updateMany({ where: updateWhere, data });
+  if (updated.count !== 1) {
+    return null;
+  }
+  return db[modelName].findFirst({ where: findWhere, select });
+}
+
+// --- Helpers de espacios ---
+// Filtros de GET /spaces: comunidad, borrado lógico, estado y búsqueda por texto.
 function buildSpaceWhere({ communityId, search, status = 'active' }) {
   const where = { communityId, deletedAt: null };
 
-  if (status === 'active') {
-    where.isActive = true;
-  }
-  else if (status === 'inactive') {
-    where.isActive = false;
-  }
+  if (status === 'active') { where.isActive = true; } 
+  else if (status === 'inactive') { where.isActive = false; }
 
   if (search) {
     where.OR = [{ name: { contains: search, mode: 'insensitive' } }, { description: { contains: search, mode: 'insensitive' } }];
@@ -84,6 +120,8 @@ function buildSpaceWhere({ communityId, search, status = 'active' }) {
   return where;
 }
 
+// --- Helpers de reservas ---
+// Separa reservas pasadas/futuras usando fecha de negocio y hora local ya calculadas por el servicio.
 function buildBookingTimeWhere(scope, nowDate, nowTime) {
   if (scope === 'past') {
     return { OR: [{ bookingDate: { lt: nowDate } }, { bookingDate: nowDate, endTime: { lt: nowTime } }] };
@@ -91,46 +129,17 @@ function buildBookingTimeWhere(scope, nowDate, nowTime) {
   return { OR: [{ bookingDate: { gt: nowDate } }, { bookingDate: nowDate, endTime: { gte: nowTime } }] };
 }
 
+// Orden estable para listados y calendarios de reservas.
 function buildBookingOrder(direction = 'asc') {
-  return [
-    { bookingDate: direction },
-    { startTime: direction },
-    { endTime: direction },
-    { createdAt: direction },
-    { id: direction }
-  ];
+  return [{ bookingDate: direction }, { startTime: direction }, { endTime: direction }, { createdAt: direction }, { id: direction }];
 }
 
-function buildPageArgs(page, pageSize) {
-  return { skip: (page - 1) * pageSize, take: pageSize };
-}
-
-async function findPage(modelName, { where, select, orderBy, page, pageSize }) {
-  const model = prisma[modelName];
-  const { skip, take } = buildPageArgs(page, pageSize);
-
-  const [total, items] = await prisma.$transaction([
-    model.count({ where }),
-    model.findMany({ where, select, orderBy, skip, take })
-  ]);
-  return { total, items };
-}
-
-async function updateOneAndFind(db, modelName, { updateWhere, data, findWhere, select }) {
-  const updated = await db[modelName].updateMany({ where: updateWhere, data });
-
-  if (updated.count !== 1) {
-    return null;
-  }
-  return db[modelName].findFirst({ where: findWhere, select });
-}
-
+// Filtros comunes para reservas de un espacio: un día exacto o un rango de calendario.
 function buildSpaceBookingWhere({ communityId, spaceId, bookingDate, startDate, endDate, status }) {
   const where = { communityId, spaceId, ...(status ? { status } : {}) };
-
   if (bookingDate) {
     where.bookingDate = bookingDate;
-  }
+  } 
   else if (startDate || endDate) {
     where.bookingDate = { ...(startDate ? { gte: startDate } : {}), ...(endDate ? { lt: endDate } : {}) };
   }
@@ -155,6 +164,7 @@ async function findBookingPage({ where, direction = 'asc', page, pageSize }) {
   });
 }
 
+// Query de GET /bookings/me: scope decide estado, ventana temporal y orden.
 function buildMembershipBookingPageQuery({ communityId, ownerMembershipId, spaceId, scope, nowDate, nowTime }) {
   const where = { communityId, ownerMembershipId, ...(spaceId ? { spaceId } : {}) };
 
@@ -176,6 +186,7 @@ function buildMembershipBookingPageQuery({ communityId, ownerMembershipId, space
   return { where, direction: 'asc' };
 }
 
+// Query de GET /bookings admin: estado, espacio y rango opcional de fechas.
 function buildAdminBookingPageQuery({ communityId, spaceId, status, from, to }) {
   return {
     where: {
@@ -189,11 +200,7 @@ function buildAdminBookingPageQuery({ communityId, spaceId, status, from, to }) 
   };
 }
 
-async function withTransaction(callback) {
-  return prisma.$transaction(callback);
-}
-
-// --- Spaces ---
+// --- Espacios: GET ---
 async function findSpacePage({ communityId, search, status, page, pageSize }) {
   return findPage('reservationSpace', {
     where: buildSpaceWhere({ communityId, search, status }),
@@ -211,6 +218,7 @@ async function findSpaceById({ communityId, spaceId }) {
   });
 }
 
+// --- Espacios: POST ---
 async function createSpace(db, input) {
   return db.reservationSpace.create({
     data: input,
@@ -218,6 +226,7 @@ async function createSpace(db, input) {
   });
 }
 
+// --- Espacios: PATCH ---
 async function updateSpace(db, { communityId, spaceId, data }) {
   return updateOneAndFind(db, 'reservationSpace', {
     updateWhere: { id: spaceId, communityId, deletedAt: null },
@@ -227,6 +236,7 @@ async function updateSpace(db, { communityId, spaceId, data }) {
   });
 }
 
+// --- Espacios: DELETE lógico ---
 async function softDeleteSpace(db, { communityId, spaceId, deletedAt }) {
   const updated = await db.reservationSpace.updateMany({
     where: { id: spaceId, communityId, deletedAt: null },
@@ -235,7 +245,7 @@ async function softDeleteSpace(db, { communityId, spaceId, deletedAt }) {
   return updated.count === 1;
 }
 
-// --- Bookings ---
+// --- Reservas: GET de consulta ---
 async function findFutureActiveBookingsForSpace({ communityId, spaceId, nowDate, nowTime }) {
   return prisma.reservationBooking.findMany({
     where: {
@@ -244,7 +254,7 @@ async function findFutureActiveBookingsForSpace({ communityId, spaceId, nowDate,
       status: 'ACTIVE',
       ...buildBookingTimeWhere('upcoming', nowDate, nowTime)
     },
-    select: { id: true },
+    select: bookingSelect,
     orderBy: buildBookingOrder('asc')
   });
 }
@@ -270,13 +280,6 @@ async function findActiveBookingByMembershipSpaceAndDate({ communityId, ownerMem
   });
 }
 
-async function createBooking(db, input) {
-  return db.reservationBooking.create({
-    data: input,
-    select: bookingSelect
-  });
-}
-
 async function findBookingById({ communityId, bookingId }) {
   return prisma.reservationBooking.findFirst({
     where: { id: bookingId, communityId },
@@ -284,6 +287,25 @@ async function findBookingById({ communityId, bookingId }) {
   });
 }
 
+async function findBookingPageForMembership({ communityId, ownerMembershipId, spaceId, scope, page, pageSize, nowDate, nowTime }) {
+  const query = buildMembershipBookingPageQuery({ communityId, ownerMembershipId, spaceId, scope, nowDate, nowTime });
+  return findBookingPage({ ...query, page, pageSize });
+}
+
+async function findBookingPageAdmin({ communityId, spaceId, status, from, to, page, pageSize }) {
+  const query = buildAdminBookingPageQuery({ communityId, spaceId, status, from, to });
+  return findBookingPage({ ...query, page, pageSize });
+}
+
+// --- Reservas: POST ---
+async function createBooking(db, input) {
+  return db.reservationBooking.create({
+    data: input,
+    select: bookingSelect
+  });
+}
+
+// --- Reservas: cancelaciones ---
 async function cancelBooking(db, { communityId, bookingId, cancelledAt, cancelledByMembershipId, cancellationReason }) {
   return updateOneAndFind(db, 'reservationBooking', {
     updateWhere: { id: bookingId, communityId, status: 'ACTIVE' },
@@ -315,9 +337,12 @@ async function cancelBookingsByOwnerMembershipIds(db, membershipIds, { cancelled
     return [];
   }
 
+  const bookingIds = activeBookings.map((booking) => booking.id);
+
+  // Cancelación masiva usada al cerrar membresías; no marca un actor concreto.
   await db.reservationBooking.updateMany({
     where: {
-      id: { in: activeBookings.map((booking) => booking.id) },
+      id: { in: bookingIds },
       status: 'ACTIVE'
     },
     data: {
@@ -327,24 +352,103 @@ async function cancelBookingsByOwnerMembershipIds(db, membershipIds, { cancelled
       cancellationReason: cancellationReason || null
     }
   });
-  return activeBookings.map((booking) => booking.id);
+  return bookingIds;
 }
 
-async function findBookingPageForMembership({ communityId, ownerMembershipId, spaceId, scope, page, pageSize, nowDate, nowTime }) {
-  const query = buildMembershipBookingPageQuery({
-    communityId,
-    ownerMembershipId,
-    spaceId,
-    scope,
-    nowDate,
-    nowTime
+async function cancelActiveBookingsBySpaceId(db, { communityId, spaceId, cancelledAt, cancelledByMembershipId, cancellationReason }) {
+  const activeBookings = await db.reservationBooking.findMany({
+    where: {
+      communityId,
+      spaceId,
+      status: 'ACTIVE'
+    },
+    select: { id: true }
   });
-  return findBookingPage({ ...query, page, pageSize });
+
+  if (activeBookings.length === 0) {
+    return [];
+  }
+
+  const bookingIds = activeBookings.map((booking) => booking.id);
+
+  // Mantiene el filtro ACTIVE para no sobrescribir reservas canceladas entre lectura y escritura.
+  await db.reservationBooking.updateMany({
+    where: {
+      id: { in: bookingIds },
+      status: 'ACTIVE'
+    },
+    data: {
+      status: 'CANCELLED',
+      cancelledAt,
+      cancelledByMembershipId: cancelledByMembershipId || null,
+      cancellationReason: cancellationReason || null
+    }
+  });
+  return bookingIds;
 }
 
-async function findBookingPageAdmin({ communityId, spaceId, status, from, to, page, pageSize }) {
-  const query = buildAdminBookingPageQuery({ communityId, spaceId, status, from, to });
-  return findBookingPage({ ...query, page, pageSize });
+async function cancelActiveBookingsByIds(db, { communityId, bookingIds, cancelledAt, cancelledByMembershipId, cancellationReason }) {
+  if (!bookingIds || bookingIds.length === 0) {
+    return [];
+  }
+
+  // Se usa tras recalcular impacto de reglas; solo cancela reservas todavía activas de la comunidad.
+  await db.reservationBooking.updateMany({
+    where: {
+      id: { in: bookingIds },
+      communityId,
+      status: 'ACTIVE'
+    },
+    data: {
+      status: 'CANCELLED',
+      cancelledAt,
+      cancelledByMembershipId: cancelledByMembershipId || null,
+      cancellationReason: cancellationReason || null
+    }
+  });
+  return bookingIds;
+}
+
+// --- Reservas: PATCH interno ---
+async function updateBookingSlotPositions(db, updates) {
+  if (!updates || updates.length === 0) {
+    return [];
+  }
+
+  // Al cambiar reglas de un espacio, algunas reservas siguen siendo válidas pero cambian de índice de franja.
+  await Promise.all(updates.map((update) =>
+    db.reservationBooking.updateMany({
+      where: {
+        id: update.bookingId,
+        communityId: update.communityId,
+        status: 'ACTIVE'
+      },
+      data: {
+        startSlotIndex: update.startSlotIndex,
+        slotCount: update.slotCount
+      }
+    })
+  ));
+  return updates.map((update) => update.bookingId);
+}
+
+// --- Correos: GET de destinatarios ---
+// Destinatarios para avisos comunitarios del módulo; solo miembros vivos con correo disponible.
+async function findCommunityReservationMailMembers(communityId) {
+  return prisma.membership.findMany({
+    where: {
+      communityId,
+      deletedAt: null,
+      endedAt: null
+    },
+    select: {
+      id: true,
+      alias: true,
+      user: { select: { email: true } },
+      community: { select: { id: true, name: true } }
+    },
+    orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }]
+  });
 }
 
 module.exports = {
@@ -362,6 +466,10 @@ module.exports = {
   findBookingById,
   cancelBooking,
   cancelBookingsByOwnerMembershipIds,
+  cancelActiveBookingsBySpaceId,
+  cancelActiveBookingsByIds,
+  updateBookingSlotPositions,
+  findCommunityReservationMailMembers,
   findBookingPageForMembership,
   findBookingPageAdmin
 };
