@@ -10,6 +10,8 @@ const calendarRepository = require('../calendar/calendar.repository');
 const { addMinutesToInstant } = require('../calendar/calendar.datetime');
 const { buildVotingAutomaticCalendarEvents } = require('../calendar/calendar.reminder');
 
+const MINIMUM_VOTING_DURATION_MINUTES = 59;
+
 function buildValidationDetail(field, message) {
   return [{ field, location: 'body', message }];
 }
@@ -22,7 +24,8 @@ function assertValidVotingEndDate(startsAt, endsAt) {
     );
   }
 
-  const minimumAllowedEndsAt = addMinutesToInstant(startsAt, 60);
+  // El frontend trabaja con precisión de minuto. Este margen permite crear a las 19:40 una votación que cierre a las 20:40.
+  const minimumAllowedEndsAt = addMinutesToInstant(startsAt, MINIMUM_VOTING_DURATION_MINUTES);
 
   if (endsAt < minimumAllowedEndsAt) {
     throw new ValidationError(
