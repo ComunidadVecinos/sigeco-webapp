@@ -146,6 +146,18 @@ async function countPossibleVoters(communityId) {
   });
 }
 
+async function findVotingNotificationMembers(communityId) {
+  return prisma.membership.findMany({
+    where: { communityId, deletedAt: null, endedAt: null },
+    select: {
+      id: true,
+      alias: true,
+      user: { select: { email: true } }
+    },
+    orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }]
+  });
+}
+
 async function insertVote(db, input) {
   return db.pollVote.create({
     data: { pollId: input.pollId, optionId: input.optionId, membershipId: input.membershipId },
@@ -210,6 +222,7 @@ module.exports = {
   findVoteCountsByPollIds,
   findMembershipVotesByPollIds,
   countPossibleVoters,
+  findVotingNotificationMembers,
   insertVote,
   closeVoting,
   softDeleteVoting,

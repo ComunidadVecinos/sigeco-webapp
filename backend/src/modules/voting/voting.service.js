@@ -3,6 +3,7 @@
 const { Prisma } = require('@prisma/client');
 
 const { ConflictError, NotFoundError, ValidationError } = require('../../lib/errors');
+const mailService = require('../../lib/mail');
 const membersRepository = require('../members/members.repository');
 const membersService = require('../members/members.service');
 const calendarRepository = require('../calendar/calendar.repository');
@@ -33,6 +34,14 @@ function assertValidVotingEndDate(startsAt, endsAt) {
 
 function isVotingOpen(voting, now = new Date()) {
   return voting.closedAt === null && voting.endsAt !== null && voting.endsAt > now;
+}
+
+function formatVotingEndsAt(endsAt) {
+  return new Intl.DateTimeFormat('es-ES', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'Europe/Madrid'
+  }).format(endsAt);
 }
 
 function mapVotingCreator(membership) {
@@ -97,6 +106,58 @@ async function requireVotingAdministrativeAccess(userId, communityId) {
   return membersService.requireAdministrativeCommunityAccess(userId, communityId, membersRepository);
 }
 
+async function sendVotingCreatedMail({ member, voting }) {
+  const targetEmail = member.user?.email;
+
+  if (!targetEmail) {
+    return;
+  }
+
+  const text = [
+    `Hola ${member.alias || 'miembro'},`,
+    '',
+    'Se ha publicado una nueva votación en SIGECO.',
+    '',
+    `Título: ${voting.title}`,
+    `Fecha de finalización: ${formatVotingEndsAt(voting.endsAt)}`,
+    '',
+    'Accede a SIGECO para participar.'
+  ].join('\n');
+
+  try {
+    await mailService.sendMail({
+      to: targetEmail,
+      subject: 'SIGECO - Nueva votación disponible',
+      text
+    });
+  } catch (error) {
+    console.warn('No se ha podido enviar el correo de nueva votación', {
+      votingId: voting.id,
+      membershipId: member.id,
+      error
+    });
+  }
+}
+
+async function notifyVotingCreated({ communityId, voting }, votingRepository) {
+  let members = [];
+
+  try {
+    members = await votingRepository.findVotingNotificationMembers(communityId);
+  } catch (error) {
+    console.warn('No se han podido obtener los destinatarios del correo de nueva votación', {
+      communityId,
+      votingId: voting.id,
+      error
+    });
+    return;
+  }
+
+  for (const member of members) {
+    await sendVotingCreatedMail({ member, voting });
+  }
+}
+
 async function createVoting(context, communityId, input, votingRepository) {
   const { membership } = await requireVotingAdministrativeAccess(context.userId, communityId);
   const startsAt = new Date();
@@ -126,6 +187,7 @@ async function createVoting(context, communityId, input, votingRepository) {
   });
 
   const possibleVoters = await votingRepository.countPossibleVoters(communityId);
+  await notifyVotingCreated({ communityId, voting: createdVoting }, votingRepository);
 
   return mapVotingItem(createdVoting, createdVoting.options, new Map(), possibleVoters, null, startsAt);
 }
