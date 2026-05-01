@@ -43,17 +43,21 @@ Important:
 
 ```json
 {
-  "key": "platform-overview",
-  "title": "Cómo usar SIGECO",
+  "key": "getting-started",
+  "title": "Primeros pasos en SIGECO",
   "description": "..."
 }
 ```
 
 Current static general help keys returned by backend:
 
-- `platform-overview`
-- `community-participation`
-- `support-contact`
+- `getting-started`
+- `active-community`
+- `app-navigation`
+- `profile-and-requests`
+- `roles-and-permissions`
+- `community-services`
+- `email-and-password-recovery`
 
 ### Community help section
 
@@ -74,8 +78,8 @@ All read endpoints return this shape:
 {
   "generalHelp": [
     {
-      "key": "platform-overview",
-      "title": "Cómo usar SIGECO",
+      "key": "getting-started",
+      "title": "Primeros pasos en SIGECO",
       "description": "..."
     }
   ],
@@ -146,18 +150,38 @@ Without community:
 {
   "generalHelp": [
     {
-      "key": "platform-overview",
-      "title": "Cómo usar SIGECO",
+      "key": "getting-started",
+      "title": "Primeros pasos en SIGECO",
       "description": "..."
     },
     {
-      "key": "community-participation",
-      "title": "Participación en la comunidad",
+      "key": "active-community",
+      "title": "Cambio de comunidad activa",
       "description": "..."
     },
     {
-      "key": "support-contact",
-      "title": "Soporte y seguimiento",
+      "key": "app-navigation",
+      "title": "Navegación por la aplicación",
+      "description": "..."
+    },
+    {
+      "key": "profile-and-requests",
+      "title": "Perfil, datos personales y solicitudes",
+      "description": "..."
+    },
+    {
+      "key": "roles-and-permissions",
+      "title": "Roles y permisos de usuario",
+      "description": "..."
+    },
+    {
+      "key": "community-services",
+      "title": "Servicios comunitarios disponibles",
+      "description": "..."
+    },
+    {
+      "key": "email-and-password-recovery",
+      "title": "Correo y recuperación de contraseña",
       "description": "..."
     }
   ],
@@ -171,8 +195,8 @@ With community:
 {
   "generalHelp": [
     {
-      "key": "platform-overview",
-      "title": "Cómo usar SIGECO",
+      "key": "getting-started",
+      "title": "Primeros pasos en SIGECO",
       "description": "..."
     }
   ],
@@ -218,8 +242,8 @@ Requires:
 {
   "generalHelp": [
     {
-      "key": "platform-overview",
-      "title": "Cómo usar SIGECO",
+      "key": "getting-started",
+      "title": "Primeros pasos en SIGECO",
       "description": "..."
     }
   ],

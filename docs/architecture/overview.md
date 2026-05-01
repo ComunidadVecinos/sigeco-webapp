@@ -23,7 +23,7 @@ The stack is designed for local development and demo use. Docker Compose starts 
   One-shot setup container that waits for PostgreSQL, then runs Prisma migrations and seed data before the backend starts.
 
 - `nginx`
-  Public entry point of the stack. It routes `/` to the frontend and `/api` plus `/uploads` to the backend.
+  Public entry point of the stack. It routes `/` to the frontend, `/api` plus `/uploads` to the backend, and `/mail` to MailPit.
 
 - `mailpit`
   Local SMTP test service used for email flows such as password reset. It also exposes a small web UI to inspect sent emails.
@@ -43,6 +43,7 @@ Main request flow:
 
 - Browser -> `nginx` -> `frontend`
 - Browser -> `nginx` -> `backend` -> `db`
+- Browser -> `nginx` -> `mailpit` for the development email inbox
 - Backend -> `mailpit` for development email delivery
 
 ---
@@ -62,7 +63,7 @@ Main request flow:
   `http://localhost/uploads/...`
 
 - MailPit UI
-  `http://localhost:8025`
+  `http://localhost/mail`
 
 - PostgreSQL from host
   `localhost:5432`
@@ -96,6 +97,7 @@ flowchart LR
   Browser --> Nginx
   Nginx --> Frontend
   Nginx --> Backend
+  Nginx --> MailPit
   Backend --> DB
   Backend --> MailPit
   DBInit --> DB
@@ -107,4 +109,4 @@ flowchart LR
 
 - The backend currently exposes these implemented API areas: `auth`, `users`, `help`, `communities`, and `requests`.
 - Session auth is cookie-based, so frontend requests must include credentials.
-- nginx also forwards `/uploads` to the backend so public file URLs stay on the same host as the app.
+- nginx also forwards `/uploads` to the backend and `/mail` to MailPit so local service URLs stay on the same host as the app.

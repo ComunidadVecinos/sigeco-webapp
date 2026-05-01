@@ -94,9 +94,9 @@ docker compose logs -f db_init
 
 - Frontend: http://localhost
 - Backend API (proxied by nginx): `http://localhost/api/*`
-- MailPit UI: http://localhost:8025
+- MailPit UI (proxied by nginx): http://localhost/mail
 
-Development note: abrir http://localhost:8025 para ver emails de recovery/notifications.
+Development note: abrir http://localhost/mail para ver emails de recovery/notifications.
 
 ---
 
@@ -114,7 +114,7 @@ SIGECO uses signed cookie-based sessions. Session behavior:
 
 - SMTP host (from backend container): `mailpit`
 - SMTP port: `1025`
-- UI inbox: http://localhost:8025
+- UI inbox: http://localhost/mail
 
 ### Seed demo accounts
 

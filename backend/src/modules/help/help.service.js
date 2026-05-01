@@ -9,19 +9,39 @@ const COMMUNITY_HELP_SECTIONS_LIMIT = 8;
 
 const GENERAL_HELP = [
   {
-    key: 'platform-overview',
-    title: 'Cómo usar SIGECO',
-    description: 'Desde tu sesión puedes consultar tu perfil, ver las comunidades a las que perteneces y trabajar siempre sobre tu comunidad activa. Si cambias de comunidad, la plataforma adaptará la información y las opciones disponibles a ese contexto.'
+    key: 'getting-started',
+    title: 'Primeros pasos en SIGECO',
+    description: 'Desde SIGECO puedes registrarte, iniciar sesión y acceder a tu perfil. Si aún no perteneces a ninguna comunidad, podrás crear una nueva comunidad o solicitar unirte a una existente mediante un código de acceso facilitado por su administración.'
   },
   {
-    key: 'community-participation',
-    title: 'Participación en la comunidad',
-    description: 'Dentro de cada comunidad puedes revisar la información publicada por su administración, consultar a sus miembros y gestionar tus solicitudes relacionadas con el acceso o la actualización de datos. Algunas acciones pueden variar según tu rol dentro de la comunidad.'
+    key: 'active-community',
+    title: 'Cambio de comunidad activa',
+    description: 'Si perteneces a varias comunidades, utiliza el selector de comunidad de la cabecera para cambiar el contexto de trabajo. Al cambiar de comunidad, la plataforma mostrará la información, permisos y módulos correspondientes a la comunidad seleccionada.'
   },
   {
-    key: 'support-contact',
-    title: 'Soporte y seguimiento',
-    description: 'Si no encuentras aquí la respuesta que necesitas, revisa primero las secciones de ayuda específicas de tu comunidad. Para incidencias sobre normas internas, miembros o contenido, contacta con la administración de la comunidad; para problemas de acceso o uso general de la plataforma, solicita soporte desde los canales habilitados.'
+    key: 'app-navigation',
+    title: 'Navegación por la aplicación',
+    description: 'El menú Comunidad da acceso a los módulos principales: tablón de noticias, foro, reserva de espacios, incidencias, votaciones y documentos. La cabecera permite acceder también al calendario, perfil, ayuda y, si tienes permisos, al área de administración.'
+  },
+  {
+    key: 'profile-and-requests',
+    title: 'Perfil, datos personales y solicitudes',
+    description: 'En Mi perfil puedes consultar y actualizar tus datos personales, cambiar la contraseña, gestionar tu foto, revisar las comunidades a las que perteneces y consultar el estado de tus solicitudes de acceso o modificación de datos.'
+  },
+  {
+    key: 'roles-and-permissions',
+    title: 'Roles y permisos de usuario',
+    description: 'SIGECO distingue entre vecinos y perfiles administrativos. Los usuarios con rol de presidente o vicepresidente pueden acceder al panel de administración, revisar solicitudes, gestionar miembros, actualizar datos de la comunidad, administrar documentos, configurar espacios reservables y mantener contenidos de ayuda comunitaria.'
+  },
+  {
+    key: 'community-services',
+    title: 'Servicios comunitarios disponibles',
+    description: 'Cada comunidad puede utilizar módulos funcionales para publicar noticias, organizar conversaciones en el foro, gestionar reservas de espacios comunes, registrar incidencias, convocar votaciones, compartir documentos PDF y consultar eventos en el calendario.'
+  },
+  {
+    key: 'email-and-password-recovery',
+    title: 'Correo y recuperación de contraseña',
+    description: 'En el entorno local de demostración, los correos enviados por SIGECO, como los de recuperación de contraseña o notificaciones, se consultan en MailPit: http://localhost/mail. La aplicación principal está disponible en http://localhost.'
   }
 ];
 

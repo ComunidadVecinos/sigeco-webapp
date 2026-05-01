@@ -62,8 +62,8 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     container_name: app_mailpit
-    ports:
-      - "8025:8025"
+    environment:
+      MP_WEBROOT: /mail/
     networks:
       - sigeco_network
     restart: unless-stopped
@@ -83,6 +83,7 @@ services:
     depends_on:
       - frontend
       - backend
+      - mailpit
     networks:
       - sigeco_network
     restart: unless-stopped
