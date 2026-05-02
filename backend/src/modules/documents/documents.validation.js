@@ -70,6 +70,15 @@ const createDocumentSchema = z.object({
   folderId: optionalUuidSchema('folderId')
 }).strict();
 
+// --- Body para mover carpetas/documentos ---
+const nullableUuidSchema = z.string().uuid('El campo targetFolderId debe ser un UUID válido').nullable();
+
+const moveItemSchema = z.object({
+  itemId: z.string().uuid('El campo itemId debe ser un UUID válido'),
+  itemType: z.enum(['folder', 'file'], { errorMap: () => ({ message: 'itemType debe ser "folder" o "file"' }) }),
+  targetFolderId: nullableUuidSchema
+}).strict();
+
 function sanitizeMultipartBody(allowedFields) {
   return function sanitizeBody(req, res, next) {
     if (!req.is('multipart/form-data')) {
@@ -108,5 +117,6 @@ module.exports = {
   renameFolderSchema,
   renameDocumentSchema,
   createDocumentSchema,
+  moveItemSchema,
   sanitizeCreateDocumentBody
 };

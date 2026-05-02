@@ -190,6 +190,40 @@ async function renameFolder(db, { communityId, folderId, name }) {
   });
 }
 
+//Mueve una carpeta a un nuevo padre (o a la raíz si newParentId es null)
+async function moveFolder(db, {communityId, folderId, newParentId}) {
+  const updated = await db.communityFolder.updateMany({
+    where: {id: folderId, communityId, deletedAt: null},
+    data: {parentId: newParentId || null}
+  });
+
+  if(updated.count !== 1){
+    return null;
+  }
+
+  return db.communityFolder.findFirst({
+    where: {id: folderId, communityId},
+    select: folderSelect
+  });
+}
+
+//Mueve un documento a una nueva carpeta (o a la raíz si newFolderId es null)
+async function moveDocument(db, {communityId, documentId, newFolderId}) {
+  const updated = await db.communityDocument.updateMany({
+    where: {id: documentId, communityId, deletedAt: null},
+    data: {folderId: newFolderId || null}
+  });
+
+  if(updated.count !== 1){
+    return null;
+  }
+
+  return db.communityDocument.findFirst({
+    where: {id: documentId, communityId},
+    select: documentSelect
+  });
+}
+
 async function createDocument(db, input) {
   return db.communityDocument.create({
     data: {
@@ -354,6 +388,8 @@ module.exports = {
   findDocumentNameConflict,
   createFolder,
   renameFolder,
+  moveFolder,
+  moveDocument,
   createDocument,
   renameDocument,
   deleteDocument,

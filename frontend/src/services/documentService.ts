@@ -7,6 +7,7 @@ export interface DocItem {
     type: 'file' | 'folder';
     parentId: string | null;
     url?: string;
+    sizeBytes?: number,
     createdAt: string;
 };
 
@@ -43,3 +44,7 @@ export const deleteDocument = (communityId: string, docId: string, type: string)
     const route = type === 'folder' ? 'folders' : 'files';
     return api.delete(`/api/communities/${communityId}/documents/${route}/${docId}`);
 };
+
+//Mover documento o carpeta
+export const moveItem = (communityId: string, data: {itemId: string; itemType: 'folder' | 'file'; targetFolderId: string | null}) =>
+    api.patch(`/api/communities/${communityId}/documents/move`, data);

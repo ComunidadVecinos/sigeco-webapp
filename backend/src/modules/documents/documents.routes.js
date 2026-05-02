@@ -16,6 +16,7 @@ const {
   renameFolderSchema,
   renameDocumentSchema,
   createDocumentSchema,
+  moveItemSchema,
   sanitizeCreateDocumentBody
 } = require('./documents.validation');
 
@@ -79,6 +80,15 @@ router.post(
   sanitizeCreateDocumentBody,
   validate({ params: communityIdParamSchema, body: createDocumentSchema }),
   asyncHandler(documentsController.createDocument)
+);
+
+//PATCH /api/communities/:communityId/documents/move
+//Mueve una carpeta o documento a otra carpeta o la raíz.
+router.patch(
+  '/move',
+  requireSession,
+  validate({params: communityIdParamSchema, body: moveItemSchema}),
+  asyncHandler(documentsController.moveItem)
 );
 
 // PATCH /api/communities/:communityId/documents/files/:documentId

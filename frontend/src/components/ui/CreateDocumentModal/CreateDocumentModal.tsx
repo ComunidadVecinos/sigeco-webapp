@@ -3,24 +3,23 @@ import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '..
 import { Button } from '../button';
 import { Input } from '../input';
 import { Label } from '../label';
-import { uploadDocument, DocItem } from '@/services/documentService';
+import { uploadDocument } from '@/services/documentService';
 
 interface CreateDocumentModaProps {
     isOpen: boolean;
     onClose: () => void;
     communityId: string;
-    folders: DocItem[];
+    folderId: string | null;
     onSuccess:() => void;
 }
 
-const CreateDocumentModal: React.FC<CreateDocumentModaProps> = ({isOpen, onClose, communityId, folders, onSuccess}) => {
+const CreateDocumentModal: React.FC<CreateDocumentModaProps> = ({isOpen, onClose, communityId, folderId, onSuccess}) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [folderId, setFolderId] = useState('');
     const [file, setFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
 
-    const resetForm = () => {setName(''); setDescription(''); setFolderId(''); setFile(null);};
+    const resetForm = () => {setName(''); setDescription(''); setFile(null);};
 
     const handleSave = async () => {
         if(!name.trim() || !file) return;
@@ -46,7 +45,7 @@ const CreateDocumentModal: React.FC<CreateDocumentModaProps> = ({isOpen, onClose
         <Dialog open={isOpen} onOpenChange={(open) => {if(!open) {resetForm(); onClose(); }}}>
             <DialogContent className='sm:max-w-[520px]'>
                 <DialogHeader>
-                    <DialogTitle>Subir Documento</DialogTitle>
+                    <DialogTitle>{folderId ? 'Subir documento a carpeta' : 'Subir Documento'}</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className='flex flex-col gap-2'>
@@ -56,16 +55,6 @@ const CreateDocumentModal: React.FC<CreateDocumentModaProps> = ({isOpen, onClose
                     <div className='flex flex-col gap-2'>
                         <Label className='font-bold'>Descripción <span className='text-gray-400 font-normal'>(opcional)</span></Label>
                         <Input value={description} onChange={(e) => setDescription(e.target.value)}/>
-                    </div>
-                    <div className='flex flex-col gap-2'>
-                        <Label className='font-bold'>Carpeta destino <span className='text-gray-400 font-normal'>(opcional)</span></Label>
-                        <select className='border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white'
-                                value={folderId}
-                                onChange={(e) => setFolderId(e.target.value)}
-                        >
-                            <option value="">Sin carpeta</option>
-                            {folders.map(f => (<option key={f.id} value={f.id}>{f.name}</option>))}
-                        </select>
                     </div>
                     <div className="flex flex-col gap-2">
                         <Label className='font-bold'>Archivo PDF</Label>

@@ -5,10 +5,10 @@ import CreateFolderModal from '@/components/ui/CreateFolderModal/CreateFolderMod
 import CreateDocumentModal from '@/components/ui/CreateDocumentModal/CreateDocumentModal';
 import EditDocumentModal from '@/components/ui/EditDocumentModal/EditDocumentModal';
 import DocumentViewerModal from '@/components/ui/DocumentViewerModal/DocumentViewerModal';
-import {Menu, FolderPlus, Upload, Folder, FileText, ChevronDown, ChevronRight, Pencil, Trash2} from 'lucide-react';
+import {Menu, FolderPlus, Upload, Folder, FileText, ChevronDown, ChevronRight, Pencil, Trash2, FilePlus, HardDrive} from 'lucide-react';
 import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
-import { getDocuments, deleteDocument, DocItem } from '@/services/documentService';
+import { getDocuments, deleteDocument, DocItem, moveItem } from '@/services/documentService';
 import {format} from 'date-fns';
 import {es} from 'date-fns/locale';
 
@@ -25,8 +25,14 @@ const DocumentsPage: React.FC = () => {
 
     const [folderModalOpen, setFolderModalOpen] = useState(false);
     const [documentModalOpen, setDocumentModalOpen] = useState(false);
+    const [createInFolderId, setCreateInFolderId] = useState<string | null>(null);
     const [editModal, setEditModal] = useState<{open: boolean; docId: string; name: string; type: string}>({open: false, docId: '', name: '', type: ''});
     const [viewerModal, setViewerModal] = useState<{open: boolean; url: string; name: string}>({open: false, url: '', name: ''});
+
+    const [storageInfo, setStorageInfo] = useState<{quotaBytes: number; usedBytes: number} | null>(null);
+    const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+    const [dragOverRoot, setDragOverRoot] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     const loadDocuments = async () => {
         if(!communityId) return;
@@ -42,6 +48,13 @@ const DocumentsPage: React.FC = () => {
 
             setDocuments(combined);
             setExpandedFolders(new Set());
+
+            if(responseData.storage) {
+                setStorageInfo({
+                    quotaBytes: responseData.storage.quotaBytes,
+                    usedBytes: responseData.storage.usedBytes
+                });
+            }
         } catch (err) {
             console.error('Error cargando docuemntos', err);
         } finally {
@@ -89,6 +102,46 @@ const DocumentsPage: React.FC = () => {
         }
     };
 
+    // --- Drag & Drop --- //
+    const handleDragStart = (e: React.DragEvent, item: DocItem) => {
+        e.dataTransfer.setData('application/json', JSON.stringify({id: item.id, type: item.type, parentId: item.parentId}));
+        e.dataTransfer.effectAllowed = 'move';
+        setIsDragging(true);
+    };
+
+    const handleDropOnFolder = async (e: React.DragEvent, targetFolderId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOverFolderId(null);
+        setIsDragging(false);
+        if(!communityId || !isAdmin) return;
+        try{
+            const data = JSON.parse(e.dataTransfer.getData('application/json'));
+            if(data.id === targetFolderId) return;
+            if(data.parentId === targetFolderId) return;
+            await moveItem(communityId, {itemId:data.id, itemType: data.type, targetFolderId});
+            await loadDocuments();
+        } catch (err: any){
+            alert(err.response?.data?.error?.message || 'Error al mover el elemento.');
+        }
+    };
+
+    const handleDropOnRoot = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragOverRoot(false);
+        setIsDragging(false);
+        if(!communityId || !isAdmin) return;
+
+        try{
+            const data = JSON.parse(e.dataTransfer.getData('application/json'));
+            if(data.parentId === null) return;
+            await moveItem(communityId, {itemId: data.id, itemType: data.type, targetFolderId: null});
+            await loadDocuments();
+        } catch (err: any){
+            alert(err.response?.data?.error?.message ||'Error al mover el elemento.');
+        }
+    };
+
     const rootFolders = documents.filter(d => d.type === 'folder' && d.parentId === null);
     const rootFiles = documents.filter(d => d.type === 'file' && d.parentId === null);
     const getChildren = (folderId: string) => documents.filter(d => d.parentId === folderId);
@@ -100,12 +153,21 @@ const DocumentsPage: React.FC = () => {
             return date;
         }
     };
+    
+    const formatBytes = (bytes: number) => {
+        if(bytes === 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
+    };
 
     const renderFileRow = (doc: DocItem, indent = false) => (
         <div
             key={doc.id}
             className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded-lg cursor-pointer group ${indent ? 'ml-8' : ''}`}
             onClick={() => doc.url && setViewerModal({open: true, url: doc.url, name: doc.name})}
+            draggable={isAdmin}
+            onDragStart={(e) => handleDragStart(e, doc)}
         >
             <FileText className='h-5 w-5 text-red-400 flex-shrink-0' />
             <div className='flex-1 min-w-0'>
@@ -126,13 +188,22 @@ const DocumentsPage: React.FC = () => {
         </div>
     );
 
-    const renderFolder = (folder: DocItem) => {
+    const renderFolder = (folder: DocItem, nested = false) => {
         const isExpanded = expandedFolders.has(folder.id);
         const children = getChildren(folder.id);
+        const isDragOver = dragOverFolderId === folder.id;
 
         return (
-            <div key={folder.id}>
-                <div className='flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded-lg cursor-pointer group' onClick={() => toggleFolder(folder.id)}>
+            <div key={folder.id} className={nested ? 'ml-8' : ''}>
+                <div 
+                    className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded-lg cursor-pointer group transition-all ${isDragOver ? 'bg-blue-50 ring-2 ring-blue-400 ring-dashed' : ''}`} 
+                    onClick={() => toggleFolder(folder.id)}
+                    draggable={isAdmin}
+                    onDragStart={(e) => handleDragStart(e, folder)}
+                    onDragOver={(e) => {e.preventDefault(); e.stopPropagation(); setDragOverFolderId(folder.id); setDragOverRoot(false);}}
+                    onDragLeave={() => setDragOverFolderId(null)}
+                    onDrop={(e) => handleDropOnFolder(e, folder.id)}
+                >
                     {isExpanded 
                         ? <ChevronDown className='h-4 w-4 text-gray-400 flex-shrink-0' />
                         : <ChevronRight className='h-4 w-4 text-gray-400 flex-shrink-0' />
@@ -144,6 +215,12 @@ const DocumentsPage: React.FC = () => {
                     <span className='text-xs text-gray-400 flex-shrink-0'>{children.length} archivo {children.length !== 1 ? 's' : ''}</span>
                     {isAdmin && (
                         <div className='flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0' onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-yellow-600' title='Nueva subcarpeta' onClick={() => {setCreateInFolderId(folder.id); setFolderModalOpen(true);}}>
+                                <FolderPlus className='h-3.5 w-3.5' />
+                            </Button>
+                            <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-green-600' title='Subir archivo aquí' onClick={() => {setCreateInFolderId(folder.id); setDocumentModalOpen(true);}}>
+                                <FilePlus className='h-3.5 w-3.5' />
+                            </Button>
                             <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-blue-600' onClick={() => setEditModal({open: true, docId: folder.id, name: folder.name, type: folder.type})}>
                                 <Pencil className='h-3.5 w-3.5' />
                             </Button>
@@ -155,14 +232,14 @@ const DocumentsPage: React.FC = () => {
                 </div>
                 {isExpanded && (
                     <div className='border-l-2 border-gray-100 ml-6'>
-                        {children.length > 0 ? children.map(child => renderFileRow(child, true)) : <p className='text-xs text-gray-400 py-2 ml-12'>Carpeta vacía</p>}
+                        {children.length > 0 ? children.map(child =>child.type === 'folder' ? renderFolder(child, true) : renderFileRow(child, true)) : <p className='text-xs text-gray-400 py-2 ml-12'>Carpeta vacía</p>}
                     </div>
                 )}
             </div>
         );
     };
 
-    const folders = documents.filter(d => d.type === 'folder');
+    const storage = storageInfo ? Math.min((storageInfo.usedBytes / storageInfo.quotaBytes) * 100, 100) : 0;
 
     return (
         <div>
@@ -173,33 +250,66 @@ const DocumentsPage: React.FC = () => {
             ]}/>
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}/>
                 
-            <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0'>
+            <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0 pb-16' onDragEnd={() => {setIsDragging(false); setDragOverFolderId(null); setDragOverRoot(false);}}>
                 <h1 className='text-[28px] font-bold mb-7 text-center'>Documentos</h1>
 
                 {isAdmin && (
                     <div className='flex gap-3 mb-6'>
-                        <Button size="sm" variant="outline" onClick={() => setFolderModalOpen(true)}>
+                        <Button size="sm" variant="outline" onClick={() => {setCreateInFolderId(null); setFolderModalOpen(true)}}>
                             <FolderPlus className='h-4 w-4 mr-2'/> Nueva carpeta
                         </Button>
-                        <Button size="sm" onClick={() => setDocumentModalOpen(true)}>
+                        <Button size="sm" onClick={() => {setCreateInFolderId(null); setDocumentModalOpen(true)}}>
                             <Upload className='h-4 w-4 mr-2' /> Subir documento
                         </Button>
                     </div>
                 )}
 
-                <div className='bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100'>
+                <div 
+                    className='bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100'
+                    onDragOver={(e) => {e.preventDefault();}}
+                    onDragEnter={(e) => {e.preventDefault(); setDragOverRoot(true);}}
+                    onDragLeave={(e) => {if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverRoot(false);}}
+                    onDrop={handleDropOnRoot}
+                >
                     {loading && documents.length === 0 && <p className='text-sm text-gray-400 text-center py-8'>Cargando documentos...</p>}
                     {!loading && documents.length === 0 && <p className='text-sm text-gray-400 text-center py-8'>No hay documentos ni carpetas.</p>}
                     {rootFolders.map(folder => renderFolder(folder))}
                     {rootFiles.map(file => renderFileRow(file))}
                 </div>
+
+                {isAdmin && isDragging && (
+                    <div
+                        className={`mt-4 border-2 border-dashed rounded-xl py-6 text-center text-sm transition-all ${dragOverRoot ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-gray-300 text-gray-400'}`}
+                        onDragOver={(e) => {e.preventDefault(); setDragOverRoot(true);}}
+                        onDragEnter={(e) => {e.preventDefault(); setDragOverRoot(true);}}
+                        onDragLeave={(e) => {if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverRoot(false);}}
+                    onDrop={handleDropOnRoot}
+                    >
+                        Soltar aquí para mover a la raíz
+                    </div>
+                )}
             </main>
+
+            {/* Barra de capacidad */}
+            {storageInfo && (
+                <div className='fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur border-t border-gray-200 z-40'>
+                    <div className='max-w-[700px] mx-auto flex items-center gap-3 px-4 py-2.5'>
+                        <HardDrive className='h-4 w-4 text-gray-400 flex-shrink-0' />
+                        <div className='flex-1 bg-gray-200 rounded-full h-2 overflow-hidden'>
+                            <div className={`h-2 rounded-full transition-all duration-500 ${storage > 90 ? 'bg-red-500' : storage > 70 ? 'bg-yellow-500' : 'bg-blue-500'}`} style={{width: `${storage}%`}}/>
+                        </div>
+                        <span className='text-xs text-gray-500 flex-shrink-0 whitespace-nowrap'>
+                            {formatBytes(storageInfo.usedBytes)} / {formatBytes(storageInfo.quotaBytes)} ({storage.toFixed(1)}%)
+                        </span>
+                    </div>
+                </div>
+            )}
 
             <CreateFolderModal
                 isOpen={folderModalOpen} 
                 onClose={() => setFolderModalOpen(false)}
                 communityId={communityId!}
-                folders={folders}
+                parentId={createInFolderId}
                 onSuccess={loadDocuments}
             />
 
@@ -207,7 +317,7 @@ const DocumentsPage: React.FC = () => {
                 isOpen={documentModalOpen} 
                 onClose={() => setDocumentModalOpen(false)}
                 communityId={communityId!}
-                folders={folders}
+                folderId={createInFolderId}
                 onSuccess={loadDocuments}
             />
 

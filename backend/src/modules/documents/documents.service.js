@@ -521,6 +521,73 @@ async function getDocumentContent(context, communityId, documentId, options, doc
   };
 }
 
+async function moveItem(context, communityId, input, documentsRepository) {
+  await requireWriteAccess(context.userId, communityId);
+
+  const { itemId, itemType, targetFolderId } = input;
+
+  //Validar que la carpeta destino existe (si no es la raíz)
+  if (targetFolderId) {
+    const targetFolder = await getFolderOrFail(communityId, targetFolderId, documentsRepository);
+    ensureFolderIsActive(targetFolder, 'La carpeta destino ya no está disponible');
+  }
+
+  if (itemType === 'folder') {
+    const folder = await getFolderOrFail(communityId, itemId, documentsRepository);
+    ensureFolderIsActive(folder, 'La carpeta ya está eliminada');
+
+    //No se puede mover una carpeta dentro de sí misma
+    if (itemId === targetFolderId) {
+      throw new ConflictError('No se puede mover una carpeta dentro de sí misma');
+    }
+
+    //No se puede mover a un descendiente (evitar ciclos)
+    if (targetFolderId) {
+      const allFolders = await documentsRepository.findAllFolders(communityId);
+      const descendantIds = collectFolderIds(itemId, allFolders);
+      if (descendantIds.includes(targetFolderId)) {
+        throw new ConflictError('No se puede mover una carpeta dentro de uno de sus descendientes');
+      }
+    }
+
+    //Verificar nombre único en el destino
+    await ensureFolderNameAvailable({
+      communityId,
+      parentId: targetFolderId,
+      name: folder.name,
+      excludeFolderId: folder.id
+    }, documentsRepository);
+
+    const movedFolder = await documentsRepository.withTransaction((db) => documentsRepository.moveFolder(db, { communityId, folderId: itemId, newParentId: targetFolderId }));
+
+    if (!movedFolder) {
+      throw new ConflictError('No se ha podido mover la carpeta');
+    }
+
+    return { moved: true, item: folderView(movedFolder) };
+  }
+
+  //itemType === 'file
+  const document = await getDocumentOrFail(communityId, itemId, documentsRepository);
+  ensureDocumentIsActive(document, 'El documento ya está eliminado');
+
+  //Verificar nombre único en el destino
+  await ensureDocumentNameAvailable({
+    communityId,
+    folderId: targetFolderId,
+    name: document.name,
+    excludeDocumentId: document.id
+  }, documentsRepository);
+
+  const movedDocuments = await documentsRepository.withTransaction((db) => documentsRepository.moveDocument(db, { communityId, documentId: itemId, newFolderId: targetFolderId }));
+
+  if (!movedDocuments) {
+    throw new ConflictError('No se ha podido mover el documento');
+  }
+
+  return { moved: true, item: documentView(movedDocuments, communityId) };
+}
+
 module.exports = {
   listDocuments,
   getFolderTree,
@@ -530,5 +597,6 @@ module.exports = {
   createDocument,
   renameDocument,
   deleteDocument,
-  getDocumentContent
+  getDocumentContent,
+  moveItem
 };

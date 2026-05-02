@@ -69,6 +69,11 @@ async function streamDocument(req, res) {
   return result.stream.pipe(res);
 }
 
+async function moveItem(req, res) {
+  const result = await documentsService.moveItem(requestUser(req), req.params.communityId, req.body, documentsRepository);
+  return res.status(200).json(result);
+}
+
 module.exports = {
   listDocuments,
   getFolderTree,
@@ -78,5 +83,6 @@ module.exports = {
   createDocument,
   renameDocument,
   deleteDocument,
-  streamDocument
+  streamDocument,
+  moveItem
 };
