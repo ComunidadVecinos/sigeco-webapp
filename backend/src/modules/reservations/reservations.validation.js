@@ -99,9 +99,9 @@ const createSpaceSchema = z.object({
   slotMinutes: positiveIntegerFieldSchema('slotMinutes'),
   allowedDays: allowedDaysCreateSchema,
   maxConsecutiveSlots: positiveIntegerFieldSchema('maxConsecutiveSlots').default(1),
-  minAdvanceMinutes: positiveIntegerFieldSchema('minAdvanceMinutes').default(60),
+  minAdvanceMinutes: positiveIntegerFieldSchema('minAdvanceMinutes', { min: 0 }).default(60),
   maxAdvanceDays: positiveIntegerFieldSchema('maxAdvanceDays').default(30),
-  cancellationNoticeMinutes: positiveIntegerFieldSchema('cancellationNoticeMinutes').default(120)
+  cancellationNoticeMinutes: positiveIntegerFieldSchema('cancellationNoticeMinutes', { min: 0 }).default(120)
 }).strict();
 
 // Body de PATCH /spaces/:spaceId: edición parcial de la configuración del espacio.
@@ -117,9 +117,9 @@ const updateSpaceSchema = z.object({
   slotMinutes: positiveIntegerFieldSchema('slotMinutes').optional(),
   allowedDays: allowedDaysUpdateSchema.optional(),
   maxConsecutiveSlots: positiveIntegerFieldSchema('maxConsecutiveSlots').optional(),
-  minAdvanceMinutes: positiveIntegerFieldSchema('minAdvanceMinutes').optional(),
+  minAdvanceMinutes: positiveIntegerFieldSchema('minAdvanceMinutes', { min: 0 }).optional(),
   maxAdvanceDays: positiveIntegerFieldSchema('maxAdvanceDays').optional(),
-  cancellationNoticeMinutes: positiveIntegerFieldSchema('cancellationNoticeMinutes').optional()
+  cancellationNoticeMinutes: positiveIntegerFieldSchema('cancellationNoticeMinutes', { min: 0 }).optional()
 }).strict().refine((value) => Object.keys(value).length > 0, { message: 'Debes enviar al menos un campo editable del espacio' });
 
 // Body de PATCH /spaces/:spaceId/status: activa o desactiva un espacio.

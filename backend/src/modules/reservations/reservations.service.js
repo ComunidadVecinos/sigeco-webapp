@@ -717,11 +717,11 @@ function assertCanReadInactiveSpaces(membership, status) {
   throw new ForbiddenError('Solo la administración puede consultar espacios inactivos');
 }
 
-function assertCanReadBooking(actorMembership, booking) {
+function assertCanReadBooking(actorMembership, booking, forbiddenMessage = 'No tienes permisos para consultar esta reserva') {
   if (booking.ownerMembershipId === actorMembership.id || hasAdministrativeRole(actorMembership)) {
     return;
   }
-  throw new ForbiddenError('No tienes permisos para consultar esta reserva');
+  throw new ForbiddenError(forbiddenMessage);
 }
 
 function assertCanCancelBooking(actorMembership, booking, now = new Date()) {
@@ -1032,7 +1032,7 @@ async function cancelBooking(context, communityId, bookingId, input, reservation
   const { membership } = await requireReservationsAccess(context.userId, communityId);
   const booking = await requireBooking(communityId, bookingId, reservationsRepository);
 
-  assertCanReadBooking(membership, booking);
+  assertCanReadBooking(membership, booking, 'No tienes permisos para cancelar esta reserva');
   assertCanCancelBooking(membership, booking);
 
   const cancelledAt = new Date();

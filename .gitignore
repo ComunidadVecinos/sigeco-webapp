@@ -28,3 +28,6 @@ Thumbs.db
 # (opcional) logs/volúmenes locales si existieran
 *.log
 db_data/
+
+# --- Otros ---
+postman/
