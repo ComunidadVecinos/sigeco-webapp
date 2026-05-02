@@ -90,6 +90,10 @@ export const expelMember = (communityId: string, userId: string, reason?: string
 export const assignVicepresident = (communityId: string, userId: string) =>
     api.put(`/api/communities/${communityId}/members/${userId}/roles/VICE_PRESIDENT`);
 
+//Revocar vicepresidencia 
+export const revokeVicepresidency = (communityId: string, userId: string) =>
+    api.put(`/api/communities/${communityId}/members/${userId}/roles/MEMBER`);
+
 //Transferir presidente
 export const transferPresident = (communityId: string, userId: string) =>
     api.put(`/api/communities/${communityId}/members/${userId}/roles/PRESIDENT`);

@@ -1,28 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    CalendarDays,
-    Camera,
-    ChevronLeft,
-    ChevronRight,
-    FileText,
-    Pencil,
-    Search,
-    Shield,
-    Key
-} from 'lucide-react';
+import { CalendarDays,Camera, ChevronLeft, ChevronRight, FileText, Pencil, Search, Shield, Key } from 'lucide-react';
 import Header from '../../components/common/Header/Header';
 import imagen_generica from '../../assets/images/perfil_generico.png';
 import { useAuth } from '@/context/authContext';
-import {
-    assignVicepresident,
-    cancelSuspension,
-    getAdminSummary,
-    getMembers,
-    getRequests,
-    updateCommunityAvatar,
-    deleteCommunityAvatar
-} from '@/services/adminService';
+import { assignVicepresident, cancelSuspension, getAdminSummary, getMembers, getRequests, updateCommunityAvatar, deleteCommunityAvatar, revokeVicepresidency} from '@/services/adminService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import EditCommunityModal from '@/components/ui/EditCommunityModal/EditCommunityModal';
@@ -230,6 +212,16 @@ const AdminPage: React.FC = () => {
             await Promise.all([reloadMembers(), reloadSummary(), refreshUser()]);
         } catch (err: any) {
             window.alert(err.response?.data?.error?.message || 'No se ha podido asignar la vicepresidencia.');
+        }
+    };
+
+    const handleRevokeVicepresidency = async (userId: string) => {
+        if(!communityId || !window.confirm('¿Quitar la vicepresidencia a este miembro?')) return;
+        try{
+            await revokeVicepresidency(communityId, userId);
+            await Promise.all([reloadMembers(), reloadSummary(), refreshUser()]);
+        } catch (errr: any){
+            window.alert(errr.response?.data?.message || 'No se ha podido revocar la vicepresidencia.');
         }
     };
 
@@ -578,6 +570,17 @@ const AdminPage: React.FC = () => {
                                                 onClick={() => handleAssignVicepresidency(member.membershipId)}
                                             >
                                                 Asignar vicepresidencia
+                                            </Button>
+                                        )}
+
+                                        {role === 'PRESIDENT' && member.role === 'VICE_PRESIDENT' && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-orange-700 border-orange-200 hover:bg-orange-50"
+                                                onClick={() => handleRevokeVicepresidency(member.membershipId)}
+                                            >
+                                                Quitar vicepresidencia
                                             </Button>
                                         )}
 
