@@ -10,7 +10,7 @@ const votingListSelect = {
   closedAt: true,
   createdAt: true,
   createdByMembership: {
-    select: { id: true, alias: true, role: true }
+    select: { id: true, alias: true, role: true, deletedAt: true, endReason: true }
   }
 };
 

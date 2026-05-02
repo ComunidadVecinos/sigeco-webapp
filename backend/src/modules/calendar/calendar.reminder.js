@@ -8,6 +8,16 @@ const {
   addBusinessDays
 } = require('./calendar.datetime');
 
+const MAX_CALENDAR_TITLE_LENGTH = 160;
+
+function buildCalendarTitle(prefix, title) {
+  const fullTitle = `${prefix}: ${String(title || '').trim()}`;
+  if (fullTitle.length <= MAX_CALENDAR_TITLE_LENGTH) {
+    return fullTitle;
+  }
+  return `${fullTitle.slice(0, MAX_CALENDAR_TITLE_LENGTH - 3).trimEnd()}...`;
+}
+
 function formatTimeFromMinutes(totalMinutes) {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
@@ -30,15 +40,16 @@ function buildAutomaticCalendarEvent({ date, startTime, endTime, title }) {
 }
 
 function buildVotingAutomaticCalendarEvents({ title, endsAt }) {
+  const calendarTitle = buildCalendarTitle('Cierre votación', title);
   const endDate = buildBusinessDateOnly(endsAt);
   const endTime = formatBusinessTime(endsAt);
   const endMinutes = parseTimeToMinutes(endTime);
 
   if (endMinutes === 0) {
-    return [buildAutomaticCalendarEvent({ date: addBusinessDays(endDate, -1), startTime: '00:00', endTime: '23:59', title })];
+    return [buildAutomaticCalendarEvent({ date: addBusinessDays(endDate, -1), startTime: '00:00', endTime: '23:59', title: calendarTitle })];
   }
 
-  return [buildAutomaticCalendarEvent({ date: endDate, startTime: '00:00', endTime, title })];
+  return [buildAutomaticCalendarEvent({ date: endDate, startTime: '00:00', endTime, title: calendarTitle })];
 }
 
 function buildNewsAutomaticCalendarEvents({ title, eventStartsAt, eventEndsAt }) {
@@ -46,15 +57,16 @@ function buildNewsAutomaticCalendarEvents({ title, eventStartsAt, eventEndsAt })
     return [];
   }
 
+  const calendarTitle = buildCalendarTitle('Evento', title);
   const startDate = buildBusinessDateOnly(eventStartsAt);
   const startTime = formatBusinessTime(eventStartsAt);
   const startMinutes = parseTimeToMinutes(startTime);
 
   if (!eventEndsAt) {
     if (startMinutes === 1439) {
-      return [buildAutomaticCalendarEvent({ date: addBusinessDays(startDate, 1), startTime: '00:00', endTime: '23:59', title })];
+      return [buildAutomaticCalendarEvent({ date: addBusinessDays(startDate, 1), startTime: '00:00', endTime: '23:59', title: calendarTitle })];
     }
-    return [buildAutomaticCalendarEvent({ date: startDate, startTime, endTime: '23:59', title })];
+    return [buildAutomaticCalendarEvent({ date: startDate, startTime, endTime: '23:59', title: calendarTitle })];
   }
 
   const endDate = buildBusinessDateOnly(eventEndsAt);
@@ -62,21 +74,21 @@ function buildNewsAutomaticCalendarEvents({ title, eventStartsAt, eventEndsAt })
   const endMinutes = parseTimeToMinutes(endTime);
 
   if (isSameBusinessDay(startDate, endDate)) {
-    return [buildAutomaticCalendarEvent({ date: startDate, startTime, endTime, title })];
+    return [buildAutomaticCalendarEvent({ date: startDate, startTime, endTime, title: calendarTitle })];
   }
 
   const events = [];
 
   if (startMinutes < 1439) {
-    events.push(buildAutomaticCalendarEvent({ date: startDate, startTime, endTime: '23:59', title }));
+    events.push(buildAutomaticCalendarEvent({ date: startDate, startTime, endTime: '23:59', title: calendarTitle }));
   }
 
   for (let currentDate = addBusinessDays(startDate, 1); currentDate < endDate; currentDate = addBusinessDays(currentDate, 1)) {
-    events.push(buildAutomaticCalendarEvent({ date: currentDate, startTime: '00:00', endTime: '23:59', title }));
+    events.push(buildAutomaticCalendarEvent({ date: currentDate, startTime: '00:00', endTime: '23:59', title: calendarTitle }));
   }
 
   if (endMinutes > 0) {
-    events.push(buildAutomaticCalendarEvent({ date: endDate, startTime: '00:00', endTime, title }));
+    events.push(buildAutomaticCalendarEvent({ date: endDate, startTime: '00:00', endTime, title: calendarTitle }));
   }
 
   return events;

@@ -27,6 +27,7 @@ const DAY_FIELD_BY_WEEKDAY = DAYS.reduce((result, day) => {
 }, {});
 
 const DELETED_USER_ALIAS = 'Usuario eliminado';
+const MAX_CALENDAR_TITLE_LENGTH = 160;
 
 // --- Helpers comunes ---
 function buildPagination(page, pageSize, total) {
@@ -415,6 +416,17 @@ function formatParticipants(requestedSeats) {
   return `${requestedSeats} ${requestedSeats === 1 ? 'persona' : 'personas'}`;
 }
 
+function trimCalendarTitle(title) {
+  if (title.length <= MAX_CALENDAR_TITLE_LENGTH) {
+    return title;
+  }
+  return `${title.slice(0, MAX_CALENDAR_TITLE_LENGTH - 3).trimEnd()}...`;
+}
+
+function buildReservationCalendarTitle(booking) {
+  return trimCalendarTitle(`Reserva: ${booking.space.name} · ${formatParticipants(booking.requestedSeats)}`);
+}
+
 // Los correos son auxiliares: si fallan, se registra el problema pero no se rompe la reserva.
 async function notifyBookingCreated({ booking, membership }) {
   const targetEmail = membership.user?.email;
@@ -440,7 +452,7 @@ async function notifyBookingCreated({ booking, membership }) {
 
   try {
     await mailService.sendMail({ to: targetEmail, subject: `SIGECO - Reserva confirmada en ${booking.space.name}`, text });
-  } 
+  }
   catch (error) {
     console.warn('No se ha podido enviar el correo de confirmación de reserva', { bookingId: booking.id, communityId: booking.communityId, error });
   }
@@ -448,6 +460,39 @@ async function notifyBookingCreated({ booking, membership }) {
 
 function bookingDateLabel(booking) {
   return formatBookingDateForMail(booking.bookingDate);
+}
+
+// Avisa al propietario cuando la administración cancela manualmente su reserva.
+async function notifyBookingCancelledByAdmin({ booking, actorMembership, reason }) {
+  const targetEmail = booking.ownerMembership?.user?.email;
+
+  if (!targetEmail) {
+    return;
+  }
+
+  const greeting = booking.ownerMembership?.alias || 'usuario';
+  const communityName = actorMembership.community?.name || 'tu comunidad';
+  const reasonLines = reason ? [`Motivo indicado: ${reason}`, ''] : [];
+  const text = [
+    `Hola ${greeting},`,
+    '',
+    `La administración de la comunidad "${communityName}" ha cancelado tu reserva.`,
+    '',
+    `Espacio reservado: ${booking.space.name}`,
+    `Número de plazas reservadas: ${formatParticipants(booking.requestedSeats)}`,
+    `Fecha: ${bookingDateLabel(booking)}`,
+    `Hora: ${booking.startTime} - ${booking.endTime}`,
+    '',
+    ...reasonLines,
+    'Puedes consultar tus reservas desde el portal SIGECO.'
+  ].join('\n');
+
+  try {
+    await mailService.sendMail({ to: targetEmail, subject: `SIGECO - Reserva cancelada en ${booking.space.name}`, text });
+  }
+  catch (error) {
+    console.warn('No se ha podido enviar el correo de cancelación administrativa de reserva', { bookingId: booking.id, communityId: booking.communityId, error });
+  }
 }
 
 // Avisa una a una las reservas canceladas por cambios de reglas; cada envío falla de forma aislada.
@@ -971,7 +1016,7 @@ async function createBooking(context, communityId, input, reservationsRepository
       communityId,
       ownerMembershipId: membership.id,
       bookingId: booking.id,
-      title: `Reserva: ${booking.space.name}`,
+      title: buildReservationCalendarTitle(booking),
       eventDate: booking.bookingDate,
       startTime: booking.startTime,
       endTime: booking.endTime
@@ -1014,6 +1059,10 @@ async function cancelBooking(context, communityId, bookingId, input, reservation
     });
     return updatedBooking;
   });
+
+  if (hasAdministrativeRole(membership) && booking.ownerMembershipId !== membership.id) {
+    await notifyBookingCancelledByAdmin({ booking: cancelledBooking, actorMembership: membership, reason: input.reason });
+  }
 
   return { booking: mapBooking(cancelledBooking, membership, cancelledAt) };
 }

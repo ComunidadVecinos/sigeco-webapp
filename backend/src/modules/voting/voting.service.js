@@ -11,6 +11,7 @@ const { addMinutesToInstant } = require('../calendar/calendar.datetime');
 const { buildVotingAutomaticCalendarEvents } = require('../calendar/calendar.reminder');
 
 const MINIMUM_VOTING_DURATION_MINUTES = 59;
+const DELETED_USER_ALIAS = 'Usuario eliminado';
 
 function buildValidationDetail(field, message) {
   return [{ field, location: 'body', message }];
@@ -48,6 +49,13 @@ function formatVotingEndsAt(endsAt) {
 }
 
 function mapVotingCreator(membership) {
+  if (!membership) {
+    return { alias: DELETED_USER_ALIAS };
+  }
+  if (membership.deletedAt && membership.endReason === 'USER_ACCOUNT_DELETED') {
+    return { alias: DELETED_USER_ALIAS };
+  }
+
   return { alias: membership.alias || null };
 }
 
