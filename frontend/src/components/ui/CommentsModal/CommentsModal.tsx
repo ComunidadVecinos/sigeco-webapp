@@ -86,11 +86,6 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
                     <DialogTitle>{postTitle || 'Comentarios'}</DialogTitle>
                 </DialogHeader>
 
-                <div className="px-1 py-3 bg-gray-50 rounded-lg border-b border-gray-200">
-                    <span className="font-semibold text-sm">{postAuthor}</span>
-                    <p className="mt-2 text-sm text-gray-600 m-0">{postContent}</p>
-                </div>
-
                 {onChangeCommentsSortBy && (
                     <div className="flex gap-2 pt-2">
                         <Button variant={commentsSortBy === 'createdAt' ? 'default' : 'outline'} size="sm" onClick={() => onChangeCommentsSortBy('createdAt')}>

@@ -175,6 +175,9 @@ const PostCard: React.FC<PostCardProps> = ({
 
             <div className="mb-3 cursor-pointer" onClick={handleCommentsClick}>
                 <p className="font-bold text-base text-gray-900">{title}</p>
+                {content && (
+                    <p className="text-sm text-gray-600 mt-1">{content}</p>
+                )}
             </div>
 
             {category === 'poll' && pollOptions && pollOptions.length > 0 && (
