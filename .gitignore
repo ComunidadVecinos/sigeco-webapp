@@ -31,3 +31,4 @@ db_data/
 
 # --- Otros ---
 postman/
+.postman/

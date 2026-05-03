@@ -6,6 +6,7 @@ const { Prisma } = require('@prisma/client');
 
 const passwordService = require('../../lib/password');
 const { formatAddress, buildAddressSummary } = require('../../lib/address');
+const mailService = require('../../lib/mail');
 const storageService = require('../../lib/storage/storage');
 const { inspectImageBuffer } = require('../../lib/storage/imageMetadata');
 const { isMembershipCurrentlySuspended } = require('../../lib/membership');
@@ -102,6 +103,28 @@ function mapPresidencyBlocker(membership) {
     id: membership.community.id,
     name: membership.community.name
   };
+}
+
+async function notifyAccountDeleted({ userId, email }) {
+  if (!email) {
+    return;
+  }
+
+  const text = [
+    'Hola,',
+    '',
+    'Te confirmamos que tu cuenta de SIGECO ha sido eliminada correctamente.',
+    'Tus datos han sido borrados y/o anonimizados permanentemente, y a partir de este momento no podrás volver a iniciar sesión.',
+    '',
+    'Si no has solicitado esta eliminación, ponte en contacto con la administración o el soporte correspondiente lo antes posible.'
+  ].join('\n');
+
+  try {
+    await mailService.sendMail({ to: email, subject: 'SIGECO - Confirmación de eliminación de cuenta', text });
+  } 
+  catch (error) {
+    console.warn('No se ha podido enviar el correo de confirmación de eliminación de cuenta', { userId, error });
+  }
 }
 
 async function updateMyProfile(userId, input, usersRepository) {
@@ -323,6 +346,8 @@ async function deleteMyAccount(context, input, usersRepository) {
       { userId: context.userId }
     );
   }
+
+  await notifyAccountDeleted({ userId: context.userId, email: context.currentEmail });
 
   return {
     message: 'Cuenta eliminada correctamente.',
