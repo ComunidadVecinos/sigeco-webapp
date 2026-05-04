@@ -2,11 +2,11 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies
+# Dependencias fijadas a lockfile para builds reproducibles.
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
-# Para Vite:
+# Archivos mínimos necesarios para construir el frontend estático.
 COPY index.html ./
 COPY vite.config.ts ./
 COPY tsconfig.json ./
@@ -14,10 +14,10 @@ COPY src ./src
 COPY components.json ./
 
 
-# Build static files
+# Build estático servido luego por `serve`.
 RUN npm run build
 
-# Serve static build with 'serve'
+# Runtime ligero para publicar la build ya generada.
 RUN npm install -g serve
 
 EXPOSE 3000

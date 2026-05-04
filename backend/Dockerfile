@@ -17,5 +17,5 @@ ENV PORT=4000
 
 EXPOSE 4000
 
-# Run migrations, seed, then start server
+# Genera Prisma y arranca el backend.
 CMD ["node", "src/index.js"]
