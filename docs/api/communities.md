@@ -8,8 +8,6 @@ Base path: `/api/communities`
 
 ---
 
-## Scope
-
 This page documents only the endpoints implemented in the `communities` module itself.
 
 ### Related subresources mounted under the same path
@@ -40,11 +38,7 @@ These routes are mounted from `communities`, but belong to other modules:
 | `DELETE /:communityId/avatar` | Administrative membership in that community |
 | `DELETE /:communityId` | Administrative membership in that community **and** actor must be `PRESIDENT` |
 
-Important:
-
-- Administrative access means `PRESIDENT` or `VICE_PRESIDENT`
-- Suspended memberships do not count as administrative access
-- All endpoints in this module require a valid authenticated session cookie
+Administrative access means `PRESIDENT` or `VICE_PRESIDENT`. Suspended memberships do not count as administrative access.
 
 ---
 
@@ -485,12 +479,6 @@ Requires:
 - administrative access in the target community
 
 No request body.
-
-### Behavior notes
-
-- Backend removes the avatar reference from the database first
-- Stored file cleanup is attempted afterwards as a best-effort step
-- If the physical file is already missing, the avatar is still considered deleted from the API point of view
 
 ### Success
 

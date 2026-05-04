@@ -10,12 +10,6 @@ Base path:
 
 ---
 
-## Scope
-
-This module manages community member listing, voluntary leave, expulsion, administrative role assignment or removal and membership suspension.
-
----
-
 ## Access rules
 
 | Endpoint group | Required access |
@@ -27,11 +21,7 @@ This module manages community member listing, voluntary leave, expulsion, admini
 | `PUT /api/communities/:communityId/members/:memberId/suspension` | Active admin in that community |
 | `DELETE /api/communities/:communityId/members/:memberId/suspension` | Active admin in that community |
 
-Important:
-
-- Community membership read access includes suspended members
-- Administrative access requires `PRESIDENT` or `VICE_PRESIDENT` and the membership must not be currently suspended
-- Some actions add extra business rules on top of administrative access
+Community membership read access includes suspended members. Administrative access requires `PRESIDENT` or `VICE_PRESIDENT` and the membership must not be currently suspended.
 
 ---
 

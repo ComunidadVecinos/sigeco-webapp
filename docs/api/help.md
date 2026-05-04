@@ -11,12 +11,6 @@ Base paths:
 
 ---
 
-## Scope
-
-This module exposes the top-level help endpoint at `/api/help/sections` and the community-scoped help endpoints mounted under `/api/communities/:communityId/help`.
-
----
-
 ## Access rules
 
 | Endpoint group | Required access |
@@ -29,11 +23,7 @@ This module exposes the top-level help endpoint at `/api/help/sections` and the 
 | `DELETE /api/communities/:communityId/help/sections/:sectionId` | Active admin in that community |
 | `PUT /api/communities/:communityId/help/sections/order` | Active admin in that community |
 
-Important:
-
-- Community membership is enough for reading community help
-- `PRESIDENT` and `VICE_PRESIDENT` can write only if their membership is operational
-- Suspended memberships do not count as administrative access
+Community membership is enough for reading community help. Writing requires operational administrative access.
 
 ---
 
@@ -48,16 +38,6 @@ Important:
   "description": "..."
 }
 ```
-
-Current static general help keys returned by backend:
-
-- `getting-started`
-- `active-community`
-- `app-navigation`
-- `profile-and-requests`
-- `roles-and-permissions`
-- `community-services`
-- `email-and-password-recovery`
 
 ### Community help section
 
@@ -115,7 +95,7 @@ If no community is requested, `communityHelpSections` is an empty array.
 
 `GET /api/help/sections`
 
-Returns global help for the platform. It can also include help for a specific community if `communityId` is sent as query param.
+Returns global help for the platform. If `communityId` is provided, the response also includes community help sections.
 
 ### Request
 

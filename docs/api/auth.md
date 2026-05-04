@@ -8,12 +8,6 @@ Base path: `/api/auth`
 
 ---
 
-## Scope
-
-This module creates accounts, manages the current authenticated session and handles password changes and password reset.
-
----
-
 ## Session model
 
 Authentication is stateful and cookie-based.
@@ -65,11 +59,7 @@ When present:
 }
 ```
 
-Selection rule used by backend:
-
-- It prefers the user's persisted active membership
-- If that membership is no longer valid, it prefers the first non-suspended active membership
-- If all memberships are suspended, it still returns one suspended membership as active context
+`activeMembership` is the resolved current context and may be `null`.
 
 ---
 
@@ -153,9 +143,8 @@ Content-Type: application/json
 ```
 
 Login accepts a single `identifier` field.
-
-- If it contains `@`, backend treats it as email
-- Otherwise, backend tries to parse it as a 9-digit phone number, allowing spaces
+- If it contains `@`, it is treated as email
+- Otherwise, it is treated as phone input
 
 Example with email:
 
@@ -393,4 +382,3 @@ Standard error shape:
   }
 }
 ```
-
