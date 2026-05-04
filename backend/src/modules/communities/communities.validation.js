@@ -1,11 +1,13 @@
 const { z } = require('zod');
 
-// Validaciones HTTP del módulo communities.
-
+// Validaciones de communities: preparan los datos de alta, edición y borrado de la comunidad.
+// Flujo cubierto: entrada Express -> schemas Zod -> datos listos para el servicio.
+// Expone schemas de alta, edición, borrado y params base de comunidad.
+// Lo consumen las rutas antes de llegar a los controladores.
 const { addressSchema, optionalAddressDetailSchema, requiredTextSchema, normalizeCommunityCif, isValidCommunityOwnersCif } = require('../../lib/validation/communityFields');
 const { uuidParamSchema } = require('../../lib/validation/requestFields');
 
-// Alta de comunidad: el payload separa datos de comunidad y propiedad.
+// Body de POST /: el payload separa datos de comunidad, vivienda inicial y alias del creador.
 const createCommunitySchema = z.object({
   community: addressSchema.extend({
     name: requiredTextSchema('name', 160),
@@ -15,9 +17,10 @@ const createCommunitySchema = z.object({
   alias: requiredTextSchema('alias', 120)
 });
 
+// Params para rutas que trabajan sobre una comunidad concreta.
 const communityIdParamSchema = uuidParamSchema('communityId');
 
-// Patch parcial: solo se admiten los campos explicitamente editables.
+// Body de PATCH /:communityId: edición parcial de los datos institucionales permitidos.
 const updateCommunitySchema = z
   .object({
     name: requiredTextSchema('name', 160).optional(),
@@ -31,7 +34,7 @@ const updateCommunitySchema = z
   })
   .strict().refine((value) => Object.keys(value).length > 0, { message: 'Debes enviar al menos un campo editable de la comunidad' });
 
-// El borrado exige doble confirmación (texto + password actual) porque elimina y afecta a otros usuarios de la comunidad.
+// Body de DELETE /:communityId: doble confirmación para una operación que afecta a toda la comunidad.
 const deleteCommunitySchema = z
   .object({
     confirmationText: z.string().trim().min(1, 'El texto de confirmación es obligatorio'),

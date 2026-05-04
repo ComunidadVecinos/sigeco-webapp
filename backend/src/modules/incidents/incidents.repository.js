@@ -1,9 +1,8 @@
+// Repositorio de incidents: concentra las lecturas, cambios de estado e imagen de las incidencias.
+// Flujo cubierto: servicio -> queries/transacciones Prisma -> entidades listas para mapear, validar o anonimizar.
+// Expone lecturas, escrituras, cambios de estado y utilidades compartidas con otros módulos.
+// Lo consumen incidents.service.js y, de forma puntual, users.repository.js.
 const prisma = require('../../lib/prisma');
-
-/**
- * Capa de acceso a datos del módulo incidents.
- * Centraliza lecturas, escrituras y agregados con Prisma para que el service trabaje con operaciones pequeñas.
- */
 
 const incidentAuthorSelect = { alias: true };
 
@@ -30,21 +29,20 @@ const SUMMARY_FIELD_BY_STATUS = {
   CANCELLED: 'cancelled'
 };
 
+// --- Helpers comunes ---
 function incidentWhere({ communityId, incidentId }) {
   return { id: incidentId, communityId };
 }
 
-// Construye el filtro del listado respetando el contrato público del query status.
-function listWhere({ communityId, status }) {
+// Construye el filtro del listado respetando el contrato público del query `status`.
+function buildIncidentListWhere({ communityId, status }) {
   const baseWhere = { communityId, deletedAt: null };
-
   if (!status || status === 'all') {
     return baseWhere;
   }
   if (status === 'open') {
     return { ...baseWhere, status: { in: ['PENDING', 'IN_PROGRESS'] } };
   }
-
   return { ...baseWhere, status };
 }
 
@@ -65,15 +63,14 @@ async function updateActiveIncidentAndFetch(db, { communityId, incidentId, data,
     data: { ...data, updatedAt: new Date() }
   });
 
-  // Se usa updateMany para que si la fila no cumple el where, no se actualice.
+  // updateMany permite saber si la fila seguía cumpliendo el where sin lanzar excepción por fila ausente.
   if (updated.count !== 1) {
     return null;
   }
-
   return fetchIncident(db, { communityId, incidentId });
 }
 
-// --- Escrituras ---
+// --- Incidencias: creación y notificaciones ---
 async function createIncident(db, input) {
   return db.communityIncident.create({
     data: {
@@ -104,25 +101,16 @@ async function findIncidentNotificationLeaders(communityId) {
       id: true,
       alias: true,
       role: true,
-      user: {
-        select: {
-          email: true
-        }
-      },
-      community: {
-        select: {
-          id: true,
-          name: true
-        }
-      }
+      user: { select: { email: true } },
+      community: { select: { id: true, name: true } }
     },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
   });
 }
 
-// --- Listados y agregados ---
+// --- Incidencias: listados y agregados ---
 async function findIncidentPage({ communityId, status, page, pageSize }) {
-  const where = listWhere({ communityId, status });
+  const where = buildIncidentListWhere({ communityId, status });
   const skip = (page - 1) * pageSize;
 
   const [total, items] = await prisma.$transaction([
@@ -130,12 +118,13 @@ async function findIncidentPage({ communityId, status, page, pageSize }) {
     prisma.communityIncident.findMany({
       where,
       select: incidentSelect,
-      // El listado prioriza la actividad más reciente para que cambios de estado y otras actualizaciones relevantes suban la incidencia.
+      // El listado prioriza actividad reciente para que edición y cambios de estado suban la incidencia.
       orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
       skip,
       take: pageSize
     })
   ]);
+
   return { total, items };
 }
 
@@ -146,7 +135,13 @@ async function findIncidentSummaryCounts({ communityId }) {
     _count: { _all: true }
   });
 
-  const summary = { total: 0, pending: 0, inProgress: 0, resolved: 0, cancelled: 0 };
+  const summary = {
+    total: 0,
+    pending: 0,
+    inProgress: 0,
+    resolved: 0,
+    cancelled: 0
+  };
 
   for (const row of rows) {
     const count = row._count._all || 0;
@@ -159,12 +154,12 @@ async function findIncidentSummaryCounts({ communityId }) {
   return summary;
 }
 
-// --- Lecturas por id ---
+// --- Incidencias: lectura por id ---
 async function findIncidentById({ communityId, incidentId }) {
   return fetchIncident(prisma, { communityId, incidentId });
 }
 
-// --- Actualizaciones ---
+// --- Incidencias: edición, estado e imagen ---
 async function updateIncident(db, { communityId, incidentId, data }) {
   return updateActiveIncidentAndFetch(db, { communityId, incidentId, data });
 }
@@ -176,14 +171,6 @@ async function updateIncidentStatus(db, { communityId, incidentId, currentStatus
     data: { status: nextStatus },
     extraWhere: { status: currentStatus }
   });
-}
-
-async function softDeleteIncident(db, { communityId, incidentId, deletedAt }) {
-  const updated = await db.communityIncident.updateMany({
-    where: { ...incidentWhere({ communityId, incidentId }), deletedAt: null },
-    data: { deletedAt, updatedAt: deletedAt }
-  });
-  return updated.count === 1;
 }
 
 async function removeIncidentImage(db, { communityId, incidentId, editedAt }) {
@@ -199,12 +186,21 @@ async function removeIncidentImage(db, { communityId, incidentId, editedAt }) {
   });
 }
 
+// --- Incidencias: borrado lógico y anonimización ---
+async function softDeleteIncident(db, { communityId, incidentId, deletedAt }) {
+  const updated = await db.communityIncident.updateMany({
+    where: { ...incidentWhere({ communityId, incidentId }), deletedAt: null },
+    data: { deletedAt, updatedAt: deletedAt }
+  });
+  return updated.count === 1;
+}
+
 async function anonymizeIncidentsByMembershipIds(db, membershipIds) {
   if (!membershipIds || membershipIds.length === 0) {
     return { count: 0 };
   }
 
-  // Cuando se eliminan memberships, la incidencia se conserva y solo se desvincula su autoría.
+  // Cuando desaparece una membership, la incidencia se conserva y solo se desvincula su autoría.
   return db.communityIncident.updateMany({
     where: { authorMembershipId: { in: membershipIds } },
     data: { authorMembershipId: null }

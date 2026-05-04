@@ -1,4 +1,4 @@
-// Controladores HTTP del módulo reservations: traducen req/res a llamadas del servicio.
+// Capa HTTP de reservations: convierte espacios y reservas en respuestas limpias del API.
 // Flujo cubierto: request validada -> contexto de usuario -> servicio -> JSON HTTP.
 // Expone controladores de espacios, disponibilidad, reservas propias y administración.
 // Lo consumen las rutas del módulo con asyncHandler.

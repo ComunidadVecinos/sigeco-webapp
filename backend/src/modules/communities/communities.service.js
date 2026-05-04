@@ -1,8 +1,9 @@
+// Servicio de communities: coordina altas, cambios visibles, avatar y ciclo de vida de la comunidad.
+// Flujo cubierto: usuario autenticado -> permisos/contexto -> repositorio/auth/storage/mail.
+// Expone casos de uso para resumen, acceso, avatar, borrado y creación de comunidades.
+// Lo consumen los controladores HTTP del módulo.
 const crypto = require('crypto');
 const { Prisma } = require('@prisma/client');
-
-// Servicio del módulo communities.
-//   - Orquesta administración de comunidad apoyándose en members para permisos, auth para contexto y storage para avatares.
 
 const passwordService = require('../../lib/password');
 const { formatAddress, buildAddressSummary } = require('../../lib/address');
@@ -20,7 +21,8 @@ const ACCESS_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DEFAULT_ACCESS_CODE_LENGTH = 8;
 const COMMUNITY_DELETION_CONFIRMATION_TEXT = 'ELIMINAR COMUNIDAD';
 
-// El código de acceso debe ser único: reintentar si colisión.
+// --- Helpers comunes ---
+// El código de acceso evita caracteres ambiguos y debe seguir siendo único en BD.
 function generateAccessCode(length = DEFAULT_ACCESS_CODE_LENGTH) {
   let code = '';
   for (let index = 0; index < length; index += 1) {
@@ -32,16 +34,10 @@ function generateAccessCode(length = DEFAULT_ACCESS_CODE_LENGTH) {
 
 function getUniqueConstraintField(error) {
   const target = error?.meta?.target;
-
   if (Array.isArray(target) && target.length > 0) {
     return target.join(',');
   }
-
-  if (typeof target === 'string') {
-    return target;
-  }
-
-  return null;
+  return typeof target === 'string' ? target : null;
 }
 
 function constraintMatchesField(constraintTarget, fieldName) {
@@ -51,22 +47,109 @@ function constraintMatchesField(constraintTarget, fieldName) {
   return String(constraintTarget).toLowerCase().includes(fieldName.toLowerCase());
 }
 
+function buildValidationDetail(field, message) {
+  return [{ field, location: 'body', message }];
+}
+
+function buildValidationError(field, detailMessage, message, code) {
+  return new ValidationError(buildValidationDetail(field, detailMessage), { message, code });
+}
+
 function buildCreatorPropertyLabel(alias) {
   return `Vivienda de ${alias}`;
 }
 
+function collectUniqueStoragePaths(storagePaths) {
+  return [...new Set((storagePaths || []).filter(Boolean))];
+}
+
+// --- Comunidad: mapeo de salida ---
+function mapLeaderMembership(membership) {
+  if (!membership) {
+    return null;
+  }
+  return {
+    membershipId: membership.id,
+    alias: membership.alias || null,
+    role: membership.role
+  };
+}
+
+function mapCommunity(community) {
+  return {
+    id: community.id,
+    name: community.name,
+    cif: community.cif,
+    address: buildAddressSummary(community),
+    accessCode: community.accessCode,
+    createdAt: community.createdAt.toISOString()
+  };
+}
+
+function mapCommunitySummary(community) {
+  return {
+    id: community.id,
+    name: community.name,
+    cif: community.cif,
+    address: buildAddressSummary(community),
+    avatar: storageService.getPublicFileUrl(community.avatar?.storagePath || null),
+    createdAt: community.createdAt.toISOString()
+  };
+}
+
+function mapActiveMembership(activeMembership) {
+  if (!activeMembership) {
+    return null;
+  }
+
+  return {
+    membershipId: activeMembership.id,
+    communityId: activeMembership.communityId,
+    role: activeMembership.role,
+    alias: activeMembership.alias || null
+  };
+}
+
+function buildCreateCommunityResponse(result) {
+  return {
+    message: 'Comunidad creada correctamente.',
+    community: {
+      id: result.community.id,
+      name: result.community.name,
+      cif: result.community.cif,
+      accessCode: result.community.accessCode
+    },
+    membership: {
+      id: result.membership.id,
+      role: result.membership.role,
+      alias: result.membership.alias,
+      joinedAt: result.membership.joinedAt.toISOString()
+    },
+    creatorProperty: {
+      id: result.property.id,
+      label: result.property.label,
+      address: formatAddress(result.property),
+      province: result.property.province,
+      municipality: result.property.municipality
+    },
+    activeMembershipId: result.membership.id
+  };
+}
+
+// --- Correos del módulo ---
 async function sendCommunityDeletionMail({ to, subject, text, context }) {
   if (!to) {
     return;
   }
-
   try {
     await mailService.sendMail({ to, subject, text });
-  } catch (error) {
+  }
+  catch (error) {
     console.warn('No se ha podido enviar el correo de eliminación de comunidad', { ...context, error });
   }
 }
 
+// La notificación es informativa: si falla, no debe impedir completar el borrado lógico.
 async function notifyCommunityDeleted({ community, deletedMembers, actorMembership }) {
   const communityName = community?.name || 'la comunidad';
 
@@ -103,58 +186,18 @@ async function notifyCommunityDeleted({ community, deletedMembers, actorMembersh
   });
 }
 
-function mapLeaderMembership(membership) {
-  if (!membership) {
-    return null;
-  }
-  return { membershipId: membership.id, alias: membership.alias || null, role: membership.role };
-}
-
-function mapCommunity(community) {
-  return {
-    id: community.id,
-    name: community.name,
-    cif: community.cif,
-    address: buildAddressSummary(community),
-    accessCode: community.accessCode,
-    createdAt: community.createdAt.toISOString()
-  };
-}
-
-function mapCommunitySummary(community) {
-  return {
-    id: community.id,
-    name: community.name,
-    cif: community.cif,
-    address: buildAddressSummary(community),
-    avatar: storageService.getPublicFileUrl(community.avatar?.storagePath || null),
-    createdAt: community.createdAt.toISOString()
-  };
-}
-
-// Contrato común para errores de validación de formularios.
-function buildValidationDetail(field, message) {
-  return [{ field, location: 'body', message }];
-}
-
-function mapActiveMembership(activeMembership) {
-  if (!activeMembership) {
-    return null;
-  }
-  return { membershipId: activeMembership.id, communityId: activeMembership.communityId, role: activeMembership.role, alias: activeMembership.alias || null };
-}
-
-function collectUniqueStoragePaths(storagePaths) {
-  return [...new Set((storagePaths || []).filter(Boolean))];
-}
-
-// Resumen de comunidad para administración: solo datos institucionales y agregados.
+// --- Comunidades: GET ---
+// Resumen orientado a administración: datos institucionales, liderazgo y número de vecinos.
 async function getCommunitySummary(context, communityId, communitiesRepository) {
   const { community } = await membersService.requireAdministrativeCommunityAccess(context.userId, communityId, membersRepository);
 
   const [leaders, neighbors] = await Promise.all([
     communitiesRepository.findCommunityLeaders(communityId),
-    membersService.listCommunityMembers({ communityId, page: 1, pageSize: 1 }, membersRepository, { take: 1, includePagination: false })
+    membersService.listCommunityMembers(
+      { communityId, page: 1, pageSize: 1 },
+      membersRepository,
+      { take: 1, includePagination: false }
+    )
   ]);
 
   const president = leaders.find((membership) => membership.role === 'PRESIDENT') || null;
@@ -171,9 +214,11 @@ async function getCommunitySummary(context, communityId, communitiesRepository) 
   };
 }
 
+// --- Comunidades: POST de acción administrativa ---
 async function regenerateCommunityAccessCode(context, communityId, communitiesRepository) {
   await membersService.requireAdministrativeCommunityAccess(context.userId, communityId, membersRepository);
 
+  // La colisión es improbable, pero el código debe seguir siendo único aunque varias comunidades se creen a la vez.
   for (let attempt = 0; attempt < ACCESS_CODE_MAX_ATTEMPTS; attempt += 1) {
     const accessCode = generateAccessCode();
 
@@ -187,7 +232,6 @@ async function regenerateCommunityAccessCode(context, communityId, communitiesRe
     catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const field = getUniqueConstraintField(error);
-
         if (constraintMatchesField(field, 'accessCode') || constraintMatchesField(field, 'access_code')) {
           continue;
         }
@@ -199,33 +243,31 @@ async function regenerateCommunityAccessCode(context, communityId, communitiesRe
   throw new Error('No se ha podido generar un código de acceso único. Inténtalo de nuevo.');
 }
 
-// Actualización parcial de datos base de comunidad.
+// --- Comunidades: PATCH ---
 async function updateCommunity(context, communityId, input, communitiesRepository) {
   await membersService.requireAdministrativeCommunityAccess(context.userId, communityId, membersRepository);
 
   const community = await communitiesRepository.updateCommunityBasicData(communityId, input);
-
   if (!community) {
     throw new NotFoundError('Comunidad no encontrada');
   }
+
   return { community: mapCommunity(community) };
 }
 
+// --- Comunidades: PUT/DELETE de avatar ---
 async function updateCommunityAvatar(context, communityId, file, communitiesRepository) {
   await membersService.requireAdministrativeCommunityAccess(context.userId, communityId, membersRepository);
-
   if (!file) {
     throw new ValidationError([{ field: 'avatar', location: 'body', message: 'El archivo del avatar es obligatorio' }]);
   }
 
   const image = inspectImageBuffer(file.buffer);
-
   if (!image.extension) {
     throw new ValidationError([{ field: 'avatar', location: 'body', message: 'El archivo del avatar no es válido' }]);
   }
 
   const avatarContext = await communitiesRepository.findCommunityProfileImageContext(communityId);
-
   if (!avatarContext) {
     throw new NotFoundError('Comunidad no encontrada');
   }
@@ -238,7 +280,7 @@ async function updateCommunityAvatar(context, communityId, file, communitiesRepo
   });
 
   try {
-    // Igual que en users, el archivo solo se confirma cuando la BD ya quedó alineada.
+    // Igual que en users, el archivo nuevo solo se confirma cuando la referencia en BD ya quedó alineada.
     const result = await communitiesRepository.replaceCommunityProfileImage(communityId, {
       storagePath: storedFile.storagePath,
       mimeType: file.mimetype,
@@ -260,14 +302,16 @@ async function updateCommunityAvatar(context, communityId, file, communitiesRepo
       { communityId }
     );
 
-    return { community: { id: result.communityId, avatarFileId: result.file.id, avatarUrl: storageService.getPublicFileUrl(result.file.storagePath) } };
+    return {
+      community: {
+        id: result.communityId,
+        avatarFileId: result.file.id,
+        avatarUrl: storageService.getPublicFileUrl(result.file.storagePath)
+      }
+    };
   }
   catch (error) {
-    await storageService.rollbackStoredFileSafely(
-      storedFile,
-      'No se ha podido restaurar el avatar previo de la comunidad tras un error de actualización',
-      { communityId }
-    );
+    await storageService.rollbackStoredFileSafely(storedFile, 'No se ha podido restaurar el avatar previo de la comunidad', { communityId });
     throw error;
   }
 }
@@ -276,23 +320,20 @@ async function deleteCommunityAvatar(context, communityId, communitiesRepository
   await membersService.requireAdministrativeCommunityAccess(context.userId, communityId, membersRepository);
 
   const avatarContext = await communitiesRepository.findCommunityProfileImageContext(communityId);
-
   if (!avatarContext) {
     throw new NotFoundError('Comunidad no encontrada');
   }
-
   if (!avatarContext.avatar?.storagePath) {
     throw new ConflictError('La comunidad no tiene avatar');
   }
 
   const result = await communitiesRepository.deleteCommunityProfileImage(communityId);
-
   if (!result) {
     throw new NotFoundError('Comunidad no encontrada');
   }
 
   if (result.storagePath) {
-    // Se limpia primero la referencia en BD y después el fichero físico.
+    // Primero se limpia la referencia en BD y después el fichero físico para no dejar URLs colgando.
     await storageService.deleteStoredFileSafely(
       result.storagePath,
       'No se ha podido eliminar el archivo del avatar de la comunidad tras borrar la referencia en la BD',
@@ -303,13 +344,13 @@ async function deleteCommunityAvatar(context, communityId, communitiesRepository
   return { community: { id: result.communityId, avatarUrl: null } };
 }
 
+// --- Comunidades: DELETE lógico ---
 async function deleteCommunity(context, communityId, input, communitiesRepository) {
   const communityStatus = await communitiesRepository.findCommunityStatusById(communityId);
 
   if (!communityStatus) {
     throw new NotFoundError('Comunidad no encontrada');
   }
-
   if (communityStatus.deletedAt) {
     throw new ConflictError('La comunidad ya está eliminada');
   }
@@ -319,32 +360,33 @@ async function deleteCommunity(context, communityId, input, communitiesRepositor
   if (actorMembership.role !== 'PRESIDENT') {
     throw new ForbiddenError('Solo la presidencia de la comunidad puede eliminarla');
   }
-
   if (input.confirmationText !== COMMUNITY_DELETION_CONFIRMATION_TEXT) {
-    throw new ValidationError(
-      buildValidationDetail('confirmationText', 'El texto de confirmación no coincide con el valor esperado'),
-      { message: 'El texto de confirmación no coincide', code: errorCodes.CONFIRMATION_TEXT_MISMATCH }
+    throw buildValidationError(
+      'confirmationText',
+      'El texto de confirmación no coincide con el valor esperado',
+      'El texto de confirmación no coincide',
+      errorCodes.CONFIRMATION_TEXT_MISMATCH
     );
   }
 
   const userAuth = await authRepository.findUserAuthById(context.userId);
-
   if (!userAuth) {
     throw new NotFoundError('Usuario no encontrado');
   }
 
   const passwordMatches = await passwordService.verifyPassword(input.currentPassword, userAuth.passwordHash);
-
   if (!passwordMatches) {
-    throw new ValidationError(
-      buildValidationDetail('currentPassword', 'La contraseña actual no es válida'),
-      { message: 'La contraseña actual no es válida', code: errorCodes.CURRENT_PASSWORD_INVALID }
+    throw buildValidationError(
+      'currentPassword',
+      'La contraseña actual no es válida',
+      'La contraseña actual no es válida',
+      errorCodes.CURRENT_PASSWORD_INVALID
     );
   }
 
   let deletionResult;
 
-  // El borrado libera accessCode
+  // El borrado también libera accessCode, así que puede necesitar reintentos si coincide con otro valor ya existente.
   for (let attempt = 0; attempt < ACCESS_CODE_MAX_ATTEMPTS; attempt += 1) {
     const nextAccessCode = generateAccessCode();
 
@@ -362,12 +404,10 @@ async function deleteCommunity(context, communityId, input, communitiesRepositor
     catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const field = getUniqueConstraintField(error);
-
         if (constraintMatchesField(field, 'accessCode') || constraintMatchesField(field, 'access_code')) {
           continue;
         }
       }
-
       throw error;
     }
   }
@@ -391,51 +431,30 @@ async function deleteCommunity(context, communityId, input, communitiesRepositor
 
   if (storagePathsToDelete.length > 0) {
     await Promise.all(storagePathsToDelete.map((storagePath) =>
-      storageService.deleteStoredFileSafely(
-        storagePath,
-        'No se ha podido eliminar un archivo de la comunidad tras su borrado',
-        { communityId }
-      )
-    ));
+      storageService.deleteStoredFileSafely(storagePath, 'No se ha podido eliminar un archivo de la comunidad tras su borrado', { communityId })));
   }
 
   const storedSession = await authRepository.findSessionById(context.sessionId);
 
+  // Tras borrar la comunidad, la sesión puede quedarse sin su membership activa anterior y hay que recalcularla.
   if (!storedSession || !storedSession.user || storedSession.user.deletedAt) {
     throw new NotFoundError('Usuario no encontrado');
   }
 
-  const accessContext = await resolveUserAccessContext(storedSession.user, authRepository, storedSession.activeMembershipId || storedSession.user.lastActiveMembershipId);
+  const accessContext = await resolveUserAccessContext(
+    storedSession.user,
+    authRepository,
+    storedSession.activeMembershipId || storedSession.user.lastActiveMembershipId
+  );
 
-  return { deleted: true, communityId, activeMembership: mapActiveMembership(accessContext.activeMembership) };
-}
-
-function buildCreateCommunityResponse(result) {
   return {
-    message: 'Comunidad creada correctamente.',
-    community: {
-      id: result.community.id,
-      name: result.community.name,
-      cif: result.community.cif,
-      accessCode: result.community.accessCode
-    },
-    membership: {
-      id: result.membership.id,
-      role: result.membership.role,
-      alias: result.membership.alias,
-      joinedAt: result.membership.joinedAt.toISOString()
-    },
-    creatorProperty: {
-      id: result.property.id,
-      label: result.property.label,
-      address: formatAddress(result.property),
-      province: result.property.province,
-      municipality: result.property.municipality
-    },
-    activeMembershipId: result.membership.id
+    deleted: true,
+    communityId,
+    activeMembership: mapActiveMembership(accessContext.activeMembership)
   };
 }
 
+// --- Comunidades: POST de creación ---
 async function createCommunity(context, input, communitiesRepository) {
   const existingCommunity = await communitiesRepository.findCommunityByCif(input.community.cif);
 
@@ -443,7 +462,7 @@ async function createCommunity(context, input, communitiesRepository) {
     throw new ConflictError('El CIF ya está siendo utilizado por otra comunidad');
   }
 
-  // La comunidad nace con presidente.
+  // La comunidad nace con presidencia, vivienda inicial y cambio de contexto activo en la sesión creadora.
   for (let attempt = 0; attempt < ACCESS_CODE_MAX_ATTEMPTS; attempt += 1) {
     const accessCode = generateAccessCode();
 
@@ -454,28 +473,27 @@ async function createCommunity(context, input, communitiesRepository) {
         alias: input.alias,
         accessCode,
         community: input.community,
-        creatorProperty: { ...input.creatorProperty, label: buildCreatorPropertyLabel(input.alias) }
+        creatorProperty: {
+          ...input.creatorProperty,
+          label: buildCreatorPropertyLabel(input.alias)
+        }
       });
 
       if (!result) {
         throw new ConflictError('El contexto autenticado ya no es válido');
       }
-
       return buildCreateCommunityResponse(result);
     }
     catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const field = getUniqueConstraintField(error);
-
         if (constraintMatchesField(field, 'accessCode') || constraintMatchesField(field, 'access_code')) {
           continue;
         }
-
         if (constraintMatchesField(field, 'cif')) {
           throw new ConflictError('El CIF ya está siendo utilizado por otra comunidad');
         }
       }
-
       throw error;
     }
   }

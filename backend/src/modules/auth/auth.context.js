@@ -1,4 +1,6 @@
-// Construcción del contexto de acceso del módulo auth: resume la membership activa en un formato reutilizable.
+// Resolver del contexto autenticado: decide qué membership activa representa al usuario en cada request.
+// Flujo cubierto: memberships activas -> selección de contexto preferido -> resumen reutilizable.
+// Expone resolveUserAccessContext, usado por auth, users, communities y members. Lo consumen los módulos que necesitan contexto activo.
 const { isMembershipCurrentlySuspended } = require('../../lib/membership');
 
 // Tipos de actor emitidos por auth para resumir el contexto visible.
@@ -13,15 +15,12 @@ function resolveAccessActorType(activeMembership) {
   if (!activeMembership) {
     return AccessActorType.REGISTERED_USER_NO_COMMUNITY;
   }
-
   if (activeMembership.role === 'PRESIDENT') {
     return AccessActorType.PRINCIPAL_ADMIN;
   }
-
   if (activeMembership.role === 'VICE_PRESIDENT') {
     return AccessActorType.DELEGATED_ADMIN;
   }
-
   if (activeMembership.role === 'MEMBER') {
     return AccessActorType.STANDARD_MEMBER;
   }
@@ -34,19 +33,17 @@ function selectActiveMembership(memberships, preferredMembershipId) {
   if (!memberships || memberships.length === 0) {
     return null;
   }
-
   if (preferredMembershipId) {
     const preferredMembership = memberships.find((membership) => membership.id === preferredMembershipId);
-
     if (preferredMembership) {
       return preferredMembership;
     }
   }
 
-  // Si la membership preferida no es válida, se prioriza una membership no suspendida para evitar fijar por defecto un contexto bloqueado.
+  // Si la preferida ya no vale, intentamos dejar al usuario en un contexto no suspendido.
   const firstNonSuspendedMembership = memberships.find((membership) => !isMembershipCurrentlySuspended(membership));
 
-  // Si todas están suspendidas, se mantiene igualmente una referencia (tratamiento en frontend?).
+  // Si todas están suspendidas, se conserva igualmente una referencia activa para no dejar el contexto vacío.
   return firstNonSuspendedMembership || memberships[0];
 }
 
@@ -54,7 +51,6 @@ function buildActiveMembershipSummary(activeMembership) {
   if (!activeMembership) {
     return null;
   }
-
   return {
     id: activeMembership.id,
     communityId: activeMembership.communityId,
@@ -68,7 +64,7 @@ function buildActiveMembershipSummary(activeMembership) {
   };
 }
 
-// Resuelve el contexto de acceso del usuario autenticado para construir la sesión y compartirlo con el resto del sistema.
+// Resuelve el contexto de acceso para construir la sesión y compartirlo con el resto del sistema.
 async function resolveUserAccessContext(user, authRepository, preferredMembershipId = user.lastActiveMembershipId) {
   const memberships = await authRepository.findActiveMembershipsByUserId(user.id);
   const activeMembership = selectActiveMembership(memberships, preferredMembershipId);

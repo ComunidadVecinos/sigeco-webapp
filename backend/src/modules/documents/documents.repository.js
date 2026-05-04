@@ -1,9 +1,9 @@
 const prisma = require('../../lib/prisma');
 
-/**
- * Capa de acceso a datos del módulo documents, centralizado la lectura y escritura a la Base de Datos con Prisma.
- * El service delega toda la interacción con datos a este módulo, que expone funciones atómicas para cada operación.
- */
+// Repositorio de documents: baja a Prisma el árbol documental, la cuota y los movimientos internos.
+// Flujo cubierto: servicio -> queries/transacciones Prisma -> entidades listas para mapear o validar.
+// Expone lecturas, escrituras, cuota y utilidades de árbol usadas por el servicio.
+// Lo consume documents.service.js.
 
 const folderSelect = {
   id: true,
@@ -32,8 +32,9 @@ const documentSelect = {
   deletedAt: true
 };
 
-// Construye el filtro base para navegar un "ámbito" documental:
-//   - una carpeta concreta con sus subcarpetas directas y sus documentos directos.
+// --- Helpers comunes ---
+// Construye el filtro base para navegar un ámbito:
+// una carpeta concreta con sus subcarpetas directas y sus documentos directos.
 function scopeWhere({ communityId, parentId, search }) {
   const folderWhere = { communityId, parentId: parentId || null, deletedAt: null };
   const documentWhere = { communityId, folderId: parentId || null, deletedAt: null };
@@ -178,8 +179,7 @@ async function renameFolder(db, { communityId, folderId, name }) {
     data: { name }
   });
 
-  // Se usa updateMany para mantener el mismo patrón defensivo del proyecto:
-  // si la fila ya no cumple el where, simplemente no se actualiza.
+  // Se usa updateMany para que si la fila ya no cumple el where, simplemente no se actualiza.
   if (updated.count !== 1) {
     return null;
   }
@@ -190,36 +190,36 @@ async function renameFolder(db, { communityId, folderId, name }) {
   });
 }
 
-//Mueve una carpeta a un nuevo padre (o a la raíz si newParentId es null)
-async function moveFolder(db, {communityId, folderId, newParentId}) {
+// El movimiento de carpeta solo cambia parentId; no reescribe ningún fichero físico.
+async function moveFolder(db, { communityId, folderId, newParentId }) {
   const updated = await db.communityFolder.updateMany({
-    where: {id: folderId, communityId, deletedAt: null},
-    data: {parentId: newParentId || null}
+    where: { id: folderId, communityId, deletedAt: null },
+    data: { parentId: newParentId || null }
   });
 
-  if(updated.count !== 1){
+  if (updated.count !== 1) {
     return null;
   }
 
   return db.communityFolder.findFirst({
-    where: {id: folderId, communityId},
+    where: { id: folderId, communityId },
     select: folderSelect
   });
 }
 
-//Mueve un documento a una nueva carpeta (o a la raíz si newFolderId es null)
-async function moveDocument(db, {communityId, documentId, newFolderId}) {
+// El movimiento de documento solo cambia folderId; el storagePath del PDF se mantiene intacto.
+async function moveDocument(db, { communityId, documentId, newFolderId }) {
   const updated = await db.communityDocument.updateMany({
-    where: {id: documentId, communityId, deletedAt: null},
-    data: {folderId: newFolderId || null}
+    where: { id: documentId, communityId, deletedAt: null },
+    data: { folderId: newFolderId || null }
   });
 
-  if(updated.count !== 1){
+  if (updated.count !== 1) {
     return null;
   }
 
   return db.communityDocument.findFirst({
-    where: {id: documentId, communityId},
+    where: { id: documentId, communityId },
     select: documentSelect
   });
 }
@@ -259,7 +259,7 @@ async function renameDocument(db, { communityId, documentId, name }) {
   });
 }
 
-// El borrado operativo actual es real en BD para documentos.
+// El borrado operativo actual elimina la fila de documento y luego el servicio limpia cuota y fichero.
 async function deleteDocument(db, { communityId, documentId }) {
   const deleted = await db.communityDocument.deleteMany({
     where: { id: documentId, communityId, deletedAt: null }
@@ -272,7 +272,6 @@ async function deleteDocumentsByIds(db, { communityId, documentIds }) {
   if (!documentIds || documentIds.length === 0) {
     return { count: 0 };
   }
-
   // Se usa borrado por lote para carpetas con muchos documentos.
   return db.communityDocument.deleteMany({
     where: { id: { in: documentIds }, communityId, deletedAt: null }
@@ -283,7 +282,6 @@ async function deleteFoldersByIds(db, { communityId, folderIds }) {
   if (!folderIds || folderIds.length === 0) {
     return { count: 0 };
   }
-
   // El service comprueba antes que están todas las carpetas esperadas; aquí solo se ejecuta el lote.
   return db.communityFolder.deleteMany({
     where: { id: { in: folderIds }, communityId, deletedAt: null }
@@ -302,13 +300,10 @@ async function communityStorage(db, communityId) {
 async function reserveStorage(db, { communityId, sizeBytes }) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const community = await communityStorage(db, communityId);
-
     if (!community) {
       return false;
     }
-
     const nextUsedBytes = BigInt(community.storageUsedBytes) + BigInt(sizeBytes);
-
     if (nextUsedBytes > BigInt(community.storageQuotaBytes)) {
       return false;
     }
@@ -331,11 +326,9 @@ async function reserveStorage(db, { communityId, sizeBytes }) {
 async function releaseStorage(db, { communityId, sizeBytes }) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const community = await communityStorage(db, communityId);
-
     if (!community) {
       return false;
     }
-
     const currentUsedBytes = BigInt(community.storageUsedBytes);
     // Nunca se permite dejar la cuota usada en negativo.
     const nextUsedBytes = currentUsedBytes > BigInt(sizeBytes) ? currentUsedBytes - BigInt(sizeBytes) : 0n;
@@ -344,7 +337,6 @@ async function releaseStorage(db, { communityId, sizeBytes }) {
       where: { id: communityId, deletedAt: null, storageUsedBytes: community.storageUsedBytes },
       data: { storageUsedBytes: nextUsedBytes }
     });
-
     if (updated.count === 1) {
       return true;
     }
@@ -367,7 +359,6 @@ async function findDocumentsByFolderIds({ communityId, folderIds }) {
   if (!folderIds || folderIds.length === 0) {
     return [];
   }
-
   // Devuelve todos los documentos activos contenidos en un conjunto de carpetas.
   return prisma.communityDocument.findMany({
     where: { communityId, folderId: { in: folderIds }, deletedAt: null },

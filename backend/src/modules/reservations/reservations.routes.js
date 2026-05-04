@@ -1,4 +1,4 @@
-// Rutas HTTP del módulo reservations: conecta endpoints de espacios y reservas con sus validaciones.
+// Router de reservations: reúne espacios, disponibilidad y reservas propias o administrativas.
 // Flujo cubierto: sesión -> validación de params/query/body -> controlador.
 // Expone el router de Express con CRUD de espacios, disponibilidad/calendario y reservas de usuario/admin.
 // Lo consume el router de comunidades, montado como subrecurso con communityId.

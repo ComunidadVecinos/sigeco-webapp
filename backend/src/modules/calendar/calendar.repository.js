@@ -1,14 +1,11 @@
-// Acceso a datos del módulo calendar.
-// Calendar almacena eventos automáticos y personales en una única tabla:
-// - `ownerMembershipId = null`: eventos automáticos de comunidad.
-// - `ownerMembershipId = <membershipId>`: eventos personales privados.
-// Calendar almacena en una única tabla:
-// - `ownerMembershipId = null`: eventos automáticos de comunidad.
-// - `type = PERSONAL`: eventos privados creados por el usuario.
-// - `type = RESERVATION`: proyecciones privadas de reservas del usuario.
+// Repositorio de calendar: concentra lecturas y escrituras del calendario comunitario y personal.
+// Flujo cubierto: servicio -> queries Prisma -> eventos visibles, personales y proyecciones automáticas.
+// Expone lecturas del mes, CRUD de eventos personales y helpers internos usados por reservations/news/voting/users.
+// Lo consumen calendar.service.js y otros módulos que sincronizan eventos automáticos.
 const prisma = require('../../lib/prisma');
 const RESERVATION_SOURCE_OCCURRENCE_KEY = 'BOOKING';
 
+// --- Selects compartidos ---
 const calendarEventSelect = {
   id: true,
   title: true,
@@ -18,6 +15,11 @@ const calendarEventSelect = {
   endTime: true
 };
 
+// --- Helpers comunes ---
+// La tabla mezcla eventos automáticos de comunidad con eventos privados del usuario.
+// - "ownerMembershipId = null": evento automático visible para la comunidad.
+// - "type = PERSONAL": evento privado creado por el usuario.
+// - "type = RESERVATION": proyección privada de una reserva del usuario.
 function buildVisibleCalendarEventsWhere({ communityId, ownerMembershipId, startDate, endDate }) {
   return {
     communityId,
@@ -37,10 +39,12 @@ function buildCalendarEventsOrderBy() {
   ];
 }
 
+// Cada ocurrencia automática usa una clave diaria estable para poder hacer upsert idempotente.
 function buildAutomaticOccurrenceKey(date) {
   return date.toISOString().slice(0, 10);
 }
 
+// --- Calendario comunitario: GET ---
 async function findVisibleCalendarEventsInRange(input) {
   return prisma.calendarEvent.findMany({
     where: buildVisibleCalendarEventsWhere(input),
@@ -49,6 +53,7 @@ async function findVisibleCalendarEventsInRange(input) {
   });
 }
 
+// --- Eventos personales: POST ---
 async function createPersonalEvent(input) {
   return prisma.calendarEvent.create({
     data: {
@@ -66,6 +71,7 @@ async function createPersonalEvent(input) {
   });
 }
 
+// --- Eventos personales: GET/PATCH/DELETE ---
 async function findOwnedPersonalEventById({ communityId, ownerMembershipId, eventId }) {
   return prisma.calendarEvent.findFirst({
     where: {
@@ -124,6 +130,7 @@ async function softDeleteOwnedPersonalEvent({ communityId, ownerMembershipId, ev
   return updateResult.count === 1;
 }
 
+// --- Eventos automáticos: sincronización interna ---
 async function upsertAutomaticEventInDb(db, input) {
   const sourceOccurrenceKey = input.sourceOccurrenceKey || buildAutomaticOccurrenceKey(input.eventDate);
 
@@ -162,6 +169,7 @@ async function upsertAutomaticEventInDb(db, input) {
 }
 
 async function replaceAutomaticEventsInDb(db, { communityId, type, sourceEntityId, events }) {
+  // Si llegan varias ocurrencias con la misma clave diaria, nos quedamos con la última para mantener idempotencia.
   const normalizedEvents = Array.from(new Map(
     (events || []).map((event) => {
       const sourceOccurrenceKey = event.sourceOccurrenceKey || buildAutomaticOccurrenceKey(event.eventDate);
@@ -171,12 +179,12 @@ async function replaceAutomaticEventsInDb(db, { communityId, type, sourceEntityI
 
   await Promise.all(normalizedEvents.map((event) => upsertAutomaticEventInDb(db, {
     communityId,
-      type,
-      sourceEntityId,
-      title: event.title,
-      eventDate: event.eventDate,
-      startTime: event.startTime,
-      endTime: event.endTime,
+    type,
+    sourceEntityId,
+    title: event.title,
+    eventDate: event.eventDate,
+    startTime: event.startTime,
+    endTime: event.endTime,
     sourceOccurrenceKey: event.sourceOccurrenceKey
   })));
 
@@ -208,6 +216,7 @@ async function softDeleteAutomaticEventInDb(db, { communityId, type, sourceEntit
   });
 }
 
+// --- Limpiezas transversales ---
 async function softDeletePersonalEventsByMembershipIds(db, membershipIds, deletedAt = new Date()) {
   if (!membershipIds || membershipIds.length === 0) {
     return { count: 0 };
@@ -223,6 +232,7 @@ async function softDeletePersonalEventsByMembershipIds(db, membershipIds, delete
   });
 }
 
+// La reserva del usuario se refleja como un evento privado con una clave de ocurrencia fija.
 async function upsertOwnedReservationEventInDb(db, input) {
   return db.calendarEvent.upsert({
     where: {

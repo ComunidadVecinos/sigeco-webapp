@@ -1,12 +1,8 @@
+// Clase base de errores controlados del backend.
+// Fija el contrato común (statusCode, code, details, cause) que luego consume el error handler.
 const errorCodes = require('./errorCodes');
 
-/**
- * Clase base para errores del backend. Estandariza la forma de describir errores esperados en el backend con un contrato común.
- * Todas las capas pueden lanzar AppError o una subclase para describir un fallo esperado con `statusCode`, `code`, `details`...
- */
-
 class AppError extends Error {
-
   constructor(message, statusCodeOrOptions = 500, code = errorCodes.INTERNAL_ERROR, details = undefined) {
     const options = typeof statusCodeOrOptions === 'object' && statusCodeOrOptions !== null ? statusCodeOrOptions : { statusCode: statusCodeOrOptions, code, details };
 

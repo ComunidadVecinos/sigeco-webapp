@@ -1,34 +1,57 @@
-// Controladores HTTP del módulo members.
+// Capa HTTP de members: lleva listados, salidas y sanciones al formato de respuesta del API.
+// Flujo cubierto: request autenticada y validada -> servicio -> JSON HTTP.
+// Expone controladores de listado, salida, expulsión, roles y suspensiones.
+// Lo consumen las rutas del módulo con asyncHandler.
 const membersRepository = require('./members.repository');
 const membersService = require('./members.service');
 
+function requestContext(req) {
+  return { userId: req.user.id };
+}
+
+function requestContextWithSession(req) {
+  return {
+    userId: req.user.id,
+    sessionId: req.session.id,
+    activeMembershipId: req.session.activeMembershipId || null
+  };
+}
+
+// --- Miembros: GET ---
 async function getCommunityMembers(req, res) {
-  const result = await membersService.getCommunityMembers({ userId: req.user.id }, { communityId: req.params.communityId, ...req.query }, membersRepository);
+  const result = await membersService.getCommunityMembers(
+    requestContext(req),
+    { communityId: req.params.communityId, ...req.query },
+    membersRepository
+  );
   return res.status(200).json(result);
 }
 
+// --- Miembros: POST ---
+// Abandonar una comunidad puede dejar inválida la membership activa de la sesión actual.
 async function leaveMyCommunity(req, res) {
-  // Necesita dentificador de sesión: abandonar una comunidad invalida la membership activa del usuario.
   const result = await membersService.leaveMyCommunity(
-    { userId: req.user.id, sessionId: req.session.id, activeMembershipId: req.session.activeMembershipId || null }, 
-    { communityId: req.params.communityId, ...req.body }, membersRepository
+    requestContextWithSession(req),
+    { communityId: req.params.communityId, ...req.body },
+    membersRepository
   );
   return res.status(200).json(result);
 }
 
 async function expelCommunityMember(req, res) {
   const result = await membersService.expelCommunityMember(
-    { userId: req.user.id },
+    requestContext(req),
     { communityId: req.params.communityId, memberId: req.params.memberId, ...req.body },
     membersRepository
   );
   return res.status(200).json(result);
 }
 
+// --- Miembros: PUT ---
 async function assignCommunityMemberRole(req, res) {
   const result = await membersService.assignCommunityMemberRole(
-    { userId: req.user.id }, 
-    { communityId: req.params.communityId, memberId: req.params.memberId, role: req.params.role }, 
+    requestContext(req),
+    { communityId: req.params.communityId, memberId: req.params.memberId, role: req.params.role },
     membersRepository
   );
   return res.status(200).json(result);
@@ -36,20 +59,28 @@ async function assignCommunityMemberRole(req, res) {
 
 async function suspendCommunityMember(req, res) {
   const result = await membersService.suspendCommunityMember(
-    { userId: req.user.id }, 
-    { communityId: req.params.communityId, memberId: req.params.memberId, ...req.body }, 
+    requestContext(req),
+    { communityId: req.params.communityId, memberId: req.params.memberId, ...req.body },
     membersRepository
   );
   return res.status(200).json(result);
 }
 
+// --- Miembros: DELETE ---
 async function cancelCommunityMemberSuspension(req, res) {
   const result = await membersService.cancelCommunityMemberSuspension(
-    { userId: req.user.id }, 
-    { communityId: req.params.communityId, memberId: req.params.memberId }, 
+    requestContext(req),
+    { communityId: req.params.communityId, memberId: req.params.memberId },
     membersRepository
   );
   return res.status(200).json(result);
 }
 
-module.exports = { getCommunityMembers, leaveMyCommunity, expelCommunityMember, assignCommunityMemberRole, suspendCommunityMember, cancelCommunityMemberSuspension };
+module.exports = {
+  getCommunityMembers,
+  leaveMyCommunity,
+  expelCommunityMember,
+  assignCommunityMemberRole,
+  suspendCommunityMember,
+  cancelCommunityMemberSuspension
+};

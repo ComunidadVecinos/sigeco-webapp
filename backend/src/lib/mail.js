@@ -1,10 +1,7 @@
+// Cliente de correo del backend.
+// Centraliza la configuración SMTP y traduce fallos del proveedor a un error de infraestructura común.
 const nodemailer = require('nodemailer');
 const { EmailServiceUnavailableError } = require('./errors');
-
-/**
- * Helpers para envío de correo desde el backend.
- * Utilizado por auth para el envío de correos de recuperación de contraseña; desacoplado para poder reutilizarse en otros servicios.
- */
 
 let transporter;
 
@@ -25,11 +22,10 @@ function getTransporter() {
     // Reutilizamos el transporter para no recrear conexiones en cada envío.
     transporter = nodemailer.createTransport(getMailerConfig());
   }
-
   return transporter;
 }
 
-// Envía un correo usando la configuración SMTP compartida del proceso. Las excepciones se traducen a EmailServiceUnavailableError.
+// Envía un correo con la configuración compartida del proceso.
 async function sendMail({ to, subject, text, html }) {
   try {
     return await getTransporter().sendMail({ from: getDefaultFrom(), to, subject, text, html });

@@ -1,4 +1,7 @@
-// Acceso a datos del módulo forum.
+// Repositorio de forum: concentra persistencia de publicaciones, comentarios, encuestas y reacciones.
+// Flujo cubierto: servicio -> queries/transacciones Prisma -> entidades listas para mapear, contar o anonimizar.
+// Expone lecturas, escrituras, agregados y utilidades de limpieza usadas también por otros módulos.
+// Lo consumen forum.service.js y, de forma puntual, users.repository.js.
 const prisma = require('../../lib/prisma');
 
 const membershipAuthorSelect = {
@@ -52,6 +55,7 @@ const forumPollSelect = {
   forumPost: { select: { id: true, isDeleted: true } }
 };
 
+// --- Helpers comunes ---
 function buildForumPostWhere({ communityId, category, createdFrom, createdToExclusive }) {
   return {
     communityId,
@@ -65,13 +69,22 @@ function buildForumPostWhere({ communityId, category, createdFrom, createdToExcl
 
 function buildForumPostOrderBy(sortBy) {
   if (sortBy === 'likes') {
-    return [{ pinned: 'desc' }, { likes: { _count: 'desc' } }, { lastActivityAt: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }];
+    return [
+      { pinned: 'desc' },
+      { likes: { _count: 'desc' } },
+      { lastActivityAt: 'desc' },
+      { createdAt: 'desc' },
+      { id: 'asc' }
+    ];
   }
-
   if (sortBy === 'lastActivityAt') {
-    return [{ pinned: 'desc' }, { lastActivityAt: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }];
+    return [
+      { pinned: 'desc' },
+      { lastActivityAt: 'desc' },
+      { createdAt: 'desc' },
+      { id: 'asc' }
+    ];
   }
-
   return [{ pinned: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }];
 }
 
@@ -79,7 +92,6 @@ function buildForumCommentOrderBy(sortBy) {
   if (sortBy === 'likes') {
     return [{ likes: { _count: 'desc' } }, { createdAt: 'asc' }, { id: 'asc' }];
   }
-
   return [{ createdAt: 'asc' }, { id: 'asc' }];
 }
 
@@ -87,6 +99,7 @@ async function withTransaction(callback) {
   return prisma.$transaction(callback);
 }
 
+// --- Encuestas del foro ---
 async function createForumPoll(db, input) {
   return db.poll.create({
     data: {
@@ -104,16 +117,19 @@ async function createForumPoll(db, input) {
 }
 
 async function updateForumPoll(db, { communityId, pollId, data }) {
-  const updateResult = await db.poll.updateMany({
+  const updated = await db.poll.updateMany({
     where: { id: pollId, communityId, kind: 'FORUM_POLL', deletedAt: null },
     data
   });
 
-  if (updateResult.count !== 1) {
+  if (updated.count !== 1) {
     return null;
   }
 
-  return db.poll.findFirst({ where: { id: pollId, communityId, kind: 'FORUM_POLL' }, select: forumPollSelect });
+  return db.poll.findFirst({
+    where: { id: pollId, communityId, kind: 'FORUM_POLL' },
+    select: forumPollSelect
+  });
 }
 
 async function softDeleteForumPoll(db, { communityId, pollId, deletedAt }) {
@@ -127,7 +143,6 @@ async function softDeleteForumPollsByIds(db, pollIds, deletedAt) {
   if (!pollIds || pollIds.length === 0) {
     return { count: 0 };
   }
-
   return db.poll.updateMany({
     where: { id: { in: pollIds }, kind: 'FORUM_POLL', deletedAt: null },
     data: { deletedAt, closedAt: deletedAt, closedByMembershipId: null }
@@ -145,7 +160,6 @@ async function findForumPollsByIds(pollIds) {
   if (!pollIds || pollIds.length === 0) {
     return [];
   }
-
   return prisma.poll.findMany({
     where: { id: { in: pollIds }, kind: 'FORUM_POLL', deletedAt: null },
     select: forumPollSelect
@@ -156,7 +170,11 @@ async function findForumPollVoteCountsByPollIds(pollIds) {
   if (!pollIds || pollIds.length === 0) {
     return [];
   }
-  return prisma.pollVote.groupBy({ by: ['pollId', 'optionId'], where: { pollId: { in: pollIds } }, _count: { _all: true } });
+  return prisma.pollVote.groupBy({
+    by: ['pollId', 'optionId'],
+    where: { pollId: { in: pollIds } },
+    _count: { _all: true }
+  });
 }
 
 async function findMembershipPollVotesByPollIds({ membershipId, pollIds }) {
@@ -172,11 +190,16 @@ async function findMembershipPollVotesByPollIds({ membershipId, pollIds }) {
 
 async function insertForumPollVote(db, input) {
   return db.pollVote.create({
-    data: { pollId: input.pollId, optionId: input.optionId, membershipId: input.membershipId },
+    data: {
+      pollId: input.pollId,
+      optionId: input.optionId,
+      membershipId: input.membershipId
+    },
     select: { id: true, pollId: true, optionId: true, membershipId: true, createdAt: true }
   });
 }
 
+// --- Publicaciones del foro ---
 async function createForumPost(db, input) {
   return db.forumPost.create({
     data: {
@@ -202,9 +225,14 @@ async function findForumPostPage({ communityId, category, createdFrom, createdTo
 
   const [total, items] = await prisma.$transaction([
     prisma.forumPost.count({ where }),
-    prisma.forumPost.findMany({ where, select: forumPostSelect, orderBy: buildForumPostOrderBy(sortBy), skip, take: pageSize })
+    prisma.forumPost.findMany({
+      where,
+      select: forumPostSelect,
+      orderBy: buildForumPostOrderBy(sortBy),
+      skip,
+      take: pageSize
+    })
   ]);
-
   return { total, items };
 }
 
@@ -216,15 +244,13 @@ async function findForumPostById({ communityId, postId }) {
 }
 
 async function updateForumPost(db, { communityId, postId, data }) {
-  const updateResult = await db.forumPost.updateMany({
+  const updated = await db.forumPost.updateMany({
     where: { id: postId, communityId, isDeleted: false },
     data
   });
-
-  if (updateResult.count !== 1) {
+  if (updated.count !== 1) {
     return null;
   }
-
   return db.forumPost.findFirst({
     where: { id: postId, communityId },
     select: forumPostSelect
@@ -232,15 +258,13 @@ async function updateForumPost(db, { communityId, postId, data }) {
 }
 
 async function setForumPostPinned(db, { communityId, postId, pinned }) {
-  const updateResult = await db.forumPost.updateMany({
+  const updated = await db.forumPost.updateMany({
     where: { id: postId, communityId, isDeleted: false },
     data: { pinned }
   });
-
-  if (updateResult.count !== 1) {
+  if (updated.count !== 1) {
     return null;
   }
-
   return db.forumPost.findFirst({
     where: { id: postId, communityId },
     select: forumPostSelect
@@ -248,15 +272,13 @@ async function setForumPostPinned(db, { communityId, postId, pinned }) {
 }
 
 async function softDeleteForumPost(db, { communityId, postId, deletedAt }) {
-  const updateResult = await db.forumPost.updateMany({
+  const updated = await db.forumPost.updateMany({
     where: { id: postId, communityId, isDeleted: false },
     data: { isDeleted: true, pinned: false, authorMembershipId: null, editedAt: null }
   });
-
-  if (updateResult.count !== 1) {
+  if (updated.count !== 1) {
     return null;
   }
-
   return db.forumPost.findFirst({
     where: { id: postId, communityId },
     select: forumPostSelect
@@ -270,13 +292,20 @@ async function updateForumPostLastActivity(db, { postId, lastActivityAt }) {
   });
 }
 
+// --- Comentarios del foro ---
 async function findForumCommentPage({ communityId, postId, sortBy, page, pageSize }) {
   const where = { postId, post: { communityId, isDeleted: false } };
   const skip = (page - 1) * pageSize;
 
   const [total, items] = await prisma.$transaction([
     prisma.forumComment.count({ where }),
-    prisma.forumComment.findMany({ where, select: forumCommentSelect, orderBy: buildForumCommentOrderBy(sortBy), skip, take: pageSize })
+    prisma.forumComment.findMany({
+      where,
+      select: forumCommentSelect,
+      orderBy: buildForumCommentOrderBy(sortBy),
+      skip,
+      take: pageSize
+    })
   ]);
 
   return { total, items };
@@ -304,12 +333,12 @@ async function createForumComment(db, input) {
 }
 
 async function updateForumComment(db, { postId, commentId, data }) {
-  const updateResult = await db.forumComment.updateMany({
+  const updated = await db.forumComment.updateMany({
     where: { id: commentId, postId, isDeleted: false },
     data
   });
 
-  if (updateResult.count !== 1) {
+  if (updated.count !== 1) {
     return null;
   }
 
@@ -320,12 +349,17 @@ async function updateForumComment(db, { postId, commentId, data }) {
 }
 
 async function anonymizeForumComment(db, { postId, commentId, deletedContent }) {
-  const updateResult = await db.forumComment.updateMany({
+  const updated = await db.forumComment.updateMany({
     where: { id: commentId, postId, isDeleted: false },
-    data: { content: deletedContent, editedAt: null, isDeleted: true, authorMembershipId: null }
+    data: {
+      content: deletedContent,
+      editedAt: null,
+      isDeleted: true,
+      authorMembershipId: null
+    }
   });
 
-  if (updateResult.count !== 1) {
+  if (updated.count !== 1) {
     return null;
   }
 
@@ -337,12 +371,16 @@ async function anonymizeForumComment(db, { postId, commentId, deletedContent }) 
   });
 }
 
+// --- Contadores y reacciones ---
 async function findForumCommentCountsByPostIds(postIds) {
   if (!postIds || postIds.length === 0) {
     return [];
   }
-
-  return prisma.forumComment.groupBy({ by: ['postId'], where: { postId: { in: postIds } }, _count: { _all: true } });
+  return prisma.forumComment.groupBy({
+    by: ['postId'],
+    where: { postId: { in: postIds } },
+    _count: { _all: true }
+  });
 }
 
 async function findForumPostLikeCountsByPostIds(postIds) {
@@ -350,15 +388,22 @@ async function findForumPostLikeCountsByPostIds(postIds) {
     return [];
   }
 
-  return prisma.forumPostLike.groupBy({ by: ['postId'], where: { postId: { in: postIds } }, _count: { _all: true } });
+  return prisma.forumPostLike.groupBy({
+    by: ['postId'],
+    where: { postId: { in: postIds } },
+    _count: { _all: true }
+  });
 }
 
 async function findForumCommentLikeCountsByCommentIds(commentIds) {
   if (!commentIds || commentIds.length === 0) {
     return [];
   }
-
-  return prisma.forumCommentLike.groupBy({ by: ['commentId'], where: { commentId: { in: commentIds } }, _count: { _all: true } });
+  return prisma.forumCommentLike.groupBy({
+    by: ['commentId'],
+    where: { commentId: { in: commentIds } },
+    _count: { _all: true }
+  });
 }
 
 async function findForumPostLike({ membershipId, postId }) {
@@ -405,6 +450,7 @@ async function countForumCommentLikes(commentId) {
   return prisma.forumCommentLike.count({ where: { commentId } });
 }
 
+// --- Limpieza usada por otros módulos ---
 async function deleteForumLikesByMembershipIds(db, membershipIds) {
   if (!membershipIds || membershipIds.length === 0) {
     return { postLikes: 0, commentLikes: 0 };
@@ -415,7 +461,10 @@ async function deleteForumLikesByMembershipIds(db, membershipIds) {
     db.forumCommentLike.deleteMany({ where: { membershipId: { in: membershipIds } } })
   ]);
 
-  return { postLikes: postLikesResult.count, commentLikes: commentLikesResult.count };
+  return {
+    postLikes: postLikesResult.count,
+    commentLikes: commentLikesResult.count
+  };
 }
 
 async function softDeleteForumPostsByMembershipIds(db, membershipIds, deletedAt) {
@@ -427,7 +476,6 @@ async function softDeleteForumPostsByMembershipIds(db, membershipIds, deletedAt)
     where: { authorMembershipId: { in: membershipIds }, isDeleted: false },
     select: { id: true, pollId: true }
   });
-
   if (posts.length === 0) {
     return { count: 0 };
   }
@@ -440,7 +488,6 @@ async function softDeleteForumPostsByMembershipIds(db, membershipIds, deletedAt)
     where: { id: { in: postIds }, isDeleted: false },
     data: { isDeleted: true, pinned: false, authorMembershipId: null, editedAt: null }
   });
-
   await softDeleteForumPollsByIds(db, pollIds, deletedAt);
 
   return result;
@@ -455,17 +502,20 @@ async function anonymizeForumCommentsByMembershipIds(db, membershipIds) {
     where: { authorMembershipId: { in: membershipIds }, isDeleted: false },
     select: { id: true }
   });
-
   if (comments.length === 0) {
     return { count: 0 };
   }
 
   const commentIds = comments.map((comment) => comment.id);
-
-  // El comentario se mantiene en el hilo, pero sin contenido ni autor.
+  // El comentario se mantiene en el hilo, pero sin contenido editable ni autor identificado.
   const result = await db.forumComment.updateMany({
     where: { id: { in: commentIds }, isDeleted: false },
-    data: { content: 'El contenido ha sido eliminado por el autor', editedAt: null, isDeleted: true, authorMembershipId: null }
+    data: {
+      content: 'El contenido ha sido eliminado por el autor',
+      editedAt: null,
+      isDeleted: true,
+      authorMembershipId: null
+    }
   });
 
   await db.forumCommentLike.deleteMany({ where: { commentId: { in: commentIds } } });

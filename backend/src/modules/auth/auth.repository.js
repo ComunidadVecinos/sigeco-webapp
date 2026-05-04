@@ -1,11 +1,18 @@
-// Acceso a datos del módulo auth.
+// Repositorio de auth: reúne las consultas de usuario, memberships y sesiones persistidas.
+// Flujo cubierto: service/middleware -> queries Prisma -> credenciales, contexto y sesiones persistidas.
+// Expone lecturas de usuario, bootstrap de contexto y operaciones de sesión/contraseña. Lo consumen los módulos que necesitan contexto de acceso.
 const prisma = require('../../lib/prisma');
 
-// Nota. Todas las lecturas de usuario en auth filtran borrado lógico para no reactivar credenciales de cuentas "borradas" del sistema.
+// --- Helpers comunes ---
+// Todas las lecturas de usuario en auth filtran borrado lógico para no reactivar cuentas ya eliminadas.
+function pickActiveUser(user) {
+  return user && user.deletedAt === null ? user : null;
+}
 
+// --- Usuarios: búsquedas por identidad ---
 async function findUserByEmail(email) {
   const user = await prisma.user.findUnique({ where: { email } });
-  return user && user.deletedAt === null ? user : null;
+  return pickActiveUser(user);
 }
 
 async function findUserByPhone(phone) {
@@ -13,7 +20,7 @@ async function findUserByPhone(phone) {
     return null;
   }
   const user = await prisma.user.findUnique({ where: { phone } });
-  return user && user.deletedAt === null ? user : null;
+  return pickActiveUser(user);
 }
 
 // Variante ligera para bootstrap de contexto y respuestas autenticadas.
@@ -31,7 +38,7 @@ async function findUserById(id) {
     }
   });
 
-  if (!user || user.deletedAt !== null) {
+  if (!pickActiveUser(user)) {
     return null;
   }
 
@@ -58,7 +65,7 @@ async function findUserAuthById(id) {
     }
   });
 
-  if (!user || user.deletedAt !== null) {
+  if (!pickActiveUser(user)) {
     return null;
   }
 
@@ -70,7 +77,8 @@ async function findUserAuthById(id) {
   };
 }
 
-// El alta persiste "passwordChangedAt" desde el inicio para políticas de invalidez de sesiones.
+// --- Usuarios: escritura de credenciales ---
+// El alta persiste passwordChangedAt desde el inicio para las políticas de invalidez de sesiones.
 async function createUser({ firstName, lastName, email, phone, passwordHash }) {
   return prisma.user.create({
     data: {
@@ -100,16 +108,17 @@ async function updateUserPassword(userId, passwordHash) {
   });
 }
 
-// Función auxiliar: reset password aplica rollback si falla el servicio de correos.
+// Reset de password aplica rollback si falla el envío de correo.
 async function restoreUserPasswordState(userId, { passwordHash, passwordChangedAt }) {
   return prisma.user.update({
     where: { id: userId },
-    data: {  passwordHash, passwordChangedAt },
+    data: { passwordHash, passwordChangedAt },
     select: { id: true }
   });
 }
 
-// Devuelve memberships activas (no borradas, no finalizadas, comunidades no borradas) de un usuario para uso en contexto de acceso.
+// --- Memberships: contexto de acceso ---
+// Devuelve memberships activas para construir el contexto visible del usuario autenticado.
 async function findActiveMembershipsByUserId(userId) {
   return prisma.membership.findMany({
     where: {
@@ -129,9 +138,7 @@ async function findActiveMembershipsByUserId(userId) {
       suspendedUntil: true,
       suspensionReason: true,
       joinedAt: true,
-      community: {
-        select: { id: true, name: true }
-      }
+      community: { select: { id: true, name: true } }
     },
     orderBy: { joinedAt: 'asc' }
   });
@@ -144,9 +151,8 @@ async function updateUserLastActiveMembership(userId, membershipId) {
   });
 }
 
-// Crea sesión sin lógica de contexto activo ni sincronización de último contexto activo del usuario para casos puntuales (ej. bootstrap, logout).
-//   - Para login: createSessionWithAccessContext. 
-//   - Para middleware de sesión: findSessionById + repairSessionAccessContext.
+// --- Sesiones: creación y lectura ---
+// Crea sesión sin lógica de contexto activo para usos puntuales.
 async function createSession({ id, userId, activeMembershipId, expiresAt }) {
   return prisma.session.create({
     data: {
@@ -165,7 +171,7 @@ async function createSession({ id, userId, activeMembershipId, expiresAt }) {
   });
 }
 
-// Login: persiste sesión y sincroniza el último contexto activo. 
+// Login: persiste sesión y sincroniza el último contexto activo.
 async function createSessionWithAccessContext({ id, userId, currentLastActiveMembershipId, activeMembershipId, expiresAt }) {
   return prisma.$transaction(async (tx) => {
     const session = await tx.session.create({
@@ -195,7 +201,7 @@ async function createSessionWithAccessContext({ id, userId, currentLastActiveMem
   });
 }
 
-// Carga también el usuario y la membership activa (objetivo: validar y reparar el contexto).
+// Carga también usuario y membership activa para validar o reparar el contexto persistido.
 async function findSessionById(sessionId) {
   return prisma.session.findUnique({
     where: { id: sessionId },
@@ -232,6 +238,7 @@ async function findSessionById(sessionId) {
   });
 }
 
+// --- Sesiones: reparación e invalidación ---
 // Mantiene alineados session.activeMembershipId y user.lastActiveMembershipId.
 async function updateSessionAccessContext({ sessionId, userId, activeMembershipId }) {
   return prisma.$transaction(async (tx) => {
@@ -239,7 +246,6 @@ async function updateSessionAccessContext({ sessionId, userId, activeMembershipI
       where: { id: sessionId },
       data: { activeMembershipId }
     });
-
     await tx.user.update({
       where: { id: userId },
       data: { lastActiveMembershipId: activeMembershipId }
@@ -247,8 +253,7 @@ async function updateSessionAccessContext({ sessionId, userId, activeMembershipI
   });
 }
 
-// Invalida sesión por ID si no ha sido ya invalidada ni ha expirado (ej. logout, cambio de password).
-//   - Se utiliza updateMany para evitar excepción por update (tratar 0 como un caso más --> no hay nada que invalidar).
+// Se usa updateMany para tratar "count = 0" como un caso controlado, no como excepción Prisma.
 async function invalidateSession(sessionId) {
   return prisma.session.updateMany({
     where: {
@@ -267,7 +272,7 @@ async function invalidateActiveSessionsByUserId(userId) {
   });
 }
 
-// Tras cambio de password se conserva la sesión actual, invalidando el resto.
+// Tras cambio de password se conserva la sesión actual e invalida el resto.
 async function invalidateOtherActiveSessionsByUserId(userId, excludedSessionId) {
   return prisma.session.updateMany({
     where: {

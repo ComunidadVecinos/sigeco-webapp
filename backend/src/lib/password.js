@@ -1,12 +1,9 @@
+// Helpers de contraseña del backend.
+// Encapsulan el hash y la verificación con bcrypt para no repartir la dependencia por los servicios.
 const bcrypt = require('bcryptjs');
-
-/**
- * Servicio de hashing de contraseñas, utilizando bycrypt con un factor de coste de 10 rounds.
- */
-
 const SALT_ROUNDS = 10;
 
-// Genera el hash bcrypt de una contrasena de usuario.
+// Genera el hash bcrypt de una contraseña de usuario.
 async function hashPassword(password) {
   return bcrypt.hash(password, SALT_ROUNDS);
 }

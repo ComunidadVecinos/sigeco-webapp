@@ -1,4 +1,4 @@
-// Validaciones HTTP del módulo reservations: normaliza y valida params, query y body.
+// Validaciones de reservations: encajan espacios, filtros y reservas antes de pasar al servicio.
 // Flujo cubierto: entrada Express -> schemas Zod -> datos listos para el servicio.
 // Expone schemas de espacios/reservas y normalizeNullableSpaceBody.
 // Lo consumen las rutas antes de llegar a los controladores.

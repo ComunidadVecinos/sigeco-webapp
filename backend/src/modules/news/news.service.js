@@ -1,8 +1,9 @@
-// Servicio del módulo news.
-// Gestiona el tablón comunitario, su imagen opcional y la proyección
-// automática en calendar, usando UTC en el contrato público.
 const crypto = require('crypto');
 
+// Servicio de news: gobierna la publicación de noticias, su imagen y su reflejo en calendario.
+// Flujo cubierto: usuario autenticado -> permisos/reglas de noticia -> repositorio/storage/calendar.
+// Expone casos de uso para crear, listar, leer, editar y borrar noticias e imágenes.
+// Lo consumen los controladores HTTP del módulo.
 const { ConflictError, NotFoundError, ValidationError } = require('../../lib/errors');
 const { startOfBusinessDayUtc, startOfNextBusinessDayUtc } = require('../../lib/datetime/businessTime');
 const { inspectImageBuffer } = require('../../lib/storage/imageMetadata');
@@ -14,14 +15,20 @@ const { buildNewsAutomaticCalendarEvents } = require('../calendar/calendar.remin
 
 const DELETED_NEWS_CREATOR_ALIAS = 'Usuario eliminado';
 
+// --- Helpers comunes ---
 function buildValidationDetail(field, message, location = 'body') {
   return [{ field, location, message }];
+}
+
+function buildPagination(page, pageSize, total) {
+  return { page, pageSize, total, totalPages: total === 0 ? 0 : Math.ceil(total / pageSize) };
 }
 
 function isEventNews(news) {
   return Boolean(news?.eventStartsAt);
 }
 
+// --- Noticias comunitarias: mapeo de salida ---
 function mapNewsItem(news) {
   const creatorAlias = news.authorMembership ? news.authorMembership.alias || null : DELETED_NEWS_CREATOR_ALIAS;
 
@@ -39,10 +46,7 @@ function mapNewsItem(news) {
   };
 }
 
-function buildPagination(page, pageSize, total) {
-  return { page, pageSize, total, totalPages: total === 0 ? 0 : Math.ceil(total / pageSize) };
-}
-
+// --- Noticias comunitarias: reglas de evento ---
 function buildNewsEventData(input) {
   const eventStartsAt = input.eventStartsAt || null;
   const eventEndsAt = input.eventEndsAt || null;
@@ -64,17 +68,15 @@ function buildNewsEventData(input) {
   return { eventStartsAt, eventEndsAt };
 }
 
+// Si el PATCH no toca el evento, conservamos el rango actual; si envía null/null, lo elimina.
 function resolveNextEventData(existingNews, input) {
   const eventFieldsAreMissing = input.eventStartsAt === undefined && input.eventEndsAt === undefined;
-
   if (eventFieldsAreMissing) {
     return { eventStartsAt: existingNews.eventStartsAt, eventEndsAt: existingNews.eventEndsAt };
   }
-
   if (input.eventStartsAt === null && input.eventEndsAt === null) {
     return { eventStartsAt: null, eventEndsAt: null };
   }
-
   return buildNewsEventData(input);
 }
 
@@ -83,27 +85,27 @@ function hasEventScheduleChanged(existingNews, nextEventData) {
   const existingEndsAt = existingNews.eventEndsAt ? existingNews.eventEndsAt.getTime() : null;
   const nextStartsAt = nextEventData.eventStartsAt ? nextEventData.eventStartsAt.getTime() : null;
   const nextEndsAt = nextEventData.eventEndsAt ? nextEventData.eventEndsAt.getTime() : null;
-
   return existingStartsAt !== nextStartsAt || existingEndsAt !== nextEndsAt;
 }
 
+// --- Noticias comunitarias: imagen opcional ---
 function buildNewsImageData(imageFile) {
   if (!imageFile) {
     return null;
   }
-
   const image = inspectImageBuffer(imageFile.buffer);
-
-  return { extension: image.extension, mimeType: imageFile.mimetype, sizeBytes: imageFile.size };
+  return {
+    extension: image.extension,
+    mimeType: imageFile.mimetype,
+    sizeBytes: imageFile.size
+  };
 }
 
 async function prepareNewsImageChange({ communityId, newsId, previousStoragePath, imageFile }) {
   const imageData = buildNewsImageData(imageFile);
-
   if (!imageData) {
     return { imageData: null, storedImage: null };
   }
-
   const storedImage = await storageService.replaceCommunityNewsImageFile({
     communityId,
     newsId,
@@ -111,7 +113,6 @@ async function prepareNewsImageChange({ communityId, newsId, previousStoragePath
     buffer: imageFile.buffer,
     extension: imageData.extension
   });
-
   return { imageData, storedImage };
 }
 
@@ -119,8 +120,11 @@ function buildStoredImageFields(storedImage, imageData) {
   if (!storedImage || !imageData) {
     return {};
   }
-
-  return { imageStoragePath: storedImage.storagePath, imageMimeType: imageData.mimeType, imageSizeBytes: imageData.sizeBytes };
+  return {
+    imageStoragePath: storedImage.storagePath,
+    imageMimeType: imageData.mimeType,
+    imageSizeBytes: imageData.sizeBytes
+  };
 }
 
 async function commitNewsImageChange(storedImage, { communityId, newsId }) {
@@ -150,56 +154,62 @@ function buildNewsUpdateData(input, nextEventData, storedImage, imageData) {
     ...(input.title !== undefined ? { title: input.title } : {}),
     ...(input.description !== undefined ? { description: input.description } : {}),
     ...buildStoredImageFields(storedImage, imageData),
-    ...(hasEventPayload ? {
-        eventStartsAt: nextEventData.eventStartsAt,
-        eventEndsAt: nextEventData.eventEndsAt
-      }
-      : {}),
+    ...(hasEventPayload ? { eventStartsAt: nextEventData.eventStartsAt, eventEndsAt: nextEventData.eventEndsAt } : {}),
     editedAt: new Date()
   };
 }
 
+// --- Noticias comunitarias: proyección automática en calendario ---
 function buildNewsCalendarEvents(news) {
-  return buildNewsAutomaticCalendarEvents({ title: news.title, eventStartsAt: news.eventStartsAt, eventEndsAt: news.eventEndsAt });
+  return buildNewsAutomaticCalendarEvents({
+    title: news.title,
+    eventStartsAt: news.eventStartsAt,
+    eventEndsAt: news.eventEndsAt
+  });
 }
 
 async function replaceNewsCalendarEvents(tx, communityId, news) {
   const calendarEvents = buildNewsCalendarEvents(news);
-
   if (calendarEvents.length === 0) {
     return;
   }
-
-  await calendarRepository.replaceAutomaticEventsInDb(tx, { communityId, type: 'NEWS', sourceEntityId: news.id, events: calendarEvents });
+  await calendarRepository.replaceAutomaticEventsInDb(tx, {
+    communityId,
+    type: 'NEWS',
+    sourceEntityId: news.id,
+    events: calendarEvents
+  });
 }
 
 async function removeNewsCalendarEvents(tx, communityId, newsId) {
-  await calendarRepository.softDeleteAutomaticEventInDb(tx, { communityId, type: 'NEWS', sourceEntityId: newsId });
+  await calendarRepository.softDeleteAutomaticEventInDb(tx, {
+    communityId,
+    type: 'NEWS',
+    sourceEntityId: newsId
+  });
 }
 
+// El calendario solo se toca si la noticia era o pasa a ser un evento.
 async function syncUpdatedNewsCalendar(tx, { communityId, newsId, existingNews, updatedNews, eventScheduleChanged }) {
   const previouslyWasEvent = isEventNews(existingNews);
   const willBeEvent = isEventNews(updatedNews);
-
   if (!previouslyWasEvent && !willBeEvent) {
     return;
   }
-
   if (previouslyWasEvent && !willBeEvent) {
     await removeNewsCalendarEvents(tx, communityId, newsId);
     return;
   }
-
   if (!previouslyWasEvent && willBeEvent) {
     await replaceNewsCalendarEvents(tx, communityId, updatedNews);
     return;
   }
-
   if (eventScheduleChanged) {
     await replaceNewsCalendarEvents(tx, communityId, updatedNews);
   }
 }
 
+// --- Helpers de acceso y existencia ---
 async function requireNewsMembershipAccess(userId, communityId) {
   return membersService.requireCommunityMembershipAccess(userId, communityId, membersRepository);
 }
@@ -210,11 +220,9 @@ async function requireNewsAdministrativeAccess(userId, communityId) {
 
 async function requireExistingNews(communityId, newsId, newsRepository) {
   const news = await newsRepository.findNewsById({ communityId, newsId });
-
   if (!news) {
     throw new NotFoundError('Noticia no encontrada');
   }
-
   return news;
 }
 
@@ -222,10 +230,10 @@ function assertNewsIsAvailable(news, message) {
   if (!news.deletedAt) {
     return;
   }
-
   throw new ConflictError(message);
 }
 
+// --- Noticias comunitarias: POST de creación ---
 async function createNews(context, communityId, input, newsRepository) {
   const { membership } = await requireNewsAdministrativeAccess(context.userId, communityId);
   const eventData = buildNewsEventData(input);
@@ -253,16 +261,16 @@ async function createNews(context, communityId, input, newsRepository) {
       await replaceNewsCalendarEvents(tx, communityId, news);
       return news;
     });
-
     await commitNewsImageChange(storedImage, { communityId, newsId });
     return mapNewsItem(createdNews);
-  } 
+  }
   catch (error) {
     await rollbackNewsImageChange(storedImage, { communityId, newsId, operation: 'creación' });
     throw error;
   }
 }
 
+// --- Noticias comunitarias: GET ---
 async function getNewsList(context, communityId, input, newsRepository) {
   await requireNewsMembershipAccess(context.userId, communityId);
 
@@ -276,25 +284,27 @@ async function getNewsList(context, communityId, input, newsRepository) {
     pageSize: input.pageSize
   });
 
-  return { items: pageResult.items.map(mapNewsItem), pagination: buildPagination(input.page, input.pageSize, pageResult.total) };
+  return {
+    items: pageResult.items.map(mapNewsItem),
+    pagination: buildPagination(input.page, input.pageSize, pageResult.total)
+  };
 }
 
 async function getNewsDetail(context, communityId, newsId, newsRepository) {
   await requireNewsMembershipAccess(context.userId, communityId);
 
   const news = await requireExistingNews(communityId, newsId, newsRepository);
-
   if (news.deletedAt) {
     throw new NotFoundError('Noticia no encontrada');
   }
   return mapNewsItem(news);
 }
 
+// --- Noticias comunitarias: PATCH ---
 async function updateNews(context, communityId, newsId, input, newsRepository) {
   await requireNewsAdministrativeAccess(context.userId, communityId);
 
   const existingNews = await requireExistingNews(communityId, newsId, newsRepository);
-
   assertNewsIsAvailable(existingNews, 'La noticia ya no está disponible');
 
   const nextEventData = resolveNextEventData(existingNews, input);
@@ -308,41 +318,46 @@ async function updateNews(context, communityId, newsId, input, newsRepository) {
 
   try {
     const updatedNews = await newsRepository.withTransaction(async (tx) => {
-      const news = await newsRepository.updateNews(tx, { communityId, newsId, data: buildNewsUpdateData(input, nextEventData, storedImage, imageData) });
+      const news = await newsRepository.updateNews(tx, {
+        communityId,
+        newsId,
+        data: buildNewsUpdateData(input, nextEventData, storedImage, imageData)
+      });
 
       if (!news) {
         throw new ConflictError('No se ha podido actualizar la noticia');
       }
-
-      await syncUpdatedNewsCalendar(tx, { communityId, newsId, existingNews, updatedNews: news, eventScheduleChanged });
-
+      await syncUpdatedNewsCalendar(tx, {
+        communityId,
+        newsId,
+        existingNews,
+        updatedNews: news,
+        eventScheduleChanged
+      });
       return news;
     });
-
     await commitNewsImageChange(storedImage, { communityId, newsId });
     return mapNewsItem(updatedNews);
-  } 
+  }
   catch (error) {
     await rollbackNewsImageChange(storedImage, { communityId, newsId, operation: 'actualización' });
     throw error;
   }
 }
 
+// --- Noticias comunitarias: DELETE lógico ---
 async function deleteNews(context, communityId, newsId, newsRepository) {
   await requireNewsAdministrativeAccess(context.userId, communityId);
 
   const existingNews = await requireExistingNews(communityId, newsId, newsRepository);
-
   assertNewsIsAvailable(existingNews, 'La noticia ya está eliminada');
 
   const deletedAt = new Date();
   await newsRepository.withTransaction(async (tx) => {
     const deleted = await newsRepository.softDeleteNews(tx, { communityId, newsId, deletedAt });
-
     if (!deleted) {
       throw new ConflictError('No se ha podido eliminar la noticia');
     }
-
     await removeNewsCalendarEvents(tx, communityId, newsId);
   });
 
@@ -351,7 +366,6 @@ async function deleteNews(context, communityId, newsId, newsRepository) {
     newsId,
     reason: 'No se ha podido eliminar la imagen de la noticia tras el borrado lógico'
   });
-
   return { deleted: true, newsId };
 }
 
@@ -359,20 +373,16 @@ async function deleteNewsImage(context, communityId, newsId, newsRepository) {
   await requireNewsAdministrativeAccess(context.userId, communityId);
 
   const existingNews = await requireExistingNews(communityId, newsId, newsRepository);
-
   assertNewsIsAvailable(existingNews, 'La noticia ya no está disponible');
-
   if (!existingNews.imageStoragePath) {
     throw new ConflictError('La noticia no tiene imagen');
   }
 
   const updatedNews = await newsRepository.withTransaction(async (tx) => {
     const news = await newsRepository.removeNewsImage(tx, { communityId, newsId });
-
     if (!news) {
       throw new ConflictError('No se ha podido eliminar la imagen de la noticia');
     }
-
     return news;
   });
 
@@ -381,7 +391,6 @@ async function deleteNewsImage(context, communityId, newsId, newsRepository) {
     newsId,
     reason: 'No se ha podido eliminar el archivo de imagen tras borrar la referencia en la noticia'
   });
-
   return mapNewsItem(updatedNews);
 }
 

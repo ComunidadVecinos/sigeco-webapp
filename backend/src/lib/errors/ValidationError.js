@@ -1,12 +1,13 @@
+// Error de validación estándar del backend.
+// Acepta detalles ya formateados o directamente un error de Zod y lo traduce al contrato de la API.
 const AppError = require('./AppError');
 const errorCodes = require('./errorCodes');
 const formatZodIssues = require('../validation/formatZodIssues');
 
-// Error para validaciones de formularios o datos de entrada que no cumplen con los requisitos esperados.
 class ValidationError extends AppError {
   constructor(detailsOrError, options = {}) {
     const details = Array.isArray(detailsOrError) ? detailsOrError : formatZodIssues(detailsOrError, options.location);
-
+    
     // El mensaje general de validación se traduce para respuestas con múltiples campos erróneos.
     super(options.message || 'Error de validación', {
       statusCode: options.statusCode ?? 422,

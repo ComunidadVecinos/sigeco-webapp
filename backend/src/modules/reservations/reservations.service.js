@@ -1,4 +1,4 @@
-// Servicio del módulo reservations: concentra reglas de negocio de espacios y reservas.
+// Servicio de reservations: aplica permisos y reglas horarias sobre espacios y reservas.
 // Flujo cubierto: contexto autenticado -> permisos -> reglas de horario/capacidad -> repositorio/calendar/mail.
 // Expone casos de uso para CRUD de espacios, disponibilidad, reservas propias y administración.
 // Lo consumen los controladores HTTP del módulo.

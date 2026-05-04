@@ -1,9 +1,28 @@
-// Acceso a datos del módulo members.
+// Repositorio de members: maneja memberships, roles, suspensiones y su impacto en otros recursos.
+// Flujo cubierto: servicio -> queries/transacciones Prisma -> entidades listas para validar o mapear.
+// Expone búsquedas de comunidad/miembro, listados y operaciones que afectan también a sesiones, reservas, calendario y solicitudes.
+// Lo consumen members.service.js y varios servicios comunitarios de forma indirecta.
 const prisma = require('../../lib/prisma');
 const { isMembershipCurrentlySuspended } = require('../../lib/membership');
 const calendarRepository = require('../calendar/calendar.repository');
 const requestsRepository = require('../requests/requests.repository');
 const reservationsRepository = require('../reservations/reservations.repository');
+
+const propertySelect = {
+  id: true,
+  label: true,
+  country: true,
+  province: true,
+  municipality: true,
+  streetType: true,
+  streetName: true,
+  postalCode: true,
+  streetNumberKm: true,
+  block: true,
+  floor: true,
+  door: true,
+  deletedAt: true
+};
 
 const roleMembershipSelect = {
   id: true,
@@ -21,6 +40,12 @@ const roleMembershipSelect = {
   community: { select: { id: true, name: true } }
 };
 
+const membershipWithPropertySelect = {
+  ...roleMembershipSelect,
+  property: { select: propertySelect }
+};
+
+// --- Helpers comunes ---
 function buildInactiveMembershipWhere(now) {
   return { suspendedUntil: { gt: now } };
 }
@@ -60,13 +85,17 @@ function buildCommunityMembersWhere(filters, now = new Date()) {
   }
 
   if (filters.joinedAfter || filters.joinedBefore) {
-    conditions.push({ joinedAt: { ...(filters.joinedAfter ? { gte: filters.joinedAfter } : {}), ...(filters.joinedBefore ? { lte: filters.joinedBefore } : {}) } });
+    conditions.push({
+      joinedAt: {
+        ...(filters.joinedAfter ? { gte: filters.joinedAfter } : {}),
+        ...(filters.joinedBefore ? { lte: filters.joinedBefore } : {})
+      }
+    });
   }
 
   if (filters.suspensionStatus === 'ACTIVE') {
     conditions.push(buildActiveMembershipWhere(now));
   }
-
   if (filters.suspensionStatus === 'INACTIVE') {
     conditions.push(buildInactiveMembershipWhere(now));
   }
@@ -79,6 +108,22 @@ function buildCommunityMembersWhere(filters, now = new Date()) {
   };
 }
 
+function selectNextActiveMembership(memberships, preferredMembershipId = null) {
+  if (!memberships || memberships.length === 0) {
+    return null;
+  }
+  if (preferredMembershipId) {
+    const preferredMembership = memberships.find((membership) => membership.id === preferredMembershipId);
+    if (preferredMembership) {
+      return preferredMembership;
+    }
+  }
+  const firstNonSuspendedMembership = memberships.find((membership) => !isMembershipCurrentlySuspended(membership));
+  // Si todas las memberships restantes están suspendidas, conservamos una referencia válida en vez de dejar el contexto indeterminado.
+  return firstNonSuspendedMembership || memberships[0];
+}
+
+// --- Comunidad y memberships: búsquedas base ---
 async function findActiveCommunityById(communityId) {
   return prisma.community.findFirst({
     where: { id: communityId, deletedAt: null },
@@ -139,50 +184,50 @@ async function findMembershipByIdAndCommunity(memberId, communityId) {
       deletedAt: true,
       user: { select: { email: true } },
       community: { select: { id: true, name: true } },
-      property: {
-        select: {
-          id: true,
-          label: true,
-          country: true,
-          province: true,
-          municipality: true,
-          streetType: true,
-          streetName: true,
-          postalCode: true,
-          streetNumberKm: true,
-          block: true,
-          floor: true,
-          door: true,
-          deletedAt: true
-        }
-      }
+      property: { select: propertySelect }
     }
   });
 }
 
-function selectNextActiveMembership(memberships, preferredMembershipId = null) {
-  if (!memberships || memberships.length === 0) {
-    return null;
+// --- Miembros: listados ---
+// Este listado se reutiliza desde members y communities.
+async function findCommunityMembers(filters, options = {}) {
+  const includeTotal = options.includeTotal !== false;
+  const where = buildCommunityMembersWhere(filters);
+  const query = prisma.membership.findMany({
+    where,
+    select: {
+      id: true,
+      alias: true,
+      role: true,
+      createdAt: true,
+      endedAt: true,
+      suspendedAt: true,
+      suspendedUntil: true,
+      suspensionReason: true,
+      property: { select: propertySelect },
+      user: { select: { avatar: { select: { storagePath: true } } } }
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+    skip: options.skip || 0,
+    take: options.take
+  });
+  if (!includeTotal) {
+    return { total: null, items: await query };
   }
-
-  if (preferredMembershipId) {
-    const preferredMembership = memberships.find((membership) => membership.id === preferredMembershipId);
-    if (preferredMembership) {
-      return preferredMembership;
-    }
-  }
-
-  const firstNonSuspendedMembership = memberships.find((membership) => !isMembershipCurrentlySuspended(membership));
-
-  // Si todas las memberships restantes estan suspendidas, conservamos una referencia activa en lugar de dejar el contexto indeterminado.
-  return firstNonSuspendedMembership || memberships[0];
+  const [total, items] = await prisma.$transaction([
+    prisma.membership.count({ where }),
+    query
+  ]);
+  return { total, items };
 }
 
+// --- Miembros: cierre de pertenencia y resincronización de contexto ---
 async function finalizeMembershipAndResolveActiveContext({ userId, membershipId, communityId, endReason }) {
-  // Cerrar una membership puede invalidar el contexto activo de usuario y sesiones; por eso se resuelve en una sola transacción.
-  return prisma.$transaction(async (tx) => {
+  // Cerrar una membership puede afectar a reservas, calendario, solicitudes y sesión activa; por eso se resuelve en una sola transacción.
+  return prisma.$transaction(async (db) => {
     const now = new Date();
-    const updateResult = await tx.membership.updateMany({
+    const updated = await db.membership.updateMany({
       where: {
         id: membershipId,
         userId,
@@ -192,53 +237,44 @@ async function finalizeMembershipAndResolveActiveContext({ userId, membershipId,
       },
       data: { endedAt: now, endReason }
     });
-
-    if (updateResult.count !== 1) {
+    if (updated.count !== 1) {
       return null;
     }
-
-    await calendarRepository.softDeletePersonalEventsByMembershipIds(tx, [membershipId], now);
-    const cancelledBookingIds = await reservationsRepository.cancelBookingsByOwnerMembershipIds(tx, [membershipId], {
+    await calendarRepository.softDeletePersonalEventsByMembershipIds(db, [membershipId], now);
+    const cancelledBookingIds = await reservationsRepository.cancelBookingsByOwnerMembershipIds(db, [membershipId], {
       cancelledAt: now,
       cancellationReason: endReason
     });
-    await calendarRepository.softDeleteReservationEventsBySourceEntityIds(tx, cancelledBookingIds, now);
-    // Al dejar de pertenecer a la comunidad, sus solicitudes pendientes de esa comunidad dejan de ser revisables.
-    await requestsRepository.cancelPendingRequestsByUserAndCommunity(tx, {
+
+    await calendarRepository.softDeleteReservationEventsBySourceEntityIds(db, cancelledBookingIds, now);
+    
+    // Al dejar de pertenecer a la comunidad, las solicitudes pendientes de esa misma comunidad se cancelan.
+    await requestsRepository.cancelPendingRequestsByUserAndCommunity(db, {
       userId,
       communityId,
       cancelledAt: now
     });
 
-    const user = await tx.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        lastActiveMembershipId: true,
-        deletedAt: true
-      }
+      select: { id: true, lastActiveMembershipId: true, deletedAt: true }
     });
 
     if (!user || user.deletedAt !== null) {
       return null;
     }
 
-    const sessionsWithExpelledMembership = await tx.session.findMany({
-      where: {
-        userId,
-        activeMembershipId: membershipId,
-        invalidatedAt: null
-      },
+    const sessionsWithClosedMembership = await db.session.findMany({
+      where: { userId, activeMembershipId: membershipId, invalidatedAt: null },
       select: { id: true }
     });
 
-    const shouldUpdateSessions = sessionsWithExpelledMembership.length > 0;
+    const shouldUpdateSessions = sessionsWithClosedMembership.length > 0;
     const shouldUpdateUserLastActiveMembership = user.lastActiveMembershipId === membershipId;
-
     let nextActiveMembershipId = null;
 
     if (shouldUpdateSessions || shouldUpdateUserLastActiveMembership) {
-      const remainingMemberships = await tx.membership.findMany({
+      const remainingMemberships = await db.membership.findMany({
         where: {
           userId,
           deletedAt: null,
@@ -255,21 +291,21 @@ async function finalizeMembershipAndResolveActiveContext({ userId, membershipId,
           suspensionReason: true,
           community: { select: { id: true, name: true } }
         },
-        orderBy: [ { joinedAt: 'asc' }, { id: 'asc' } ]
+        orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }]
       });
 
       const nextActiveMembership = selectNextActiveMembership(remainingMemberships);
       nextActiveMembershipId = nextActiveMembership?.id || null;
 
       if (shouldUpdateSessions) {
-        await tx.session.updateMany({
+        await db.session.updateMany({
           where: { userId, activeMembershipId: membershipId, invalidatedAt: null },
           data: { activeMembershipId: nextActiveMembershipId }
         });
       }
 
       if (shouldUpdateUserLastActiveMembership) {
-        await tx.user.update({
+        await db.user.update({
           where: { id: userId },
           data: { lastActiveMembershipId: nextActiveMembershipId }
         });
@@ -280,57 +316,10 @@ async function finalizeMembershipAndResolveActiveContext({ userId, membershipId,
   });
 }
 
-// Este listado se reutiliza desde members y communities
-async function findCommunityMembers(filters, options = {}) {
-  const includeTotal = options.includeTotal !== false;
-  const where = buildCommunityMembersWhere(filters);
-  const query = prisma.membership.findMany({
-    where,
-    select: {
-      id: true,
-      alias: true,
-      role: true,
-      createdAt: true,
-      endedAt: true,
-      suspendedAt: true,
-      suspendedUntil: true,
-      suspensionReason: true,
-      property: {
-        select: {
-          id: true,
-          label: true,
-          country: true,
-          province: true,
-          municipality: true,
-          streetType: true,
-          streetName: true,
-          postalCode: true,
-          streetNumberKm: true,
-          block: true,
-          floor: true,
-          door: true,
-          deletedAt: true
-        }
-      },
-      user: { select: { avatar: { select: { storagePath: true } } } }
-    },
-    orderBy: [ { createdAt: 'desc' }, { id: 'asc' } ],
-    skip: options.skip || 0,
-    take: options.take
-  });
-
-  if (!includeTotal) {
-    return { total: null, items: await query };
-  }
-
-  const [total, items] = await prisma.$transaction([prisma.membership.count({ where }), query]);
-
-  return { total, items };
-}
-
+// --- Miembros: suspensiones ---
 async function suspendMembership({ memberId, communityId, suspendedUntil, suspensionReason }) {
-  return prisma.$transaction(async (tx) => {
-    const updateResult = await tx.membership.updateMany({
+  return prisma.$transaction(async (db) => {
+    const updated = await db.membership.updateMany({
       where: {
         id: memberId,
         communityId,
@@ -344,51 +333,21 @@ async function suspendMembership({ memberId, communityId, suspendedUntil, suspen
       }
     });
 
-    if (updateResult.count !== 1) {
+    if (updated.count !== 1) {
       return null;
     }
 
-    // Se relee la fila ya persistida para devolver al service el estado efectivo.
-    return tx.membership.findFirst({
+    // Se relee la fila ya persistida para devolver al servicio el estado efectivo de suspensión.
+    return db.membership.findFirst({
       where: { id: memberId, communityId },
-      select: {
-        id: true,
-        communityId: true,
-        role: true,
-        alias: true,
-        createdAt: true,
-        suspendedAt: true,
-        suspendedUntil: true,
-        suspensionReason: true,
-        endedAt: true,
-        deletedAt: true,
-        user: { select: { email: true } },
-        community: { select: { id: true, name: true } },
-        property: {
-          select: {
-            id: true,
-            label: true,
-            country: true,
-            province: true,
-            municipality: true,
-            streetType: true,
-            streetName: true,
-            postalCode: true,
-            streetNumberKm: true,
-            block: true,
-            floor: true,
-            door: true,
-            deletedAt: true
-          }
-        }
-      }
+      select: membershipWithPropertySelect
     });
   });
 }
 
 async function clearMembershipSuspension({ memberId, communityId }) {
-  return prisma.$transaction(async (tx) => {
-    const updateResult = await tx.membership.updateMany({
+  return prisma.$transaction(async (db) => {
+    const updated = await db.membership.updateMany({
       where: {
         id: memberId,
         communityId,
@@ -402,54 +361,24 @@ async function clearMembershipSuspension({ memberId, communityId }) {
       }
     });
 
-    if (updateResult.count !== 1) {
+    if (updated.count !== 1) {
       return null;
     }
 
-    // El borrado de suspension es fisico sobre los campos de suspension para que
-    // el resto del backend no tenga que reconciliar flags derivados.
-    return tx.membership.findFirst({
+    // La suspensión se limpia físicamente en la fila para que el resto del backend no tenga que reconciliar flags derivados.
+    return db.membership.findFirst({
       where: { id: memberId, communityId },
-      select: {
-        id: true,
-        communityId: true,
-        role: true,
-        alias: true,
-        createdAt: true,
-        suspendedAt: true,
-        suspendedUntil: true,
-        suspensionReason: true,
-        endedAt: true,
-        deletedAt: true,
-        user: { select: { email: true } },
-        community: { select: { id: true, name: true } },
-        property: {
-          select: {
-            id: true,
-            label: true,
-            country: true,
-            province: true,
-            municipality: true,
-            streetType: true,
-            streetName: true,
-            postalCode: true,
-            streetNumberKm: true,
-            block: true,
-            floor: true,
-            door: true,
-            deletedAt: true
-          }
-        }
-      }
+      select: membershipWithPropertySelect
     });
   });
 }
 
+// --- Miembros: roles administrativos ---
 async function updateAdministrativeRole({ communityId, actorMembershipId, targetMembershipId, role }) {
-  // Aquí se garantiza la unicidad de presidente y vicepresidente.
-  return prisma.$transaction(async (tx) => {
+  // Aquí se garantiza la unicidad de presidente y vicepresidente dentro de la comunidad.
+  return prisma.$transaction(async (db) => {
     const membershipIds = Array.from(new Set([actorMembershipId, targetMembershipId]));
-    const memberships = await tx.membership.findMany({
+    const memberships = await db.membership.findMany({
       where: {
         id: { in: membershipIds },
         communityId,
@@ -465,15 +394,13 @@ async function updateAdministrativeRole({ communityId, actorMembershipId, target
     if (!actorMembership || !targetMembership) {
       return null;
     }
-
     if (targetMembershipId === actorMembershipId && actorMembership.role === role) {
       return { actorMembership, targetMembership, downgradedMemberships: [] };
     }
 
     let previousRoleHolders = [];
-
     if (role === 'PRESIDENT' || role === 'VICE_PRESIDENT') {
-      previousRoleHolders = await tx.membership.findMany({
+      previousRoleHolders = await db.membership.findMany({
         where: {
           communityId,
           role,
@@ -485,16 +412,15 @@ async function updateAdministrativeRole({ communityId, actorMembershipId, target
       });
     }
 
-    // La reasignación degrada primero al ocupante anterior del rol para evitar dos titulares simultáneos.
+    // La reasignación degrada primero al ocupante anterior para evitar dos titulares simultáneos.
     if (role === 'MEMBER') {
-      await tx.membership.update({
+      await db.membership.update({
         where: { id: targetMembershipId },
         data: { role: 'MEMBER' }
       });
     }
-
     if (role === 'PRESIDENT' || role === 'VICE_PRESIDENT') {
-      await tx.membership.updateMany({
+      await db.membership.updateMany({
         where: {
           communityId,
           role,
@@ -504,19 +430,16 @@ async function updateAdministrativeRole({ communityId, actorMembershipId, target
         },
         data: { role: 'MEMBER' }
       });
-
       if (targetMembership.role !== role) {
-        await tx.membership.update({
+        await db.membership.update({
           where: { id: targetMembershipId },
           data: { role }
         });
       }
     }
 
-    const updatedMemberships = await tx.membership.findMany({
-      where: {
-        id: { in: membershipIds }
-      },
+    const updatedMemberships = await db.membership.findMany({
+      where: { id: { in: membershipIds } },
       select: roleMembershipSelect
     });
 
@@ -524,10 +447,7 @@ async function updateAdministrativeRole({ communityId, actorMembershipId, target
       actorMembership: updatedMemberships.find((membership) => membership.id === actorMembershipId) || null,
       targetMembership: updatedMemberships.find((membership) => membership.id === targetMembershipId) || null,
       downgradedMemberships: previousRoleHolders.map((previousRoleHolder) => {
-        const updatedMembership = updatedMemberships.find(
-          (membership) => membership.id === previousRoleHolder.id
-        );
-
+        const updatedMembership = updatedMemberships.find((membership) => membership.id === previousRoleHolder.id);
         return updatedMembership || { ...previousRoleHolder, role: 'MEMBER' };
       })
     };

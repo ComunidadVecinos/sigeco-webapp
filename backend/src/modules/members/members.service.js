@@ -1,12 +1,8 @@
-const {
-  ConflictError,
-  ForbiddenError,
-  NotFoundError
-} = require('../../lib/errors');
-
-// Servicio del módulo members.
-//   - Orquesta permisos sobre comunidad, cambios de estado de membership y resincronización con el contexto de auth.
-
+// Servicio de members: aplica permisos y reglas sobre la vida de cada membership en la comunidad.
+// Flujo cubierto: usuario autenticado -> validación de acceso/rol -> repositorio/auth/mail/storage.
+// Expone casos de uso para listado, salida, expulsión, roles y suspensiones, además de guards reutilizables.
+// Lo consumen los controladores del módulo y varios servicios comunitarios del backend.
+const { ConflictError, ForbiddenError, NotFoundError } = require('../../lib/errors');
 const { isMembershipCurrentlySuspended } = require('../../lib/membership');
 const { buildAddressSummary } = require('../../lib/address');
 const mailService = require('../../lib/mail');
@@ -15,11 +11,11 @@ const { hasCommunityMembershipAccess, hasAdministrativeMembershipAccess, isMembe
 const authRepository = require('../auth/auth.repository');
 const { resolveUserAccessContext } = require('../auth/auth.context');
 
+// --- Helpers de mapeo ---
 function buildPropertySummary(property) {
   if (!property || property.deletedAt) {
     return null;
   }
-
   return { label: property.label || null, ...buildAddressSummary(property) };
 }
 
@@ -27,7 +23,6 @@ function resolveSuspensionStatus(membership) {
   if (!membership || isMembershipCurrentlySuspended(membership)) {
     return 'INACTIVE';
   }
-
   return 'ACTIVE';
 }
 
@@ -50,7 +45,6 @@ function mapActiveMembership(activeMembership) {
   if (!activeMembership) {
     return null;
   }
-
   return {
     membershipId: activeMembership.id,
     communityId: activeMembership.communityId,
@@ -76,7 +70,6 @@ function mapRoleMember(membership) {
   if (!membership) {
     return null;
   }
-
   return {
     membershipId: membership.id,
     communityId: membership.communityId,
@@ -85,15 +78,14 @@ function mapRoleMember(membership) {
   };
 }
 
+// --- Helpers de notificación ---
 function formatRoleLabel(role) {
   if (role === 'PRESIDENT') {
     return 'presidente';
   }
-
   if (role === 'VICE_PRESIDENT') {
     return 'vicepresidente';
   }
-
   return 'miembro';
 }
 
@@ -101,18 +93,28 @@ function buildRoleActorLabel(actorMembership) {
   if (!actorMembership.alias) {
     return 'La administración';
   }
-
   const roleLabel = actorMembership.role === 'PRESIDENT' ? 'presidente' : 'vicepresidente';
   return `El ${roleLabel} ${actorMembership.alias}`;
 }
 
-async function notifyRoleChange({ actorMembership, targetMembership }) {
-  const targetEmail = targetMembership.user?.email;
-
+async function sendMemberMail({ membership, subject, text, logMessage }) {
+  const targetEmail = membership.user?.email;
   if (!targetEmail) {
     return;
   }
+  try {
+    await mailService.sendMail({ to: targetEmail, subject, text });
+  }
+  catch (error) {
+    console.warn(logMessage, { membershipId: membership.id, communityId: membership.communityId, error });
+  }
+}
 
+async function notifyRoleChange({ actorMembership, targetMembership }) {
+  const targetEmail = targetMembership.user?.email;
+  if (!targetEmail) {
+    return;
+  }
   const communityName = targetMembership.community?.name || actorMembership.community?.name || 'tu comunidad';
   const actorLabel = buildRoleActorLabel(actorMembership);
   const greetingAlias = targetMembership.alias || 'miembro';
@@ -126,35 +128,10 @@ async function notifyRoleChange({ actorMembership, targetMembership }) {
   ].join('\n');
 
   try {
-    await mailService.sendMail({
-      to: targetEmail,
-      subject: `SIGECO - Cambio de rol en ${communityName}`,
-      text
-    });
-  } catch (error) {
-    console.warn('No se ha podido enviar el correo de cambio de rol', {
-      targetMembershipId: targetMembership.id,
-      communityId: targetMembership.communityId,
-      error
-    });
+    await mailService.sendMail({ to: targetEmail, subject: `SIGECO - Cambio de rol en ${communityName}`, text });
   }
-}
-
-async function sendMemberMail({ membership, subject, text, logMessage }) {
-  const targetEmail = membership.user?.email;
-
-  if (!targetEmail) {
-    return;
-  }
-
-  try {
-    await mailService.sendMail({ to: targetEmail, subject, text });
-  } catch (error) {
-    console.warn(logMessage, {
-      membershipId: membership.id,
-      communityId: membership.communityId,
-      error
-    });
+  catch (error) {
+    console.warn('No se ha podido enviar el correo de cambio de rol', { targetMembershipId: targetMembership.id, communityId: targetMembership.communityId, error });
   }
 }
 
@@ -167,15 +144,8 @@ async function notifyMembershipEnded({ membership, reason, actorMembership = nul
     ? `Has sido expulsado${actorText} de la comunidad "${communityName}".`
     : `Confirmamos que has abandonado la comunidad "${communityName}".`;
   const extraLines = isExpelled
-    ? [
-        'Si quieres volver a acceder, deberás solicitar unirte de nuevo desde tu perfil de usuario.',
-        ''
-      ]
-    : [
-        'A partir de ahora dejarás de tener acceso a sus contenidos y gestiones.',
-        'Si necesitas volver a formar parte de la comunidad, podrás solicitar unirte de nuevo desde tu perfil de usuario.',
-        ''
-      ];
+    ? ['Si quieres volver a acceder, deberás solicitar unirte de nuevo desde tu perfil de usuario.', '']
+    : ['A partir de ahora dejarás de tener acceso a sus contenidos y gestiones.', 'Si necesitas volver a formar parte de la comunidad, podrás solicitar unirte de nuevo desde tu perfil de usuario.', ''];
 
   await sendMemberMail({
     membership,
@@ -186,7 +156,7 @@ async function notifyMembershipEnded({ membership, reason, actorMembership = nul
       message,
       '',
       ...extraLines,
-      'Este cambio ya está reflejado en SIGECO.'
+      'Accede a SIGECO para consultar tu estado.'
     ].join('\n'),
     logMessage: 'No se ha podido enviar el correo de baja de comunidad'
   });
@@ -196,15 +166,9 @@ async function notifySuspensionChange({ membership, action }) {
   const communityName = membership.community?.name || 'tu comunidad';
   const greetingAlias = membership.alias || 'miembro';
   const suspended = action === 'SUSPENDED';
-  const reasonLine = suspended && membership.suspensionReason
-    ? [`Motivo: "${membership.suspensionReason}"`, '']
-    : [];
-  const untilLine = suspended && membership.suspendedUntil
-    ? [`Hasta: ${membership.suspendedUntil.toISOString()}`, '']
-    : [];
-  const message = suspended
-    ? `Se ha registrado tu suspensión en la comunidad "${communityName}".`
-    : `Se ha retirado tu suspensión en la comunidad "${communityName}".`;
+  const reasonLine = suspended && membership.suspensionReason ? [`Motivo: "${membership.suspensionReason}"`, ''] : [];
+  const untilLine = suspended && membership.suspendedUntil ? [`Hasta: ${membership.suspendedUntil.toISOString()}`, ''] : [];
+  const message = suspended ? `Se ha registrado tu suspensión en la comunidad "${communityName}".` : `Se ha retirado tu suspensión en la comunidad "${communityName}".`;
 
   await sendMemberMail({
     membership,
@@ -222,57 +186,51 @@ async function notifySuspensionChange({ membership, action }) {
   });
 }
 
+// --- Guards de acceso ---
 async function requireActiveCommunityMember(input, membersRepository) {
   const targetMembership = await membersRepository.findMembershipByIdAndCommunity(
     input.memberId,
     input.communityId
   );
-
   if (!targetMembership || targetMembership.deletedAt || targetMembership.endedAt) {
     throw new NotFoundError('Miembro no encontrado');
   }
-
   return targetMembership;
 }
 
 async function requireCommunityMembershipAccess(userId, communityId, membersRepository) {
-  // Este servicio se comparte con otros modulos para distinguir comunidad inexistente de usuario que no pertenece a ella.
+  // Este guard se reutiliza en otros módulos para distinguir comunidad inexistente de usuario que no pertenece a ella.
   const community = await membersRepository.findActiveCommunityById(communityId);
-
   if (!community) {
     throw new NotFoundError('Comunidad no encontrada');
   }
 
   const membership = await membersRepository.findMembershipByUserAndCommunity(userId, communityId);
-
   if (!hasCommunityMembershipAccess(membership)) {
     throw new ForbiddenError('El usuario no pertenece a esta comunidad');
   }
-
   return { community, membership };
 }
 
 async function requireAdministrativeCommunityAccess(userId, communityId, membersRepository) {
   const { community, membership } = await requireCommunityMembershipAccess(userId, communityId, membersRepository);
-
   if (!hasAdministrativeMembershipAccess(membership)) {
     throw new ForbiddenError('Se requieren permisos administrativos en esta comunidad');
   }
-
   return { community, membership };
 }
 
 async function requireOperationalCommunityAccess(userId, communityId, membersRepository) {
   const { community, membership } = await requireCommunityMembershipAccess(userId, communityId, membersRepository);
-
   if (!isMembershipOperational(membership)) {
     throw new ForbiddenError('No se puede operar en este módulo');
   }
   return { community, membership };
 }
 
+// --- Miembros: GET ---
 async function listCommunityMembers(input, membersRepository, options = {}) {
-  // Se reutiliza desde communities para montar respuestas compuestas sin duplicar paginación, filtros y mapeos de salida.
+  // Se reutiliza desde communities para montar respuestas compuestas sin duplicar filtros, paginación ni mapeos.
   const take = options.take || input.pageSize;
   const skip = options.skip !== undefined
     ? options.skip
@@ -282,14 +240,21 @@ async function listCommunityMembers(input, membersRepository, options = {}) {
 
   const result = await membersRepository.findCommunityMembers(input, { skip, take, includeTotal });
   const items = result.items.map(mapCommunityMember);
-
   if (!includePagination) {
     return { items, total: result.total };
   }
 
   const totalPages = result.total === null ? null : Math.ceil(result.total / input.pageSize);
 
-  return { items, pagination: { page: input.page, pageSize: input.pageSize, total: result.total, totalPages } };
+  return {
+    items,
+    pagination: {
+      page: input.page,
+      pageSize: input.pageSize,
+      total: result.total,
+      totalPages
+    }
+  };
 }
 
 async function getCommunityMembers(context, input, membersRepository) {
@@ -297,10 +262,10 @@ async function getCommunityMembers(context, input, membersRepository) {
   return listCommunityMembers(input, membersRepository);
 }
 
- // La suspensión no impide abandonar la comunidad.
+// --- Miembros: POST de salida y expulsión ---
+// La suspensión no impide abandonar la comunidad.
 async function leaveMyCommunity(context, input, membersRepository) {
   const { membership } = await requireCommunityMembershipAccess(context.userId, input.communityId, membersRepository);
-
   if (membership.role === 'PRESIDENT') {
     throw new ConflictError('No es posible abandonar la comunidad con rol de PRESIDENTE');
   }
@@ -317,7 +282,6 @@ async function leaveMyCommunity(context, input, membersRepository) {
   }
 
   const storedSession = await authRepository.findSessionById(context.sessionId);
-
   if (!storedSession || !storedSession.user || storedSession.user.deletedAt) {
     throw new NotFoundError('Usuario no encontrado');
   }
@@ -331,11 +295,19 @@ async function leaveMyCommunity(context, input, membersRepository) {
 
   await notifyMembershipEnded({ membership, reason: 'LEFT_COMMUNITY' });
 
-  return { leftCommunity: true, communityId: input.communityId, activeMembership: mapActiveMembership(accessContext.activeMembership) };
+  return {
+    leftCommunity: true,
+    communityId: input.communityId,
+    activeMembership: mapActiveMembership(accessContext.activeMembership)
+  };
 }
 
 async function expelCommunityMember(context, input, membersRepository) {
-  const { membership: actorMembership } = await requireAdministrativeCommunityAccess(context.userId, input.communityId, membersRepository);
+  const { membership: actorMembership } = await requireAdministrativeCommunityAccess(
+    context.userId,
+    input.communityId,
+    membersRepository
+  );
 
   const targetMembership = await requireActiveCommunityMember(input, membersRepository);
 
@@ -363,6 +335,7 @@ async function expelCommunityMember(context, input, membersRepository) {
   };
 }
 
+// --- Miembros: PUT de roles ---
 function validateAdministrativeRoleChange(actorMembership, targetMembership, role) {
   switch (role) {
     case 'PRESIDENT':
@@ -375,7 +348,6 @@ function validateAdministrativeRoleChange(actorMembership, targetMembership, rol
       if (targetMembership.role === 'PRESIDENT') {
         throw new ConflictError('La presidencia de la comunidad no puede reasignarse como vicepresidencia');
       }
-
       if (actorMembership.role === 'PRESIDENT' && actorMembership.id === targetMembership.id) {
         throw new ConflictError('La presidencia de la comunidad no puede autoasignarse como vicepresidencia');
       }
@@ -385,7 +357,6 @@ function validateAdministrativeRoleChange(actorMembership, targetMembership, rol
       if (actorMembership.role !== 'PRESIDENT') {
         throw new ForbiddenError('Solo la presidencia actual puede retirar la vicepresidencia');
       }
-
       if (targetMembership.role !== 'VICE_PRESIDENT') {
         throw new ConflictError('Solo se puede retirar la vicepresidencia al vicepresidente actual');
       }
@@ -410,11 +381,9 @@ async function assignCommunityMemberRole(context, input, membersRepository) {
     targetMembershipId: targetMembership.id,
     role: input.role
   });
-
   if (!result?.actorMembership || !result?.targetMembership) {
     throw new ConflictError('No se han podido actualizar los roles de la comunidad');
   }
-
   if (targetMembership.role !== result.targetMembership.role) {
     await notifyRoleChange({ actorMembership, targetMembership: result.targetMembership });
   }
@@ -423,20 +392,22 @@ async function assignCommunityMemberRole(context, input, membersRepository) {
     await notifyRoleChange({ actorMembership, targetMembership: downgradedMembership });
   }
 
-  return { targetMember: mapRoleMember(result.targetMembership), actorMembership: mapRoleMember(result.actorMembership) };
+  return {
+    targetMember: mapRoleMember(result.targetMembership),
+    actorMembership: mapRoleMember(result.actorMembership)
+  };
 }
 
+// --- Miembros: PUT/DELETE de suspensión ---
 async function suspendCommunityMember(context, input, membersRepository) {
   await requireAdministrativeCommunityAccess(context.userId, input.communityId, membersRepository);
 
   const targetMembership = await requireActiveCommunityMember(input, membersRepository);
-
-  // El presidente queda fuera del flujo de suspensión para evitar dejar la comunidad sin autoridad.
+  // El presidente queda fuera del flujo de suspensión para evitar dejar la comunidad huérfana.
   if (targetMembership.role === 'PRESIDENT') {
     throw new ForbiddenError('No se puede suspender al miembro seleccionado');
   }
 
-  // La suspensión queda modelada por suspendedUntil.
   const updatedMembership = await membersRepository.suspendMembership({
     memberId: input.memberId,
     communityId: input.communityId,
@@ -462,7 +433,10 @@ async function cancelCommunityMemberSuspension(context, input, membersRepository
     throw new ConflictError('La pertenencia a la comunidad no tiene una suspensión activa');
   }
 
-  const updatedMembership = await membersRepository.clearMembershipSuspension({ memberId: input.memberId, communityId: input.communityId });
+  const updatedMembership = await membersRepository.clearMembershipSuspension({
+    memberId: input.memberId,
+    communityId: input.communityId
+  });
 
   if (!updatedMembership) {
     throw new ConflictError('No ha sido posible cancelar la suspensión del miembro de la comunidad');

@@ -1,26 +1,22 @@
+// Middleware final de errores HTTP.
+// Recibe cualquier fallo del pipeline, lo normaliza al contrato del backend y construye la respuesta JSON.
 const { normalizeError } = require('../errors');
-
-/**
- * Middleware global de manejo de errores HTTP. Captura errores, los normaliza a AppError y construye la respuesta HTTP.
- */
 
 function sendError(res, error) {
   const payload = {
     error: { code: error.code, message: error.message }
   };
-
   if (error.details !== undefined) {
     payload.error.details = error.details;
   }
-
   return res.status(error.statusCode).json(payload);
 }
 
+// Solo registramos aquí el punto final del error; la decisión de qué error exponer vive en normalizeError.
 function errorHandler(err, req, res, next) {
   if (res.headersSent) {
     return next(err);
   }
-
   const error = normalizeError(err);
   const meta = { method: req.method, path: req.originalUrl, statusCode: error.statusCode, error };
 
@@ -28,7 +24,6 @@ function errorHandler(err, req, res, next) {
   if (error.statusCode >= 500) {
     console.error('Unhandled request error', meta);
   }
-
   return sendError(res, error);
 }
 

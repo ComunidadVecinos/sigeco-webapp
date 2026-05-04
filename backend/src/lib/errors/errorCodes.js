@@ -1,5 +1,5 @@
-
 // Catálogo de códigos de error expuestos por la API.
+// Mantenerlo aquí evita cadenas sueltas y estabiliza respuestas entre módulos.
 
 module.exports = {
   INTERNAL_ERROR: 'INTERNAL_ERROR',
@@ -24,3 +24,4 @@ module.exports = {
   CONFLICT: 'CONFLICT',
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS'
 };
+

@@ -1,4 +1,4 @@
-// Acceso a datos del módulo reservations: encapsula consultas Prisma de espacios y reservas.
+// Repositorio de reservations: concentra espacios, reservas y consultas de soporte para disponibilidad.
 // Flujo cubierto: filtros del servicio -> queries Prisma -> entidades seleccionadas para mapear.
 // Expone transacciones, CRUD de espacios, consultas de reservas, cancelaciones y destinatarios de correo.
 // Lo consume reservations.service.js.

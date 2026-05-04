@@ -1,11 +1,13 @@
+// Utilidades temporales del backend.
+// La regla clave está aquí: los instantes se guardan en UTC, pero el calendario de negocio se interpreta en Europe/Madrid.
 const { DateTime } = require('luxon');
 
-// Regla temporal única del dominio: los instantes reales viajan en UTC, pero las fechas de negocio se interpretan en Europe/Madrid.
 const BUSINESS_TIME_ZONE = 'Europe/Madrid';
 const DATE_ONLY_FORMAT = 'yyyy-MM-dd';
 const TIME_ONLY_FORMAT = 'HH:mm';
 const DATE_TIME_FORMAT = `${DATE_ONLY_FORMAT} ${TIME_ONLY_FORMAT}`;
 
+// Parseo y validación de entradas de fecha/hora.
 function parseInstantToUtcDate(value) {
   if (typeof value !== 'string' || value.trim() === '') {
     return null;
@@ -22,6 +24,7 @@ function padTimeSegment(value) {
   return String(value).padStart(2, '0');
 }
 
+// Normalización de fechas de negocio.
 function extractDateOnlyParts(dateInput) {
   if (typeof dateInput === 'string') {
     const [year, month, day] = dateInput.split('-').map(Number);
@@ -48,6 +51,7 @@ function dateOnlyStringToUtcDate(value) {
   return parsedDate.isValid ? parsedDate.toUTC().toJSDate() : null;
 }
 
+// Conversión entre calendario de negocio e instantes UTC.
 function buildBusinessDateTime(dateInput, time) {
   // Combina fecha y hora de negocio en Madrid y la convierte al instante UTC que se valida, persiste y expone por API.
   const parsedDateTime = DateTime.fromFormat(`${formatDateOnlyParts(dateInput)} ${time}`, DATE_TIME_FORMAT, { zone: BUSINESS_TIME_ZONE, setZone: true });

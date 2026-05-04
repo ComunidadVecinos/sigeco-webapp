@@ -1,11 +1,15 @@
+// Cliente Prisma usado por el backend.
 generator client {
   provider = "prisma-client-js"
 }
 
+// Conexión principal a PostgreSQL.
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// --- Enumerados de dominio ---
 
 enum MembershipRole {
   MEMBER
@@ -60,6 +64,8 @@ enum ForumCategory {
   QUESTION
   POLL
 }
+
+// --- Usuarios, sesión y contexto de acceso ---
 
 model User {
   id                     String    @id @default(uuid()) @db.Uuid
@@ -117,6 +123,8 @@ model Session {
   @@map("sessions")
 }
 
+// --- Comunidades, membresías y solicitudes de acceso ---
+
 model Community {
   id                String    @id @default(uuid()) @db.Uuid
   name              String    @db.VarChar(160)
@@ -136,19 +144,19 @@ model Community {
   updatedAt         DateTime  @updatedAt @db.Timestamptz(3) @map("updated_at")
   deletedAt         DateTime? @db.Timestamptz(3) @map("deleted_at")
 
-  avatar            CommunityAvatar?
-  memberships       Membership[]           @relation("CommunityMemberships")
-  communityRequests CommunityRequest[]     @relation("CommunityRequests")
-  helpSections      CommunityHelpSection[] @relation("CommunityHelpSections")
-  folders           CommunityFolder[]
-  documents         CommunityDocument[]
-  calendarEvents    CalendarEvent[]
-  reservationSpaces ReservationSpace[]
+  avatar              CommunityAvatar?
+  memberships         Membership[]           @relation("CommunityMemberships")
+  communityRequests   CommunityRequest[]     @relation("CommunityRequests")
+  helpSections        CommunityHelpSection[] @relation("CommunityHelpSections")
+  folders             CommunityFolder[]
+  documents           CommunityDocument[]
+  calendarEvents      CalendarEvent[]
+  reservationSpaces   ReservationSpace[]
   reservationBookings ReservationBooking[]
-  polls             Poll[]
-  forumPosts        ForumPost[]
-  newsItems         CommunityNews[]
-  incidents         CommunityIncident[]
+  polls               Poll[]
+  forumPosts          ForumPost[]
+  newsItems           CommunityNews[]
+  incidents           CommunityIncident[]
 
   @@index([cif])
   @@index([accessCode])
@@ -186,25 +194,25 @@ model Membership {
   updatedAt        DateTime       @updatedAt @db.Timestamptz(3) @map("updated_at")
   deletedAt        DateTime?      @db.Timestamptz(3) @map("deleted_at")
 
-  user                      User                @relation("UserMemberships", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  community                 Community           @relation("CommunityMemberships", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  lastActiveForUsers        User[]              @relation("UserLastActiveMembership")
-  activeSessions            Session[]           @relation("SessionActiveMembership")
-  property                  Property?           @relation("MembershipProperty")
-  resolvedCommunityRequests CommunityRequest[]  @relation("CommunityRequestResolvedByMembership")
-  uploadedDocuments         CommunityDocument[] @relation("CommunityDocumentUploadedBy")
-  calendarEvents            CalendarEvent[]     @relation("CalendarEventOwnerMembership")
-  reservationBookings       ReservationBooking[] @relation("ReservationBookingOwnerMembership")
+  user                         User                 @relation("UserMemberships", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  community                    Community            @relation("CommunityMemberships", fields: [communityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lastActiveForUsers           User[]               @relation("UserLastActiveMembership")
+  activeSessions               Session[]            @relation("SessionActiveMembership")
+  property                     Property?            @relation("MembershipProperty")
+  resolvedCommunityRequests    CommunityRequest[]   @relation("CommunityRequestResolvedByMembership")
+  uploadedDocuments            CommunityDocument[]  @relation("CommunityDocumentUploadedBy")
+  calendarEvents               CalendarEvent[]      @relation("CalendarEventOwnerMembership")
+  reservationBookings          ReservationBooking[] @relation("ReservationBookingOwnerMembership")
   cancelledReservationBookings ReservationBooking[] @relation("ReservationBookingCancelledByMembership")
-  createdPolls              Poll[]              @relation("PollCreatedByMembership")
-  closedPolls               Poll[]              @relation("PollClosedByMembership")
-  pollVotes                 PollVote[]          @relation("MembershipPollVotes")
-  forumPosts                ForumPost[]         @relation("ForumPostAuthorMembership")
-  forumComments             ForumComment[]      @relation("ForumCommentAuthorMembership")
-  forumPostLikes            ForumPostLike[]     @relation("MembershipForumPostLikes")
-  forumCommentLikes         ForumCommentLike[]  @relation("MembershipForumCommentLikes")
-  createdNewsItems          CommunityNews[]     @relation("CommunityNewsAuthorMembership")
-  createdIncidents          CommunityIncident[] @relation("CommunityIncidentAuthorMembership")
+  createdPolls                 Poll[]               @relation("PollCreatedByMembership")
+  closedPolls                  Poll[]               @relation("PollClosedByMembership")
+  pollVotes                    PollVote[]           @relation("MembershipPollVotes")
+  forumPosts                   ForumPost[]          @relation("ForumPostAuthorMembership")
+  forumComments                ForumComment[]       @relation("ForumCommentAuthorMembership")
+  forumPostLikes               ForumPostLike[]      @relation("MembershipForumPostLikes")
+  forumCommentLikes            ForumCommentLike[]   @relation("MembershipForumCommentLikes")
+  createdNewsItems             CommunityNews[]      @relation("CommunityNewsAuthorMembership")
+  createdIncidents             CommunityIncident[]  @relation("CommunityIncidentAuthorMembership")
 
   @@unique([userId, communityId])
   @@index([userId])
@@ -291,6 +299,8 @@ model CommunityRequestDetails {
   @@map("community_request_details")
 }
 
+// --- Contenido comunitario "fijo": ayuda y documentos ---
+
 model CommunityHelpSection {
   id          String    @id @default(uuid()) @db.Uuid
   communityId String    @map("community_id") @db.Uuid
@@ -310,7 +320,7 @@ model CommunityHelpSection {
   @@map("community_help_sections")
 }
 
-/// Arbol logico de carpetas desacoplado de la ruta fisica de almacenamiento.
+/// Árbol lógico de carpetas desacoplado de la ruta física de almacenamiento.
 model CommunityFolder {
   id          String    @id @default(uuid()) @db.Uuid
   communityId String    @map("community_id") @db.Uuid
@@ -361,13 +371,17 @@ model CommunityDocument {
   @@map("community_documents")
 }
 
+// --- Calendario y reservas ---
+
 model CalendarEvent {
   id                String            @id @default(uuid()) @db.Uuid
   communityId       String            @map("community_id") @db.Uuid
   ownerMembershipId String?           @map("owner_membership_id") @db.Uuid
   type              CalendarEventType
-  sourceEntityId    String?           @map("source_entity_id") @db.VarChar(191)
-  sourceOccurrenceKey String?         @map("source_occurrence_key") @db.VarChar(10)
+  /// Para eventos automáticos: enlaza con la entidad de origen (noticia, reserva o votación).
+  sourceEntityId      String?           @map("source_entity_id") @db.VarChar(191)
+  /// Distingue ocurrencias repetidas de una misma entidad cuando el origen proyecta varios eventos.
+  sourceOccurrenceKey String?           @map("source_occurrence_key") @db.VarChar(10)
   title             String            @db.VarChar(160)
   eventDate         DateTime          @map("event_date") @db.Date
   startTime         String            @map("start_time") @db.VarChar(5)
@@ -439,9 +453,9 @@ model ReservationBooking {
   createdAt               DateTime                 @default(now()) @db.Timestamptz(3) @map("created_at")
   updatedAt               DateTime                 @updatedAt @db.Timestamptz(3) @map("updated_at")
 
-  community         Community        @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  space             ReservationSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  ownerMembership   Membership       @relation("ReservationBookingOwnerMembership", fields: [ownerMembershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  community              Community        @relation(fields: [communityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  space                  ReservationSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  ownerMembership        Membership       @relation("ReservationBookingOwnerMembership", fields: [ownerMembershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   cancelledByMembership Membership?  @relation("ReservationBookingCancelledByMembership", fields: [cancelledByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([communityId, ownerMembershipId, status, bookingDate], map: "reservation_bookings_owner_status_date_lookup_idx")
@@ -450,6 +464,8 @@ model ReservationBooking {
   @@map("reservation_bookings")
 }
 
+// --- Votaciones y encuestas ---
+
 model Poll {
   id                    String    @id @default(uuid()) @db.Uuid
   communityId           String    @map("community_id") @db.Uuid
@@ -457,7 +473,7 @@ model Poll {
   title                 String    @db.VarChar(160)
   description           String?   @db.Text
   startsAt              DateTime  @default(now()) @db.Timestamptz(3) @map("starts_at")
-  /// Nullable para permitir encuestas de foro sin cierre. COMMUNITY_VOTING sigue exigiendo fecha fin en su modulo.
+  /// Nullable para permitir encuestas de foro sin cierre. COMMUNITY_VOTING sigue exigiendo fecha fin en su módulo.
   endsAt                DateTime? @db.Timestamptz(3) @map("ends_at")
   createdByMembershipId String    @map("created_by_membership_id") @db.Uuid
   closedAt              DateTime? @db.Timestamptz(3) @map("closed_at")
@@ -471,6 +487,7 @@ model Poll {
   closedByMembership  Membership?  @relation("PollClosedByMembership", fields: [closedByMembershipId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   options             PollOption[]
   votes               PollVote[]
+  /// En foro la encuesta vive vinculada a un post; en votaciones comunitarias no.
   forumPost           ForumPost?
 
   @@index([communityId, kind, deletedAt, createdAt], map: "polls_community_kind_created_lookup_idx")
@@ -511,6 +528,8 @@ model PollVote {
   @@index([membershipId])
   @@map("poll_votes")
 }
+
+// --- Foro comunitario ---
 
 model ForumPost {
   id                 String        @id @default(uuid()) @db.Uuid
@@ -588,6 +607,8 @@ model ForumCommentLike {
   @@map("forum_comment_likes")
 }
 
+// --- Noticias e incidencias ---
+
 model CommunityNews {
   id                 String    @id @default(uuid()) @db.Uuid
   communityId        String    @map("community_id") @db.Uuid
@@ -635,3 +656,6 @@ model CommunityIncident {
   @@index([authorMembershipId], map: "community_incidents_author_membership_lookup_idx")
   @@map("community_incidents")
 }
+
+
+

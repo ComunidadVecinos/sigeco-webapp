@@ -1,4 +1,7 @@
-// Acceso a datos del módulo users.
+// Repositorio de users: concentra perfil, avatar, contexto activo y limpieza de cuenta.
+// Flujo cubierto: servicio -> queries/transacciones Prisma -> entidades listas para mapear o validar.
+// Expone lecturas de perfil, cambios de contexto activo, operaciones de avatar y borrado lógico.
+// Lo consume users.service.js.
 const prisma = require('../../lib/prisma');
 const calendarRepository = require('../calendar/calendar.repository');
 const forumRepository = require('../forum/forum.repository');
@@ -8,91 +11,85 @@ const requestsRepository = require('../requests/requests.repository');
 const reservationsRepository = require('../reservations/reservations.repository');
 const votingRepository = require('../voting/voting.repository');
 
-async function findUserProfileById(userId) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+// --- Selects compartidos ---
+// Campos necesarios para construir el perfil público del usuario autenticado y sus comunidades activas.
+const userProfileSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  phone: true,
+  avatar: { select: { storagePath: true } },
+  memberships: {
+    where: {
+      deletedAt: null,
+      endedAt: null,
+      community: { deletedAt: null }
+    },
+    orderBy: { joinedAt: 'asc' },
     select: {
       id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      phone: true,
-      deletedAt: true,
-      avatar: { select: { storagePath: true } },
-      memberships: {
-        where: {
-          deletedAt: null,
-          endedAt: null,
-          community: { deletedAt: null }
-        },
-        orderBy: { joinedAt: 'asc' },
-        // El perfil necesita datos suficientes para la relación del usuario con cada comunidad.
+      role: true,
+      alias: true,
+      suspendedAt: true,
+      suspendedUntil: true,
+      suspensionReason: true,
+      joinedAt: true,
+      community: { select: { id: true, name: true } },
+      property: {
         select: {
           id: true,
-          role: true,
-          alias: true,
-          suspendedAt: true,
-          suspendedUntil: true,
-          suspensionReason: true,
-          joinedAt: true,
-          community: { select: { id: true, name: true } },
-          property: {
-            select: {
-              id: true,
-              label: true,
-              country: true,
-              province: true,
-              municipality: true,
-              streetType: true,
-              streetName: true,
-              postalCode: true,
-              streetNumberKm: true,
-              block: true,
-              floor: true,
-              door: true,
-              deletedAt: true
-            }
-          }
+          label: true,
+          country: true,
+          province: true,
+          municipality: true,
+          streetType: true,
+          streetName: true,
+          postalCode: true,
+          streetNumberKm: true,
+          block: true,
+          floor: true,
+          door: true,
+          deletedAt: true
         }
       }
     }
-  });
+  }
+};
 
-  return user && user.deletedAt === null ? user : null;
-}
+// Contexto mínimo para sincronizar avatar entre BD y storage.
+const userAvatarContextSelect = {
+  id: true,
+  avatar: { select: { id: true, storagePath: true } }
+};
 
-async function findUserProfileImageContext(userId) {
-  const user = await prisma.user.findUnique({
+// Contexto mínimo para borrar cuenta y decidir limpiezas posteriores.
+const accountDeletionContextSelect = {
+  id: true,
+  avatar: { select: { id: true, storagePath: true } },
+  memberships: {
+    where: { deletedAt: null },
+    select: { id: true }
+  }
+};
+
+// --- Helpers comunes ---
+// Reutiliza la misma comprobación de borrado lógico en lecturas de usuario.
+async function findActiveUser(db, userId, select) {
+  const user = await db.user.findUnique({
     where: { id: userId },
-    select: {
-      id: true,
-      deletedAt: true,
-      avatar: {
-        select: { id: true, storagePath: true }
-      }
-    }
+    select: { deletedAt: true, ...select }
   });
-
-  return user && user.deletedAt === null ? user : null;
+  return user?.deletedAt === null ? user : null;
 }
 
-async function updateActiveMembershipContext({ userId, sessionId, membershipId }) {
-  // El contexto activo se persiste en la sesión como en el usuario.
-  return prisma.$transaction(async (tx) => {
-    await tx.session.update({
-      where: { id: sessionId },
-      data: { activeMembershipId: membershipId }
-    });
-
-    await tx.user.update({
-      where: { id: userId },
-      data: { lastActiveMembershipId: membershipId }
-    });
-
-    return { membershipId };
-  });
+// --- Perfil propio: GET ---
+async function findUserProfileById(userId) {
+  return findActiveUser(prisma, userId, userProfileSelect);
 }
 
+// --- Perfil propio: PATCH ---
+// Actualiza solo los campos editables del perfil básico.
 async function updateUserProfile(userId, data) {
   return prisma.user.update({
     where: { id: userId },
@@ -106,14 +103,32 @@ async function updateUserProfile(userId, data) {
   });
 }
 
+// --- Contexto del usuario: PUT ---
+// La comunidad activa vive en sesión y también en el usuario para recordar el último contexto elegido.
+async function updateActiveMembershipContext({ userId, sessionId, membershipId }) {
+  return prisma.$transaction(async (tx) => {
+    await tx.session.update({
+      where: { id: sessionId },
+      data: { activeMembershipId: membershipId }
+    });
+    await tx.user.update({
+      where: { id: userId },
+      data: { lastActiveMembershipId: membershipId }
+    });
+    return { membershipId };
+  });
+}
+
+// --- Avatar propio: PUT/DELETE ---
+async function findUserProfileImageContext(userId) {
+  return findActiveUser(prisma, userId, userAvatarContextSelect);
+}
+
 async function replaceUserProfileImage(userId, fileData) {
   return prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({
-      where: { id: userId },
-      select: { id: true, deletedAt: true }
-    });
+    const user = await findActiveUser(tx, userId, { id: true });
 
-    if (!user || user.deletedAt !== null) {
+    if (!user) {
       return null;
     }
 
@@ -139,19 +154,14 @@ async function replaceUserProfileImage(userId, fileData) {
 
 async function deleteUserProfileImage(userId) {
   return prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        deletedAt: true,
-        avatar: { select: { id: true, storagePath: true } }
-      }
+    const user = await findActiveUser(tx, userId, {
+      id: true,
+      avatar: { select: { id: true, storagePath: true } }
     });
 
-    if (!user || user.deletedAt !== null) {
+    if (!user) {
       return null;
     }
-
     if (!user.avatar?.id) {
       return { storagePath: null };
     }
@@ -162,6 +172,7 @@ async function deleteUserProfileImage(userId) {
   });
 }
 
+// --- Baja de cuenta: validaciones previas ---
 async function findActivePresidenciesByUserId(userId) {
   return prisma.membership.findMany({
     where: {
@@ -172,46 +183,33 @@ async function findActivePresidenciesByUserId(userId) {
       community: { deletedAt: null }
     },
     orderBy: { joinedAt: 'asc' },
-    select: {
-      community: {
-        select: {
-          id: true,
-          name: true
-        }
-      }
-    }
+    select: { community: { select: { id: true, name: true } } }
   });
 }
 
+// --- Baja de cuenta: DELETE lógico ---
 async function deleteUserAccount(userId, deletionData) {
-  // El borrado de cuenta es lógico: invalida acceso y relaciones activas, pero conserva trazabilidad mínima.
+  // El borrado es lógico: anulamos acceso y relaciones activas, pero mantenemos la trazabilidad mínima.
   return prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        deletedAt: true,
-        avatar: { select: { id: true, storagePath: true } },
-        memberships: {
-          where: { deletedAt: null },
-          select: { id: true }
-        }
-      }
-    });
+    const user = await findActiveUser(tx, userId, accountDeletionContextSelect);
 
-    if (!user || user.deletedAt !== null) {
+    if (!user) {
       return null;
     }
 
     const now = new Date();
-    const membershipIds = user.memberships.map((membership) => membership.id);
+    const membershipIds = user.memberships.map(({ id }) => id);
+
+    await requestsRepository.archiveRequestsByUserId(tx, { userId, archivedAt: now });
 
     if (membershipIds.length > 0) {
+      // Este bloque limpia o anonimiza lo que depende directamente de memberships activas.
       await calendarRepository.softDeletePersonalEventsByMembershipIds(tx, membershipIds, now);
       const cancelledBookingIds = await reservationsRepository.cancelBookingsByOwnerMembershipIds(tx, membershipIds, {
         cancelledAt: now,
         cancellationReason: 'USER_ACCOUNT_DELETED'
       });
+
       await calendarRepository.softDeleteReservationEventsBySourceEntityIds(tx, cancelledBookingIds, now);
       await votingRepository.deleteVotesOfMembershipsInOpenPolls(tx, membershipIds, now);
       await forumRepository.deleteForumLikesByMembershipIds(tx, membershipIds);
@@ -219,11 +217,10 @@ async function deleteUserAccount(userId, deletionData) {
       await forumRepository.anonymizeForumCommentsByMembershipIds(tx, membershipIds);
       await newsRepository.anonymizeNewsByMembershipIds(tx, membershipIds);
       await incidentsRepository.anonymizeIncidentsByMembershipIds(tx, membershipIds);
-      await requestsRepository.archiveRequestsByUserId(tx, { userId, archivedAt: now });
-      // Se marca también la vivienda, porque su significado depende de la membership eliminada.
+
+      // La vivienda asociada a memberships activas también se retira del circuito funcional.
       await tx.property.updateMany({
-        where: { membershipId: { in: membershipIds }, deletedAt: null
-        },
+        where: { membershipId: { in: membershipIds }, deletedAt: null },
         data: { deletedAt: now }
       });
 
@@ -234,9 +231,6 @@ async function deleteUserAccount(userId, deletionData) {
         },
         data: { endedAt: now, endReason: 'USER_ACCOUNT_DELETED', deletedAt: now }
       });
-    }
-    else {
-      await requestsRepository.archiveRequestsByUserId(tx, { userId, archivedAt: now });
     }
 
     await tx.session.updateMany({
@@ -259,7 +253,7 @@ async function deleteUserAccount(userId, deletionData) {
     });
 
     if (user.avatar?.id) {
-      // El registro de avatar se elimina dentro de la transaccion; el fichero se limpia después.
+      // El registro del avatar cae dentro de la transacción; el fichero físico se borra fuera.
       await tx.userAvatar.delete({ where: { userId } });
     }
 

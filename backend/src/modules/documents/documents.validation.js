@@ -1,31 +1,31 @@
 const { z } = require('zod');
 
+// Validaciones de documents: revisan navegación, carpetas, PDFs y movimientos dentro del árbol.
+// Flujo cubierto: entrada Express -> schemas Zod -> datos listos para el servicio.
+// Expone schemas de carpetas, documentos, navegación, contenido y movimiento lógico.
+// Lo consumen las rutas antes de llegar a los controladores.
 const { ValidationError } = require('../../lib/errors');
 const { requiredTextSchema } = require('../../lib/validation/communityFields');
 const { optionalTrimmedStringSchema, positiveIntegerQuerySchema, uuidParamSchema } = require('../../lib/validation/requestFields');
-
-/**
- * Validaciones HTTP del módulo documents.
- * Agrupa params, query, body JSON y el saneado del body multipart.
- */
 
 function validationDetail(field, message, location = 'body') {
   return { field, location, message };
 }
 
-// Reutiliza el helper base y solo añade la regla concreta del campo.
+// UUID opcional usado en parentId/folderId: acepta undefined para raíz.
 const optionalUuidSchema = (fieldName) =>
   optionalTrimmedStringSchema.refine(
     (value) => value === undefined || z.string().uuid().safeParse(value).success,
     `El campo ${fieldName} debe ser un UUID válido`
   );
 
-// La descripción llega como texto libre opcional y se normaliza a undefined si vacía.
+// La descripción llega como texto libre opcional y se vacía a undefined si no tiene contenido real.
 const optionalDescriptionSchema = optionalTrimmedStringSchema.refine(
   (value) => value === undefined || value.length <= 2000,
   'El campo description no puede superar los 2000 caracteres'
 );
 
+// Query download: se acepta el contrato booleano habitual de la app en texto.
 const booleanQuerySchema = (fieldName) =>
   optionalTrimmedStringSchema
     .transform((value) => {
@@ -45,11 +45,15 @@ const booleanQuerySchema = (fieldName) =>
     }).refine((value) => typeof value === 'boolean', `El campo ${fieldName} debe ser un booleano válido`);
 
 // --- Params de ruta ---
+// Params para rutas colgadas directamente de una comunidad.
 const communityIdParamSchema = uuidParamSchema('communityId');
+// Params para rutas que operan sobre una carpeta concreta.
 const folderParamsSchema = uuidParamSchema('communityId', 'folderId');
+// Params para rutas que operan sobre un documento concreto.
 const documentParamsSchema = uuidParamSchema('communityId', 'documentId');
 
 // --- Query params ---
+// Query de GET /: navegación por parentId, búsqueda y paginación del ámbito actual.
 const listDocumentsQuerySchema = z.object({
   parentId: optionalUuidSchema('parentId'),
   search: optionalTrimmedStringSchema,
@@ -57,13 +61,18 @@ const listDocumentsQuerySchema = z.object({
   pageSize: positiveIntegerQuerySchema('pageSize', { min: 1, max: 100, defaultValue: 20 })
 }).strict();
 
+// Query de GET /files/:documentId/content: inline o descarga forzada.
 const documentContentQuerySchema = z.object({ download: booleanQuerySchema('download') }).strict();
 
 // --- Bodies JSON ---
+// Body de POST /folders: crea una carpeta raíz o hija.
 const createFolderSchema = z.object({ name: requiredTextSchema('name', 255), parentId: optionalUuidSchema('parentId') }).strict();
+// Body de PATCH /folders/:folderId: renombrado simple.
 const renameFolderSchema = z.object({ name: requiredTextSchema('name', 255) }).strict();
+// Body de PATCH /files/:documentId: renombrado lógico del documento, sin tocar el fichero físico.
 const renameDocumentSchema = z.object({ name: requiredTextSchema('name', 255) }).strict();
 
+// Body de POST /files: alta de documento PDF con metadatos lógicos.
 const createDocumentSchema = z.object({
   name: requiredTextSchema('name', 255),
   description: optionalDescriptionSchema,
@@ -71,6 +80,7 @@ const createDocumentSchema = z.object({
 }).strict();
 
 // --- Body para mover carpetas/documentos ---
+// "targetFolderId: null" representa mover a la raíz documental.
 const nullableUuidSchema = z.string().uuid('El campo targetFolderId debe ser un UUID válido').nullable();
 
 const moveItemSchema = z.object({
@@ -87,7 +97,7 @@ function sanitizeMultipartBody(allowedFields) {
     const body = req.body || {};
     const extraFields = Object.keys(body).filter((field) => !allowedFields.includes(field));
 
-    // En multipart se blinda el contrato para que solo entren campos conocidos; el fichero viaja por req.file.
+    // En multipart el fichero viaja por req.file, así que aquí solo se permite el subconjunto textual esperado.
     if (extraFields.length > 0) {
       return next(new ValidationError(extraFields.map((field) => validationDetail(field, 'El campo no está permitido'))));
     }

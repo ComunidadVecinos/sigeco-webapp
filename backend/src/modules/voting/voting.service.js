@@ -1,7 +1,9 @@
-﻿// Servicio del módulo voting.
+﻿const { Prisma } = require('@prisma/client');
 
-const { Prisma } = require('@prisma/client');
-
+// Servicio de voting: aplica permisos y reglas temporales al ciclo de vida de cada votación.
+// Flujo cubierto: usuario autenticado -> permisos/reglas temporales -> repositorio/calendar/mail.
+// Expone casos de uso para crear, listar, votar, cerrar y borrar votaciones.
+// Lo consumen los controladores HTTP del módulo.
 const { ConflictError, NotFoundError, ValidationError } = require('../../lib/errors');
 const mailService = require('../../lib/mail');
 const membersRepository = require('../members/members.repository');
@@ -13,10 +15,16 @@ const { buildVotingAutomaticCalendarEvents } = require('../calendar/calendar.rem
 const MINIMUM_VOTING_DURATION_MINUTES = 59;
 const DELETED_USER_ALIAS = 'Usuario eliminado';
 
+// --- Helpers comunes ---
 function buildValidationDetail(field, message) {
   return [{ field, location: 'body', message }];
 }
 
+function buildPagination(page, pageSize, total) {
+  return { page, pageSize, total, totalPages: Math.ceil(total / pageSize) };
+}
+
+// La fecha de cierre debe ser futura y dejar al menos una hora de margen operativo.
 function assertValidVotingEndDate(startsAt, endsAt) {
   if (endsAt <= startsAt) {
     throw new ValidationError(
@@ -40,14 +48,20 @@ function isVotingOpen(voting, now = new Date()) {
   return voting.closedAt === null && voting.endsAt !== null && voting.endsAt > now;
 }
 
-function formatVotingEndsAt(endsAt) {
-  return new Intl.DateTimeFormat('es-ES', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-    timeZone: 'Europe/Madrid'
-  }).format(endsAt);
+async function requireVotingMembershipAccess(userId, communityId) {
+  return membersService.requireCommunityMembershipAccess(userId, communityId, membersRepository);
 }
 
+async function requireVotingAdministrativeAccess(userId, communityId) {
+  return membersService.requireAdministrativeCommunityAccess(userId, communityId, membersRepository);
+}
+
+// --- Votaciones comunitarias: mapeo de salida ---
+function formatVotingEndsAt(endsAt) {
+  return new Intl.DateTimeFormat('es-ES', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Madrid' }).format(endsAt);
+}
+
+// Si la cuenta del creador fue eliminada, ocultamos su alias real en la respuesta pública.
 function mapVotingCreator(membership) {
   if (!membership) {
     return { alias: DELETED_USER_ALIAS };
@@ -55,13 +69,11 @@ function mapVotingCreator(membership) {
   if (membership.deletedAt && membership.endReason === 'USER_ACCOUNT_DELETED') {
     return { alias: DELETED_USER_ALIAS };
   }
-
   return { alias: membership.alias || null };
 }
 
 function buildVoteCountMap(voteCountRows) {
   const voteCountMap = new Map();
-
   for (const row of voteCountRows) {
     voteCountMap.set(`${row.pollId}:${row.optionId}`, row._count._all);
   }
@@ -69,15 +81,14 @@ function buildVoteCountMap(voteCountRows) {
 }
 
 function groupOptionsByPollId(options) {
-  const groupedOptions = new Map();
-
+  const optionsByPollId = new Map();
   for (const option of options) {
-    if (!groupedOptions.has(option.pollId)) {
-      groupedOptions.set(option.pollId, []);
+    if (!optionsByPollId.has(option.pollId)) {
+      optionsByPollId.set(option.pollId, []);
     }
-    groupedOptions.get(option.pollId).push(option);
+    optionsByPollId.get(option.pollId).push(option);
   }
-  return groupedOptions;
+  return optionsByPollId;
 }
 
 function buildMembershipVoteMap(votes) {
@@ -109,14 +120,7 @@ function mapVotingItem(voting, options, voteCountMap, possibleVoters, myVoteOpti
   };
 }
 
-async function requireVotingMembershipAccess(userId, communityId) {
-  return membersService.requireCommunityMembershipAccess(userId, communityId, membersRepository);
-}
-
-async function requireVotingAdministrativeAccess(userId, communityId) {
-  return membersService.requireAdministrativeCommunityAccess(userId, communityId, membersRepository);
-}
-
+// --- Correos del módulo ---
 async function sendVotingCreatedMail({ member, voting }) {
   const targetEmail = member.user?.email;
 
@@ -136,31 +140,22 @@ async function sendVotingCreatedMail({ member, voting }) {
   ].join('\n');
 
   try {
-    await mailService.sendMail({
-      to: targetEmail,
-      subject: 'SIGECO - Nueva votación disponible',
-      text
-    });
-  } catch (error) {
-    console.warn('No se ha podido enviar el correo de nueva votación', {
-      votingId: voting.id,
-      membershipId: member.id,
-      error
-    });
+    await mailService.sendMail({ to: targetEmail, subject: 'SIGECO - Nueva votación disponible', text });
+  }
+  catch (error) {
+    console.warn('No se ha podido enviar el correo de nueva votación', { votingId: voting.id, membershipId: member.id, error });
   }
 }
 
+// El aviso por correo es complementario: si falla no debe deshacer la creación de la votación.
 async function notifyVotingCreated({ communityId, voting }, votingRepository) {
   let members = [];
 
   try {
     members = await votingRepository.findVotingNotificationMembers(communityId);
-  } catch (error) {
-    console.warn('No se han podido obtener los destinatarios del correo de nueva votación', {
-      communityId,
-      votingId: voting.id,
-      error
-    });
+  }
+  catch (error) {
+    console.warn('No se han podido obtener los destinatarios del correo de nueva votación', { communityId, votingId: voting.id, error });
     return;
   }
 
@@ -169,6 +164,7 @@ async function notifyVotingCreated({ communityId, voting }, votingRepository) {
   }
 }
 
+// --- Votaciones comunitarias: POST de creación ---
 async function createVoting(context, communityId, input, votingRepository) {
   const { membership } = await requireVotingAdministrativeAccess(context.userId, communityId);
   const startsAt = new Date();
@@ -187,13 +183,13 @@ async function createVoting(context, communityId, input, votingRepository) {
       options: input.options
     });
 
+    // La votación crea sus recordatorios automáticos dentro de la misma transacción funcional.
     await calendarRepository.replaceAutomaticEventsInDb(tx, {
       communityId,
       type: 'VOTING',
       sourceEntityId: voting.id,
       events: buildVotingAutomaticCalendarEvents({ title: voting.title, endsAt: voting.endsAt })
     });
-
     return voting;
   });
 
@@ -203,9 +199,11 @@ async function createVoting(context, communityId, input, votingRepository) {
   return mapVotingItem(createdVoting, createdVoting.options, new Map(), possibleVoters, null, startsAt);
 }
 
+// --- Votaciones comunitarias: GET ---
 async function getVotingList(context, communityId, input, votingRepository) {
   const { membership } = await requireVotingMembershipAccess(context.userId, communityId);
   const now = new Date();
+
   const [pageResult, summary, possibleVoters] = await Promise.all([
     votingRepository.findVotingPage({ communityId, status: input.status, page: input.page, pageSize: input.pageSize, now }),
     votingRepository.findVotingSummaryCounts({ communityId, now }),
@@ -232,30 +230,23 @@ async function getVotingList(context, communityId, input, votingRepository) {
       membershipVoteMap.get(item.id) || null,
       now
     )),
-    pagination: {
-      page: input.page,
-      pageSize: input.pageSize,
-      total: pageResult.total,
-      totalPages: Math.ceil(pageResult.total / input.pageSize)
-    },
+    pagination: buildPagination(input.page, input.pageSize, pageResult.total),
     summary
   };
 }
 
+// --- Votaciones comunitarias: POST de voto ---
 async function voteOnVoting(context, communityId, votingId, input, votingRepository) {
   const { membership } = await requireVotingMembershipAccess(context.userId, communityId);
   const voting = await votingRepository.findCommunityVotingById({ communityId, votingId });
-
   if (!voting) {
     throw new NotFoundError('Votación no encontrada');
   }
-
   if (!isVotingOpen(voting)) {
     throw new ConflictError('La votación ya está cerrada');
   }
 
   const selectedOption = voting.options.find((option) => option.id === input.optionId);
-
   if (!selectedOption) {
     throw new ValidationError(
       buildValidationDetail('optionId', 'La opción seleccionada no pertenece a esta votación'),
@@ -269,26 +260,23 @@ async function voteOnVoting(context, communityId, votingId, input, votingReposit
       optionId: selectedOption.id,
       membershipId: membership.id
     }));
-
     return { voted: true, votingId: vote.pollId, optionId: vote.optionId, votedAt: vote.createdAt.toISOString() };
-  } 
+  }
   catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw new ConflictError('Solo se permite un voto por usuario y votación');
     }
-
     throw error;
   }
 }
 
+// --- Votaciones comunitarias: POST de cierre ---
 async function closeVoting(context, communityId, votingId, votingRepository) {
   const { membership } = await requireVotingAdministrativeAccess(context.userId, communityId);
   const voting = await votingRepository.findCommunityVotingById({ communityId, votingId });
-
   if (!voting) {
     throw new NotFoundError('Votación no encontrada');
   }
-
   if (!isVotingOpen(voting)) {
     throw new ConflictError('La votación ya está cerrada');
   }
@@ -296,27 +284,23 @@ async function closeVoting(context, communityId, votingId, votingRepository) {
   const closedAt = new Date();
   const closedVoting = await votingRepository.withTransaction(async (tx) => {
     const result = await votingRepository.closeVoting(tx, { communityId, votingId, closedByMembershipId: membership.id, closedAt });
-
     if (!result) {
       return null;
     }
-
     await calendarRepository.softDeleteAutomaticEventInDb(tx, { communityId, type: 'VOTING', sourceEntityId: votingId });
-
     return result;
   });
 
   if (!closedVoting) {
     throw new ConflictError('No se ha podido cerrar la votación');
   }
-
   return { closed: true, votingId: closedVoting.id, closedAt: closedVoting.closedAt.toISOString() };
 }
 
+// --- Votaciones comunitarias: DELETE lógico ---
 async function deleteVoting(context, communityId, votingId, votingRepository) {
   await requireVotingAdministrativeAccess(context.userId, communityId);
   const voting = await votingRepository.findCommunityVotingById({ communityId, votingId });
-
   if (!voting) {
     throw new NotFoundError('Votación no encontrada');
   }
@@ -324,13 +308,10 @@ async function deleteVoting(context, communityId, votingId, votingRepository) {
   const deletedAt = new Date();
   const deleteResult = await votingRepository.withTransaction(async (tx) => {
     const result = await votingRepository.softDeleteVoting(tx, { communityId, votingId, deletedAt });
-
     if (result.count !== 1) {
       return result;
     }
-
     await calendarRepository.softDeleteAutomaticEventInDb(tx, { communityId, type: 'VOTING', sourceEntityId: votingId });
-
     return result;
   });
 

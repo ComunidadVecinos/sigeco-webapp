@@ -1,15 +1,19 @@
-// Acceso a datos del módulo communities.
+// Repositorio de communities: agrupa la persistencia de comunidad, avatar y cambios de contexto.
+// Flujo cubierto: servicio -> queries/transacciones Prisma -> entidades listas para mapear o validar.
+// Expone lecturas de comunidad, cambios de avatar, creación y borrado lógico con impacto en memberships y sesiones.
+// Lo consume communities.service.js.
 const prisma = require('../../lib/prisma');
 const { ConflictError } = require('../../lib/errors');
 const { isMembershipCurrentlySuspended } = require('../../lib/membership');
 
-// El tombstone conserva el CIF previo. Ejemplo: `H-12345678-D-ABC123`.
+// --- Helpers comunes ---
+// El tombstone conserva el CIF previo y libera su unicidad tras el borrado lógico.
 function buildDeletedCommunityCif(currentCif, communityId) {
   const communitySuffix = String(communityId).replace(/-/g, '').slice(-6).toUpperCase();
   return `${currentCif}-D-${communitySuffix}`;
 }
 
-// Communities considera "activos" solo los miembros cuyo acceso no está suspendido en este instante. 
+// Communities considera "activos" solo los miembros no borrados, no finalizados y no suspendidos en este instante.
 function buildCurrentlyActiveMembershipWhere(communityId, now = new Date()) {
   return {
     communityId,
@@ -19,6 +23,22 @@ function buildCurrentlyActiveMembershipWhere(communityId, now = new Date()) {
   };
 }
 
+// Si el contexto preferido del actor deja de existir, intentamos moverlo a una membership restante no suspendida.
+function selectNextActiveMembership(memberships, preferredMembershipId = null) {
+  if (!memberships || memberships.length === 0) {
+    return null;
+  }
+  if (preferredMembershipId) {
+    const preferredMembership = memberships.find((membership) => membership.id === preferredMembershipId);
+    if (preferredMembership) {
+      return preferredMembership;
+    }
+  }
+  const firstNonSuspendedMembership = memberships.find((membership) => !isMembershipCurrentlySuspended(membership));
+  return firstNonSuspendedMembership || memberships[0];
+}
+
+// --- Comunidad: GET y búsquedas base ---
 async function findCommunityByCif(cif) {
   return prisma.community.findFirst({
     where: { cif, deletedAt: null },
@@ -27,24 +47,45 @@ async function findCommunityByCif(cif) {
 }
 
 async function findCommunityStatusById(communityId) {
-  return prisma.community.findUnique({
+  const community = await prisma.community.findUnique({
     where: { id: communityId },
     select: { id: true, deletedAt: true }
   });
+  return community ? { id: community.id, deletedAt: community.deletedAt } : null;
 }
 
+async function findCommunityProfileImageContext(communityId) {
+  return prisma.community.findFirst({
+    where: { id: communityId, deletedAt: null },
+    select: {
+      id: true,
+      avatar: { select: { id: true, storagePath: true } }
+    }
+  });
+}
+
+async function findCommunityLeaders(communityId) {
+  return prisma.membership.findMany({
+    where: {
+      ...buildCurrentlyActiveMembershipWhere(communityId),
+      role: { in: ['PRESIDENT', 'VICE_PRESIDENT'] }
+    },
+    select: { id: true, alias: true, role: true, createdAt: true },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
+  });
+}
+
+// --- Comunidad: PATCH de datos base ---
 async function updateCommunityBasicData(communityId, data) {
-  return prisma.$transaction(async (tx) => {
-    const updateResult = await tx.community.updateMany({
+  return prisma.$transaction(async (db) => {
+    const updated = await db.community.updateMany({
       where: { id: communityId, deletedAt: null },
       data
     });
-
-    if (updateResult.count !== 1) {
+    if (updated.count !== 1) {
       return null;
     }
-
-    return tx.community.findFirst({
+    return db.community.findFirst({
       where: { id: communityId, deletedAt: null },
       select: {
         id: true,
@@ -65,48 +106,33 @@ async function updateCommunityBasicData(communityId, data) {
 }
 
 async function updateCommunityAccessCode(communityId, accessCode) {
-  return prisma.$transaction(async (tx) => {
-    const updateResult = await tx.community.updateMany({
+  return prisma.$transaction(async (db) => {
+    const updated = await db.community.updateMany({
       where: { id: communityId, deletedAt: null },
-      data: {  accessCode }
+      data: { accessCode }
     });
-
-    if (updateResult.count !== 1) {
+    if (updated.count !== 1) {
       return null;
     }
-
-    return tx.community.findFirst({
+    return db.community.findFirst({
       where: { id: communityId, deletedAt: null },
       select: { id: true, accessCode: true }
     });
   });
 }
 
-async function findCommunityProfileImageContext(communityId) {
-  const community = await prisma.community.findFirst({
-    where: { id: communityId, deletedAt: null },
-    select: {
-      id: true,
-      avatar: { select: { id: true,  storagePath: true } }
-    }
-  });
-
-  return community;
-}
-
-// Upsert mantiene una sola fila de avatar por comunidad.
+// --- Comunidad: PUT/DELETE de avatar ---
+// El upsert mantiene una sola fila de avatar por comunidad.
 async function replaceCommunityProfileImage(communityId, fileData) {
-  return prisma.$transaction(async (tx) => {
-    const community = await tx.community.findFirst({
+  return prisma.$transaction(async (db) => {
+    const community = await db.community.findFirst({
       where: { id: communityId, deletedAt: null },
       select: { id: true }
     });
-
     if (!community) {
       return null;
     }
-
-    const file = await tx.communityAvatar.upsert({
+    const file = await db.communityAvatar.upsert({
       where: { communityId },
       update: {
         storagePath: fileData.storagePath,
@@ -121,59 +147,43 @@ async function replaceCommunityProfileImage(communityId, fileData) {
       },
       select: { id: true, storagePath: true }
     });
-
     return { communityId: community.id, file };
   });
 }
 
 async function deleteCommunityProfileImage(communityId) {
-  return prisma.$transaction(async (tx) => {
-    const community = await tx.community.findFirst({
+  return prisma.$transaction(async (db) => {
+    const community = await db.community.findFirst({
       where: { id: communityId, deletedAt: null },
       select: {
         id: true,
         avatar: { select: { id: true, storagePath: true } }
       }
     });
-
     if (!community) {
       return null;
     }
-
     if (!community.avatar?.id) {
       return { communityId: community.id, storagePath: null };
     }
-
-    await tx.communityAvatar.delete({ where: { communityId } });
-
+    await db.communityAvatar.delete({ where: { communityId } });
     return { communityId: community.id, storagePath: community.avatar.storagePath };
   });
 }
 
-function selectNextActiveMembership(memberships, preferredMembershipId = null) {
-  if (!memberships || memberships.length === 0) {
-    return null;
-  }
-
-  if (preferredMembershipId) {
-    const preferredMembership = memberships.find((membership) => membership.id === preferredMembershipId);
-
-    if (preferredMembership) {
-      return preferredMembership;
-    }
-  }
-
-  const firstNonSuspendedMembership = memberships.find((membership) => !isMembershipCurrentlySuspended(membership));
-
-  // Si todas las memberships restantes estan suspendidas, mantenemos una referencia válida.
-  return firstNonSuspendedMembership || memberships[0];
-}
-
-async function softDeleteCommunityWithActorContext({ communityId, actorUserId, actorMembershipId, sessionId, currentSessionActiveMembershipId, nextAccessCode }) {
-  // El borrado lógico libera identificadores únicos y limpia referencias de sesión.
-  return prisma.$transaction(async (tx) => {
+// --- Comunidad: DELETE lógico con impacto en contexto del actor ---
+async function softDeleteCommunityWithActorContext({
+  communityId,
+  actorUserId,
+  actorMembershipId,
+  sessionId,
+  currentSessionActiveMembershipId,
+  nextAccessCode
+}) {
+  // El borrado lógico libera identificadores únicos, cierra memberships y limpia referencias de sesión.
+  return prisma.$transaction(async (db) => {
     const now = new Date();
-    const community = await tx.community.findFirst({
+    const community = await db.community.findFirst({
       where: { id: communityId, deletedAt: null },
       select: {
         id: true,
@@ -191,7 +201,7 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
     }
 
     const deletedCif = buildDeletedCommunityCif(community.cif, communityId);
-    const communityMemberships = await tx.membership.findMany({
+    const communityMemberships = await db.membership.findMany({
       where: { communityId, deletedAt: null, endedAt: null },
       select: {
         id: true,
@@ -203,35 +213,37 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
     });
     const deletedMembershipIds = communityMemberships.map((membership) => membership.id);
 
-    const updateResult = await tx.community.updateMany({
+    const updated = await db.community.updateMany({
       where: { id: communityId, deletedAt: null },
-      // Se libera el código de acceso.
-      data: { deletedAt: now, cif: deletedCif, accessCode: nextAccessCode }
+      data: {
+        deletedAt: now,
+        cif: deletedCif,
+        accessCode: nextAccessCode
+      }
     });
 
-    if (updateResult.count !== 1) {
+    if (updated.count !== 1) {
       return null;
     }
 
-    // Se cierran las memberships actias/abiertas.
-    await tx.membership.updateMany({
+    await db.membership.updateMany({
       where: { communityId, deletedAt: null, endedAt: null },
       data: { endedAt: now, endReason: 'COMMUNITY_DELETED' }
     });
 
-    await tx.communityRequest.updateMany({
+    await db.communityRequest.updateMany({
       where: { communityId, status: 'PENDING', archivedAt: null },
       data: { status: 'CANCELLED', cancelledAt: now }
     });
 
     if (deletedMembershipIds.length > 0) {
-      await tx.session.updateMany({
+      await db.session.updateMany({
         where: { activeMembershipId: { in: deletedMembershipIds }, invalidatedAt: null },
         data: { activeMembershipId: null }
       });
     }
 
-    const actorUser = await tx.user.findUnique({
+    const actorUser = await db.user.findUnique({
       where: { id: actorUserId },
       select: { id: true, lastActiveMembershipId: true, deletedAt: true }
     });
@@ -246,7 +258,7 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
     let nextActiveMembershipId = currentSessionActiveMembershipId || null;
 
     if (shouldUpdateSessionActiveMembership || shouldUpdateUserLastActiveMembership) {
-      const remainingMemberships = await tx.membership.findMany({
+      const remainingMemberships = await db.membership.findMany({
         where: {
           userId: actorUserId,
           deletedAt: null,
@@ -266,19 +278,21 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
         orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }]
       });
 
-      const nextActiveMembership = selectNextActiveMembership(remainingMemberships, shouldUpdateSessionActiveMembership ? null : currentSessionActiveMembershipId);
+      const nextActiveMembership = selectNextActiveMembership(
+        remainingMemberships,
+        shouldUpdateSessionActiveMembership ? null : currentSessionActiveMembershipId
+      );
 
       nextActiveMembershipId = nextActiveMembership?.id || null;
 
       if (shouldUpdateSessionActiveMembership) {
-        await tx.session.update({
+        await db.session.update({
           where: { id: sessionId },
           data: { activeMembershipId: nextActiveMembershipId }
         });
       }
-
       if (shouldUpdateUserLastActiveMembership) {
-        await tx.user.update({
+        await db.user.update({
           where: { id: actorUserId },
           data: { lastActiveMembershipId: nextActiveMembershipId }
         });
@@ -299,18 +313,11 @@ async function softDeleteCommunityWithActorContext({ communityId, actorUserId, a
   });
 }
 
-async function findCommunityLeaders(communityId) {
-  return prisma.membership.findMany({
-    where: { ...buildCurrentlyActiveMembershipWhere(communityId), role: { in: ['PRESIDENT', 'VICE_PRESIDENT'] } },
-    select: { id: true, alias: true, role: true, createdAt: true },
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
-  });
-}
-
+// --- Comunidad: POST de creación ---
 async function createCommunityWithCreatorContext(data) {
-  // Crear comunidad concede rol de presidente al usuario en la sesión.
-  return prisma.$transaction(async (tx) => {
-    const user = await tx.user.findFirst({
+  // Crear comunidad concede rol de presidente al actor y actualiza su contexto activo.
+  return prisma.$transaction(async (db) => {
+    const user = await db.user.findFirst({
       where: { id: data.userId, deletedAt: null },
       select: { id: true }
     });
@@ -319,7 +326,7 @@ async function createCommunityWithCreatorContext(data) {
       return null;
     }
 
-    const session = await tx.session.findFirst({
+    const session = await db.session.findFirst({
       where: {
         id: data.sessionId,
         userId: data.userId,
@@ -333,7 +340,7 @@ async function createCommunityWithCreatorContext(data) {
       return null;
     }
 
-    const community = await tx.community.create({
+    const community = await db.community.create({
       data: {
         name: data.community.name,
         cif: data.community.cif,
@@ -349,12 +356,17 @@ async function createCommunityWithCreatorContext(data) {
       select: { id: true, name: true, cif: true, accessCode: true }
     });
 
-    const membership = await tx.membership.create({
-      data: { userId: data.userId, communityId: community.id, role: 'PRESIDENT', alias: data.alias },
+    const membership = await db.membership.create({
+      data: {
+        userId: data.userId,
+        communityId: community.id,
+        role: 'PRESIDENT',
+        alias: data.alias
+      },
       select: { id: true, role: true, alias: true, joinedAt: true }
     });
 
-    const property = await tx.property.create({
+    const property = await db.property.create({
       data: {
         membershipId: membership.id,
         label: data.creatorProperty.label,
@@ -385,12 +397,12 @@ async function createCommunityWithCreatorContext(data) {
       }
     });
 
-    await tx.user.update({
+    await db.user.update({
       where: { id: data.userId },
       data: { lastActiveMembershipId: membership.id }
     });
 
-    const sessionUpdate = await tx.session.updateMany({
+    const sessionUpdate = await db.session.updateMany({
       where: { id: data.sessionId, userId: data.userId, invalidatedAt: null },
       data: { activeMembershipId: membership.id }
     });

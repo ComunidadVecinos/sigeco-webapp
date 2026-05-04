@@ -1,12 +1,11 @@
+// Capa HTTP de incidents: convierte el flujo de incidencias en respuestas claras para el API.
+// Flujo cubierto: request autenticada y validada -> servicio -> JSON HTTP.
+// Expone controladores de alta, consulta, edición, borrado y cambio de estado de incidencias.
+// Lo consumen las rutas del módulo con asyncHandler.
 const incidentsRepository = require('./incidents.repository');
 const incidentsService = require('./incidents.service');
 
-/**
- * El controller adapta HTTP al servicio del módulo incidents.
- * Extrae datos de req, delega la lógica al service y devuelve la respuesta.
- */
-
-function requestUser(req) {
+function requestContext(req) {
   return { userId: req.user.id };
 }
 
@@ -14,9 +13,10 @@ function incidentWriteInput(req) {
   return { ...req.body, imageFile: req.file || null };
 }
 
+// --- Incidencias: POST ---
 async function createIncident(req, res) {
   const result = await incidentsService.createIncident(
-    requestUser(req),
+    requestContext(req),
     req.params.communityId,
     incidentWriteInput(req),
     incidentsRepository
@@ -24,9 +24,10 @@ async function createIncident(req, res) {
   return res.status(201).json(result);
 }
 
+// --- Incidencias: GET ---
 async function getIncidentList(req, res) {
   const result = await incidentsService.getIncidentList(
-    requestUser(req),
+    requestContext(req),
     req.params.communityId,
     req.query,
     incidentsRepository
@@ -36,7 +37,7 @@ async function getIncidentList(req, res) {
 
 async function getIncidentDetail(req, res) {
   const result = await incidentsService.getIncidentDetail(
-    requestUser(req),
+    requestContext(req),
     req.params.communityId,
     req.params.incidentId,
     incidentsRepository
@@ -44,9 +45,10 @@ async function getIncidentDetail(req, res) {
   return res.status(200).json(result);
 }
 
+// --- Incidencias: PATCH ---
 async function updateIncident(req, res) {
   const result = await incidentsService.updateIncident(
-    requestUser(req),
+    requestContext(req),
     req.params.communityId,
     req.params.incidentId,
     incidentWriteInput(req),
@@ -55,9 +57,10 @@ async function updateIncident(req, res) {
   return res.status(200).json(result);
 }
 
+// --- Incidencias: DELETE ---
 async function deleteIncidentImage(req, res) {
   const result = await incidentsService.deleteIncidentImage(
-    requestUser(req),
+    requestContext(req),
     req.params.communityId,
     req.params.incidentId,
     incidentsRepository
@@ -67,7 +70,7 @@ async function deleteIncidentImage(req, res) {
 
 async function deleteIncident(req, res) {
   const result = await incidentsService.deleteIncident(
-    requestUser(req),
+    requestContext(req),
     req.params.communityId,
     req.params.incidentId,
     incidentsRepository
@@ -75,9 +78,10 @@ async function deleteIncident(req, res) {
   return res.status(200).json(result);
 }
 
+// --- Incidencias: POST de cambio de estado ---
 async function updateIncidentStatus(req, res) {
   const result = await incidentsService.updateIncidentStatus(
-    requestUser(req),
+    requestContext(req),
     req.params.communityId,
     req.params.incidentId,
     req.body,
