@@ -85,9 +85,3 @@ docker compose exec backend npm run db:reset
 - [Architecture overview](./docs/architecture/overview.md)
 - [Database overview](./docs/database/overview.md)
 - [API documentation](./docs/api/README.md)
-
-## Notes for reviewers
-
-- The project is intended for local execution and academic evaluation
-- Sessions are cookie-based, so browser requests to the API must include credentials
-- Development emails are delivered to MailPit instead of a real SMTP service
