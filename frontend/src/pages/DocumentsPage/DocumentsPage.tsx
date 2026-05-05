@@ -11,6 +11,9 @@ import { Button } from '@/components/ui/button';
 import { getDocuments, deleteDocument, DocItem, moveItem } from '@/services/documentService';
 import {format} from 'date-fns';
 import {es} from 'date-fns/locale';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
+
 
 const DocumentsPage: React.FC = () => {
     const {user} = useAuth();
@@ -34,6 +37,11 @@ const DocumentsPage: React.FC = () => {
     const [dragOverRoot, setDragOverRoot] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
 
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'delete' | null; docId: string; docType: string; title: string; message: string;}>({isOpen: false, type: null, docId: '', docType: '', title: '', message: ''});
+
     const loadDocuments = async () => {
         if(!communityId) return;
         setLoading(true);
@@ -56,7 +64,7 @@ const DocumentsPage: React.FC = () => {
                 });
             }
         } catch (err) {
-            console.error('Error cargando docuemntos', err);
+            console.error('Error cargando documentos', err);
         } finally {
             setLoading(false);
         }
@@ -92,13 +100,12 @@ const DocumentsPage: React.FC = () => {
     };
 
     const handleDelete = async (docId: string, name: string, type: string) => {
-        const msg = type === 'folder' ? `¿Eliminar la carpeta "${name}" y todo su contenido?` : `¿Eliminar el documento "${name}"?`;
-        if(!communityId || !confirm(msg)) return;
+        if(!communityId) return;
         try{
             await deleteDocument(communityId, docId, type);
             await loadDocuments();
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al eliminar.');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar.'});
         }
     };
 
@@ -122,7 +129,7 @@ const DocumentsPage: React.FC = () => {
             await moveItem(communityId, {itemId:data.id, itemType: data.type, targetFolderId});
             await loadDocuments();
         } catch (err: any){
-            alert(err.response?.data?.error?.message || 'Error al mover el elemento.');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al mover el elemento.'});
         }
     };
 
@@ -138,7 +145,7 @@ const DocumentsPage: React.FC = () => {
             await moveItem(communityId, {itemId: data.id, itemType: data.type, targetFolderId: null});
             await loadDocuments();
         } catch (err: any){
-            alert(err.response?.data?.error?.message ||'Error al mover el elemento.');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al mover el elemento.'});
         }
     };
 
@@ -180,7 +187,7 @@ const DocumentsPage: React.FC = () => {
                     <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-blue-600' onClick={() => setEditModal({open: true, docId: doc.id, name: doc.name, type: doc.type})}>
                         <Pencil className='h-3.5 w-3.5' />
                     </Button>
-                    <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-red-600' onClick={() => handleDelete(doc.id, doc.name, doc.type)}>
+                    <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-red-600' onClick={() => setConfirmAction({ isOpen: true, type: 'delete', docId: doc.id, docType: doc.type, title: 'Eliminar Documento', message: `¿Eliminar el documento "${doc.name}"?`})}>
                         <Trash2 className='h-3.5 w-3.5' />
                     </Button>
                 </div>
@@ -224,7 +231,7 @@ const DocumentsPage: React.FC = () => {
                             <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-blue-600' onClick={() => setEditModal({open: true, docId: folder.id, name: folder.name, type: folder.type})}>
                                 <Pencil className='h-3.5 w-3.5' />
                             </Button>
-                            <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-red-600' onClick={() => handleDelete(folder.id, folder.name, folder.type)}>
+                            <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-red-600' onClick={() => setConfirmAction({ isOpen: true, type: 'delete', docId: folder.id, docType: folder.type, title: 'Eliminar Carpeta', message: `¿Eliminar la carpeta "${folder.name}"?`})}>
                                 <Trash2 className='h-3.5 w-3.5' />
                             </Button>
                         </div>
@@ -336,6 +343,25 @@ const DocumentsPage: React.FC = () => {
                 onClose={() => setViewerModal({open: false, url: '', name: ''})}
                 documentUrl ={viewerModal.url}
                 documentName={viewerModal.name}
+            />
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                isDestructive={true}
+                confirmText='Sí, eliminar'
+                onConfirm={async () => {
+                    if(confirmAction.type === 'delete') await handleDelete(confirmAction.docId, '', confirmAction.docType);
+                }}
             />
         </div>
     );

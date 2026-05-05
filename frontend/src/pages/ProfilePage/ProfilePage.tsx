@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import {Pencil, Camera, ChevronRight, LogOut, Trash2, Plus, Archive} from 'lucide-react';
 import { getMyRequests, archiveRequest, cancelRequest } from '@/services/communityServices';
 import LeaveCommunityModal from '@/components/ui/LeaveCommunityModal/LeaveCommunityModal';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 
 
 const ProfilePage: React.FC = () =>{
@@ -47,6 +48,9 @@ const ProfilePage: React.FC = () =>{
 
     const [solicitudes, setSolicitudes] = useState<any[]>([]);
 
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
     const cargarSolicitudes = async () => {
         try{
             const res = await getMyRequests();
@@ -73,7 +77,7 @@ const ProfilePage: React.FC = () =>{
             }
             await cargarSolicitudes();
         }catch(err: any){
-            alert(err.response?.data?.error?.message || 'Error al archivar solicitud');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al archivar solicitud.'});
         }
     };
 
@@ -328,6 +332,13 @@ const ProfilePage: React.FC = () =>{
                     onSuccess={async () => {
                         await refreshUser();
                     }}
+                />
+
+                <FeedbackModal 
+                    isOpen={feedback.isOpen}
+                    type={feedback.type}
+                    message={feedback.message}
+                    onClose={closeFeedback}
                 />
         </div>
     );

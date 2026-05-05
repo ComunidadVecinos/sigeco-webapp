@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '../button';
 import { Label } from '../label';
 import { updateIncidentStatus, IncidentStatus } from '@/services/incidentService';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+
 
 interface ChangeStatusModalProps {
     isOpen: boolean;
@@ -43,6 +45,9 @@ const ChangeStatusModal: React.FC<ChangeStatusModalProps> = ({isOpen, onClose, c
     const [nextStatus, setNextStatus] = useState<'inProgress' | 'resolved' | 'cancelled'>(allowedTransitions[0]?.value || 'inProgress');
     const [loading, setLoading] = useState(false);
 
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
     const handleSave = async () => {
         setLoading(true);
         try{
@@ -50,7 +55,7 @@ const ChangeStatusModal: React.FC<ChangeStatusModalProps> = ({isOpen, onClose, c
             onClose();
             onSuccess();
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al cambiar el estado.');
+            setFeedback({isOpen: true, type: 'error', message: 'Error al cambiar el estado.'});
         } finally {
             setLoading(false);
         }
@@ -79,6 +84,14 @@ const ChangeStatusModal: React.FC<ChangeStatusModalProps> = ({isOpen, onClose, c
                         </Button>
                     </DialogFooter>
             </DialogContent>
+
+                <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
         </Dialog>
     );
 };

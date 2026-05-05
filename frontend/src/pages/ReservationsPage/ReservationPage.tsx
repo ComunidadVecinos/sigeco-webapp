@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { getSpaces, getAvailability, createBooking, getMyBookings, cancelBooking, getCommunityBookings, type Space, type Slot, type BookingRules, type Booking } from '@/services/reservationService';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 
 type Tab = 'calendar' | 'myBookings' | 'allBookings';
 
@@ -53,6 +54,9 @@ const ReservationsPage: React.FC = () => {
     const [allBookingsHasMore, setAllBookingsHasMore] = useState(true);
     const [loadingAllBookings, setLoadingAllBookings] = useState(false);
     const [allBookingsStatus, setAllBookingsStatus] = useState('active');
+    
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
 
     // ---- Redirect si no hay comunidad ---- //
     useEffect(() => {
@@ -170,9 +174,9 @@ const ReservationsPage: React.FC = () => {
             const res = await getAvailability(communityId, selectedSpaceId, dateStr);
             setSlots(res.data.slots || []);
             setBookingRules(res.data.bookingRules || null);
-            alert('¡Reservada creada con éxito!');
+            setFeedback({isOpen: true, type: 'success', message: '¡Reservada creada con éxito!'});
         } catch (err) {
-            alert((err as any).response?.data?.error?.message || 'Error al crear la reserva');
+            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al crear la reserva'});
         }
     };
 
@@ -248,7 +252,7 @@ const ReservationsPage: React.FC = () => {
                 loadAllBookings(0);
             }
         } catch (err) {
-            alert((err as any).response?.data?.error?.message || 'Error al cancelar la reserva');
+            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al cancelar la reserva'});
         };
     };
 
@@ -498,6 +502,13 @@ const ReservationsPage: React.FC = () => {
                 onClose={() => { setIsCancelModalOpen(false); setCancellingBookingId(null); }}
                 onConfirm={handleConfirmCancel}
             />
+
+            <FeedbackModal 
+                    isOpen={feedback.isOpen}
+                    type={feedback.type}
+                    message={feedback.message}
+                    onClose={closeFeedback}
+                />
         </div>
     );
 };

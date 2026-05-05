@@ -2,6 +2,8 @@ import React, {useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '../dialog';
 import {Button} from '../button';
 import { leaveCommunity } from '@/services/communityServices';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+
 
 interface LeaveCommunityModalProps {
     isOpen: boolean;
@@ -14,6 +16,9 @@ interface LeaveCommunityModalProps {
 const LeaveCommunityModal: React.FC<LeaveCommunityModalProps> = ({isOpen, onClose, communityId, communityName, onSuccess}) => {
     const [loading, setLoading] = useState(false);
 
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
     const handleLeave = async () => {
         setLoading(true);
         try{
@@ -21,7 +26,7 @@ const LeaveCommunityModal: React.FC<LeaveCommunityModalProps> = ({isOpen, onClos
             onClose();
             onSuccess();
         } catch(err: any) {
-            alert(err.response?.data?.error?.message || 'No se pudo abandonar la comunidad.');
+            setFeedback({isOpen: true, type: 'error', message: 'No se pudo abandonar la comunidad.'});
         } finally {
             setLoading(false);
         }
@@ -50,6 +55,13 @@ const LeaveCommunityModal: React.FC<LeaveCommunityModalProps> = ({isOpen, onClos
                     </Button>
                 </DialogFooter>
             </DialogContent>
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
         </Dialog>
     );
 };

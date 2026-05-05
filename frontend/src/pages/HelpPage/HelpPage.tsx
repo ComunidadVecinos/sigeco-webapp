@@ -5,6 +5,9 @@ import { useAuth } from '@/context/authContext';
 import { getGeneralHelp, getCommunityHelp, deleteHelpSection, reorderHelpSections } from '@/services/helpServices';
 import { Button } from '@/components/ui/button';
 import HelpSectionModal from '@/components/ui/HelpSectionModal/HelpSectionModal';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
+
 
 const HelpPage: React.FC = () => {
     const { user } = useAuth();
@@ -19,6 +22,12 @@ const HelpPage: React.FC = () => {
     const [editingSection, setEditingSection] = useState<any>(null);
     const [reordering, setReordering] = useState(false);
     const [tempSections, setTempSections] = useState<any[]>([]);
+
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'delete' | null; idToDelete: string; title: string; message: string;}>({isOpen: false, type: null, idToDelete: '', title: '', message: ''});
+
 
     const loadHelp = async () => {
         try {
@@ -36,14 +45,13 @@ const HelpPage: React.FC = () => {
     }, [communityId]);
 
     const handleDelete = async (sectionId: string) => {
-        if (!confirm('¿Eliminar esta sección de ayuda?')) return;
 
         try {
             await deleteHelpSection(communityId!, sectionId);
             loadHelp();
         } 
         catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al eliminar la sección');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar la sección.'});
         }
     };
 
@@ -64,7 +72,7 @@ const HelpPage: React.FC = () => {
             setCommunitySections(tempSections);
             setReordering(false);
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al reordenar');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al reordenar.'});
         }
     };
 
@@ -169,7 +177,7 @@ const HelpPage: React.FC = () => {
                                                         variant="ghost"
                                                         size="sm"
                                                         className="text-red-500"
-                                                        onClick={() => handleDelete(section.id)}
+                                                        onClick={() => setConfirmAction({ isOpen: true, type: 'delete', idToDelete: section.id, title: 'Eliminar Sección', message: '¿Estás seguro de eliminar esta sección de ayuda?' })}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
@@ -213,6 +221,25 @@ const HelpPage: React.FC = () => {
                 communityId={communityId!}
                 section={editingSection}
                 onSuccess={loadHelp}
+            />
+
+             <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                isDestructive={true}
+                confirmText='Sí, eliminar'
+                onConfirm={async () => {
+                    if(confirmAction.type === 'delete') await handleDelete(confirmAction.idToDelete);
+                }}
             />
         </div>
     );

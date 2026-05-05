@@ -4,6 +4,8 @@ import { Button } from '../button';
 import { Input } from '../input';
 import { Label } from '../label';
 import { updateDocument } from '@/services/documentService';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+
 
 interface EditDocumentModaProps {
     isOpen: boolean;
@@ -19,6 +21,9 @@ const EditDocumentModal: React.FC<EditDocumentModaProps> = ({isOpen, onClose, co
     const [name, setName] = useState(currentName);
     const [loading, setLoading] = useState(false);
 
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
     useEffect(() => {setName(currentName); }, [currentName]);
 
     const handleSave = async () => {
@@ -29,7 +34,8 @@ const EditDocumentModal: React.FC<EditDocumentModaProps> = ({isOpen, onClose, co
             onClose();
             onSuccess();
         } catch (err: any){
-            alert(err.response?.data?.error?.message || 'Error al editar');
+            setFeedback({isOpen: true, type: 'error', message: 'Error al editar.'});
+
         } finally {
             setLoading(false);
         }
@@ -52,6 +58,14 @@ const EditDocumentModal: React.FC<EditDocumentModaProps> = ({isOpen, onClose, co
                     </Button>
                 </DialogFooter>
             </DialogContent>
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
         </Dialog>
     );
 };

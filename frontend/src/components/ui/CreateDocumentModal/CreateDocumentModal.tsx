@@ -4,6 +4,8 @@ import { Button } from '../button';
 import { Input } from '../input';
 import { Label } from '../label';
 import { uploadDocument } from '@/services/documentService';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+
 
 interface CreateDocumentModaProps {
     isOpen: boolean;
@@ -18,6 +20,9 @@ const CreateDocumentModal: React.FC<CreateDocumentModaProps> = ({isOpen, onClose
     const [description, setDescription] = useState('');
     const [file, setFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
+
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
 
     const resetForm = () => {setName(''); setDescription(''); setFile(null);};
 
@@ -35,7 +40,7 @@ const CreateDocumentModal: React.FC<CreateDocumentModaProps> = ({isOpen, onClose
             onClose();
             onSuccess();
         } catch (err: any){
-            alert(err.response?.data?.error?.message || 'Error al subir el documento');
+            setFeedback({isOpen: true, type: 'error', message: 'Error al subir el documento.'});
         } finally {
             setLoading(false);
         }
@@ -68,6 +73,14 @@ const CreateDocumentModal: React.FC<CreateDocumentModaProps> = ({isOpen, onClose
                     </Button>
                 </DialogFooter>
             </DialogContent>
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
         </Dialog>
     );
 };

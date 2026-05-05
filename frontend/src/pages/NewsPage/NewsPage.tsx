@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getNews, createNews, updateNews, deleteNews } from '@/services/newsService';
 import { useNavigate } from 'react-router-dom';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
+
 
 interface News {
     id: string;
@@ -52,6 +55,12 @@ const NewsPage: React.FC = () => {
     const [formData, setFormData] = useState({title: '', content: '', isEvent: false, eventStartDate: '', eventStartTime: '', eventEndDate: '', eventEndTime: '', imageFile: null as File | null, imagePreview: ''});
 
     const [eventTypeFilter, setEventTypeFilter] = useState<'all' | 'event' | 'nonEvent'>('all');
+
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'delete' | null; idToDelete: string; title: string; message: string;}>({isOpen: false, type: null, idToDelete: '', title: '', message: ''});
+    
     
     useEffect(() => {
         if (!authLoading && user && !communityId) {
@@ -113,7 +122,7 @@ const NewsPage: React.FC = () => {
             setPage(0);
             loadNews(0);
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al guardar la noticia');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al guardar la noticia.'});
         }
     };
 
@@ -140,14 +149,14 @@ const NewsPage: React.FC = () => {
     };
 
     const handleDeleteNews = async (newsId: string) => {
-        if(!communityId || !confirm('¿Estas seguro de eliminar esta noticia?')) return;
+        if(!communityId) return;
         if(featureUnavailable) return;
         try{
             await deleteNews(communityId, newsId);
             setNewsList(newsList.filter(n => n.id !== newsId));
         }
         catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al eliminar la noticia');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar la noticia.'});
         }
     };
 
@@ -265,7 +274,7 @@ const NewsPage: React.FC = () => {
                             imageUrl={news.imageUrl}
                             isAdmin={isAdmin}
                             onEdit={() => handleOpenEdit(news)}
-                            onDelete={() => handleDeleteNews(news.id)}
+                            onDelete={() => setConfirmAction({ isOpen: true, type: 'delete', idToDelete: news.id, title: 'Eliminar Noticia', message: '¿Estás seguro de eliminar esta noticia?' })}
                         />
                     ))}
                 </div>
@@ -288,6 +297,25 @@ const NewsPage: React.FC = () => {
                 isEditing={!!editingNewsId}
                 formData={formData}
                 setFormData={setFormData}
+            />
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                isDestructive={true}
+                confirmText='Sí, eliminar'
+                onConfirm={async () => {
+                    if(confirmAction.type === 'delete') await handleDeleteNews(confirmAction.idToDelete);
+                }}
             />
         </div>
     );

@@ -7,6 +7,9 @@ import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { getSpaces, createSpace, changeSpaceStatus, deleteSpace, type Space} from '@/services/reservationService';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
+
 
 const DAY_LABELS: Record<string, string> = {
     monday: 'Lunes', tuesday: 'Martes', wednesday: 'Miércoles', thursday: 'Jueves', friday: 'Viernes', saturday: 'Sábado', sunday: 'Domingo'
@@ -24,6 +27,12 @@ const SpaceManagementPage: React.FC = () => {
     const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
+
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'toggleStatus' | 'deleteSpace' | null; title: string; message: string;}>({isOpen: false, type: null, title: '', message: ''});
+    
 
     // ---- Redirect si no es admin o no existe la comunidad ---- //
     useEffect(() => {
@@ -68,7 +77,7 @@ const SpaceManagementPage: React.FC = () => {
             setSelectedSpaceId(newSpace.id);
             setIsCreateSpaceOpen(false);
         } catch (err){
-            alert((err as any).response?.data?.error?.message || 'Error al crear el espacio');
+            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al crear el espacio'});
         }
     };
 
@@ -76,27 +85,25 @@ const SpaceManagementPage: React.FC = () => {
     const handleToogleStatus = async () => {
         if(!communityId || !selectedSpace) return;
         const newStatus = !selectedSpace.isActive;
-        if(!confirm(`¿${newStatus ? 'Activar' : 'Desactivar'} el espacio "${selectedSpace.name}"?`)) return;
 
         try{
             const res = await changeSpaceStatus(communityId, selectedSpace.id, newStatus);
             setSpaces(prev => prev.map(s => s.id === selectedSpace.id ? res.data.space : s));
         } catch(err){
-            alert((err as any).response?.data?.error?.message || 'Error al cambiar el estado');
+            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al cambiar el estado.'});
         }
     };
 
     // ---- Eliminar un espacio ---- //
     const handleDeleteSpace = async () => {
         if(!communityId || !selectedSpace) return;
-        if(!confirm(`¿Eliminar el espacio "${selectedSpace.name}"? Esta acción no se puede deshacer.`)) return;
 
         try{
             await deleteSpace(communityId, selectedSpace.id);
             setSpaces(prev => prev.filter(s => s.id !== selectedSpace.id));
             setSelectedSpaceId(null);
         } catch (err) {
-            alert((err as any).response?.data?.error?.message || 'Error al eliminar el espacio');
+            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al eliminar el espacio'});
         }
     };
 
@@ -281,7 +288,7 @@ const SpaceManagementPage: React.FC = () => {
                                         size='sm'
                                         variant='outline'
                                         className={`flex items-center gap-2 ${selectedSpace.isActive ? 'text-amber-600 border-amber-200 hover:bg-amber-50' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'}`}
-                                        onClick={handleToogleStatus}
+                                        onClick={() => setConfirmAction({isOpen: true, type: 'toggleStatus', title: selectedSpace.isActive ? 'Desactivar Espacio' : 'Activar Espacio', message: `¿${selectedSpace.isActive ? 'Desactivar' : 'Activar'} el espacio "${selectedSpace.name}"?`})}
                                     >
                                         {selectedSpace.isActive ? <ToggleLeft className='h-4 w-4' /> : <ToggleRight className='h-4 w-4' />}
                                         {selectedSpace.isActive ? 'Desactivar' : 'Activar'}
@@ -290,7 +297,7 @@ const SpaceManagementPage: React.FC = () => {
                                         size='sm'
                                         variant='outline'
                                         className='text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-2'
-                                        onClick={handleDeleteSpace}
+                                        onClick={() => setConfirmAction({isOpen: true, type: 'deleteSpace', title: 'Eliminar Espacio', message: `¿Eliminar el espacio ${selectedSpace.name}"? Esta acción no se puede deshacer. `})}
                                     >
                                         <Trash2 className='h-4 w-4' /> Eliminar
                                     </Button>
@@ -305,6 +312,24 @@ const SpaceManagementPage: React.FC = () => {
                 isOpen={isCreateSpaceOpen}
                 onClose={() => setIsCreateSpaceOpen(false)}
                 onSave={handleCreateSpace}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                onConfirm={async () => {
+                    if(confirmAction.type === 'toggleStatus') await handleToogleStatus();
+                    if(confirmAction.type === 'deleteSpace') await handleDeleteSpace();
+                }}
+            />
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
             />
         </div>
     );

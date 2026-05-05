@@ -274,7 +274,7 @@ const NewCommunityPage: React.FC = () => {
             navigate('/admin');
         }
         catch (error: any){
-            const fieldMap = opcion === 'crear'
+            const fieldMap: Record<string, string> = opcion === 'crear'
                 ? {
                     'community.name': 'com_nombre',
                     'community.cif': 'com_cif',

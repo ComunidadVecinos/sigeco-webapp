@@ -9,6 +9,9 @@ import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { getIncidents, createIncident, updateIncident, deleteIncident, Incident, IncidentStatus, IncidentSummary } from '@/services/incidentService';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
+
 
 const summaryCards: {key: keyof Omit<IncidentSummary, 'total'>; label: string; icon: React.ReactNode; bg:string; border: string; text: string }[] = [
     {key: 'pending', label: 'Pendientes', icon: <AlertCircle className='h-5 w-5' />, bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700'},
@@ -48,6 +51,12 @@ const IncidentPage: React.FC = () => {
     const [formData, setFormData] = useState({title: '', description: '', imageFile: null as File | null, imagePreview: ''});
     const [statusModal, setStatusModal] = useState<{open: boolean; incidentId: string; currentStatus: IncidentStatus}>({open: false, incidentId: '', currentStatus: 'pending'});
     
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'delete' | null; idToDelete: string; title: string; message: string;}>({isOpen: false, type: null, idToDelete: '', title: '', message: ''});
+    
+
     useEffect(() => {
         if (!authLoading && user && !communityId) {
             navigate('/auth/me', { replace: true });
@@ -116,19 +125,19 @@ const IncidentPage: React.FC = () => {
             setPage(0);
             loadIncidents(0);
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al guardar la incidencia');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al guardar la incidencia.'});
         }
     };
 
     const handleDeleteIncident = async (incidentId: string) => {
-        if(!communityId || !confirm('¿Estas seguro de eliminar esta incidencia?')) return;
+        if(!communityId) return;
         try{
             await deleteIncident(communityId, incidentId);
             setPage(0);
             loadIncidents(0);
         }
         catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al eliminar la incidencia');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar la incidencia.'});
         }
     };
 
@@ -186,7 +195,7 @@ const IncidentPage: React.FC = () => {
                             isAdmin={isAdmin}
                             isOwner={incident.author?.alias !== null && incident.author.alias === (activeCommunity?.alias || null)}
                             onEdit={() => handleOpenEdit(incident)}
-                            onDelete={() => handleDeleteIncident(incident.id)}
+                            onDelete={() => setConfirmAction({ isOpen: true, type: 'delete', idToDelete: incident.id, title: 'Eliminar Incidencia', message: '¿Estás seguro de eliminar esta incidencia?' })}
                             onChangeStatus={() => setStatusModal({open: true, incidentId: incident.id, currentStatus: incident.status})}
                         />
                     ))}
@@ -219,6 +228,25 @@ const IncidentPage: React.FC = () => {
                 incidentId={statusModal.incidentId}
                 currentStatus={statusModal.currentStatus}
                 onSuccess={() => {setPage(0); loadIncidents(0);}}
+            />
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                isDestructive={true}
+                confirmText='Sí, eliminar'
+                onConfirm={async () => {
+                    if(confirmAction.type === 'delete') await handleDeleteIncident(confirmAction.idToDelete);
+                }}
             />
 
         </div>

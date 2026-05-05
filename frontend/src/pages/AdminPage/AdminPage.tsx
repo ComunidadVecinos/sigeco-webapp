@@ -15,6 +15,8 @@ import TransferRoleModal from '@/components/ui/TransferRoleModal/TransferRoleMod
 import DeleteCommunityModal from '@/components/ui/DeleteCommunityModal/DeleteCommunityModal';
 import EditPhotoModal from '@/components/ui/EditPhotoModal/EditPhotoModal';
 import GenerateCodeModal from '@/components/ui/GenerateCodeModal/GenerateCodeModal';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
 
 type RequestFilterState = {
@@ -65,32 +67,21 @@ const AdminPage: React.FC = () => {
     const [requestTotalPages, setRequestTotalPages] = useState(0);
     const [members, setMembers] = useState<any[]>([]);
     const [membersLoading, setMembersLoading] = useState(false);
-    const [membersFilters, setMembersFilters] = useState<MemberFilterState>({
-        q: '',
-        suspensionStatus: '',
-        joinedAfter: '',
-        joinedBefore: '',
-        page: 1,
-        pageSize: 10
-    });
+    const [membersFilters, setMembersFilters] = useState<MemberFilterState>({q: '', suspensionStatus: '', joinedAfter: '', joinedBefore: '', page: 1, pageSize: 10});
     const [memberTotalPages, setMembersTotalPages] = useState(0);
     const [editCommunityModalOpen, setEditCommunityModalOpen] = useState(false);
     const [communityAvatarModalOpen, setCommunityAvatarModalOpen] = useState(false);
-    const [requestActionModal, setRequestActionModal] = useState<{ open: boolean; action: 'approve' | 'reject'; requestId: string }>({
-        open: false,
-        action: 'approve',
-        requestId: ''
-    });
+    const [requestActionModal, setRequestActionModal] = useState<{ open: boolean; action: 'approve' | 'reject'; requestId: string }>({open: false, action: 'approve', requestId: ''});
     const [suspendModal, setSuspendModal] = useState({ open: false, userId: '', alias: '' });
     const [expelModal, setExpelModal] = useState({ open: false, userId: '', alias: '' });
-    const [transferModal, setTransferModal] = useState<{ open: boolean; userId: string; alias: string; type: 'president' | 'vicepresident' }>({
-        open: false,
-        userId: '',
-        alias: '',
-        type: 'president'
-    });
+    const [transferModal, setTransferModal] = useState<{ open: boolean; userId: string; alias: string; type: 'president' | 'vicepresident' }>({open: false, userId: '', alias: '', type: 'president'});
     const [deleteCommunityModalOpen, setDeleteCommunityModalOpen] = useState(false);
     const [generateCodeModalOpen, setGenerateCodeModalOpen] = useState(false);
+
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'cancelSuspension' | 'assignVP' | 'revokeVP' | null; userId: string; title: string; message: string;}>({isOpen: false, type: null, userId: '', title: '', message: ''});
 
     useEffect(() => {
         if (loading) return;
@@ -196,32 +187,32 @@ const AdminPage: React.FC = () => {
     };
 
     const handleCancelSuspension = async (userId: string) => {
-        if (!communityId || !window.confirm('¿Cancelar la suspensión de este miembro?')) return;
+        if (!communityId) return;
         try {
             await cancelSuspension(communityId, userId);
             await Promise.all([reloadMembers(), reloadSummary()]);
         } catch (err: any) {
-            window.alert(err.response?.data?.error?.message || 'No se ha podido cancelar la suspensión.');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al cancelar la suspensión.'});
         }
     };
 
     const handleAssignVicepresidency = async (userId: string) => {
-        if (!communityId || !window.confirm('¿Asignar a este miembro como vicepresidente?')) return;
+        if (!communityId) return;
         try {
             await assignVicepresident(communityId, userId);
             await Promise.all([reloadMembers(), reloadSummary(), refreshUser()]);
         } catch (err: any) {
-            window.alert(err.response?.data?.error?.message || 'No se ha podido asignar la vicepresidencia.');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al asignar vicepresidencia.'});
         }
     };
 
     const handleRevokeVicepresidency = async (userId: string) => {
-        if(!communityId || !window.confirm('¿Quitar la vicepresidencia a este miembro?')) return;
+        if(!communityId) return;
         try{
             await revokeVicepresidency(communityId, userId);
             await Promise.all([reloadMembers(), reloadSummary(), refreshUser()]);
-        } catch (errr: any){
-            window.alert(errr.response?.data?.message || 'No se ha podido revocar la vicepresidencia.');
+        } catch (err: any){
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al revocar vicepresidencia.'});
         }
     };
 
@@ -522,7 +513,7 @@ const AdminPage: React.FC = () => {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                onClick={() => handleCancelSuspension(member.membershipId)}
+                                                onClick={() => setConfirmAction({isOpen: true, type: 'cancelSuspension', userId: member.membershipId, title: 'Cancelar Suspensión', message: '¿Estás seguro de que deseas cancelar la suspensión de este miembro?' })}
                                             >
                                                 Reactivar
                                             </Button>
@@ -567,7 +558,7 @@ const AdminPage: React.FC = () => {
                                                 size="sm"
                                                 variant="outline"
                                                 className="text-blue-700 border-blue-200 hover:bg-blue-50"
-                                                onClick={() => handleAssignVicepresidency(member.membershipId)}
+                                                onClick={() => setConfirmAction({isOpen: true, type: 'assignVP', userId: member.membershipId, title: 'Asignar Vicepresidencia', message: '¿Confirmas que deseas asignar a este miembro como vicepresidente?' })}
                                             >
                                                 Asignar vicepresidencia
                                             </Button>
@@ -578,7 +569,7 @@ const AdminPage: React.FC = () => {
                                                 size="sm"
                                                 variant="outline"
                                                 className="text-orange-700 border-orange-200 hover:bg-orange-50"
-                                                onClick={() => handleRevokeVicepresidency(member.membershipId)}
+                                                onClick={() => setConfirmAction({isOpen: true, type: 'revokeVP', userId: member.membershipId, title: 'Quitar Vicepresidencia', message: '¿Confirmas que deseas revocar el cargo de vicepresidente a este miembro?' })}
                                             >
                                                 Quitar vicepresidencia
                                             </Button>
@@ -744,6 +735,25 @@ const AdminPage: React.FC = () => {
                         community: { ...prev.community, accessCode: newCode }
                     } : null);
                 }}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                onConfirm={async () => {
+                    if(confirmAction.type === 'cancelSuspension') await handleCancelSuspension(confirmAction.userId);
+                    if(confirmAction.type === 'assignVP') await handleAssignVicepresidency(confirmAction.userId);
+                    if(confirmAction.type === 'revokeVP') await handleRevokeVicepresidency(confirmAction.userId);
+                }}
+            />
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
             />
         </div>
     );

@@ -12,6 +12,9 @@ import { businessFormToUtcIso } from '@/lib/businessDateTime';
 import { getApiErrorMessage } from '@/lib/formErrors';
 import { useNavigate } from 'react-router-dom';
 import './VotingPage.css';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
+
 
 interface VotingOption {
     id: string;
@@ -57,6 +60,11 @@ const VotingPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [closeModalData, setCloseModalData] = useState<{id: string; title: string} | null>(null);
+
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'deletingVoting' | null; votingId: string; title: string; message: string;}>({isOpen: false, type: null, votingId: '', title: '', message: ''});
 
     useEffect(() => {
         if(!authLoading && user && !communityId){
@@ -106,13 +114,13 @@ const VotingPage: React.FC = () => {
         if(!communityId) return;
         try{
             const endsAt = businessFormToUtcIso(data.endsAtDate, data.endsAtTime);
-            if(!endsAt) {alert('Fecha y hora de cierres no válidas'); return;}
+            if(!endsAt) {setFeedback({isOpen: true, type: 'error', message: 'Fecha y hora de cierre no válidas'}); return;}
             await createVoting(communityId, {title: data.title, description: data.description || undefined, endsAt, options: data.options.map(o => ({title: o}))});
             setCreateModalOpen(false);
             setPage(1);
             loadVotings(1, false);
         } catch (err: any) {
-            alert(getApiErrorMessage(err, 'Error al crear la votación'));
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al crear la votación')});
         }
     };
 
@@ -124,7 +132,7 @@ const VotingPage: React.FC = () => {
             setPage(1);
             loadVotings(1, false);
         } catch (err: any){
-            alert(getApiErrorMessage(err, 'Error al emitir el voto'));
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al emitir el voto')});
         }
     };
 
@@ -137,19 +145,18 @@ const VotingPage: React.FC = () => {
             setPage(1);
             loadVotings(1, false);
         } catch (err: any){
-            alert(getApiErrorMessage(err, 'Error al cerrar la votación'));
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al cerrar la votación')});
         }
     };
 
     //Eliminar votacion
     const handleDeleteVoting = async (votingId: string) => {
         if(!communityId) return;
-        if(!window.confirm('¿Estás seguro de que quieres eliminar esta votación?')) return;
         try{
             await deleteVoting(communityId, votingId);
             setVotingList(prev => prev.filter(v => v.id !== votingId));
         } catch (err: any){
-            alert(getApiErrorMessage(err, 'Error al eliminar la votación'));
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al eliminar la votación')});
         }
     };
 
@@ -234,7 +241,7 @@ const VotingPage: React.FC = () => {
                                     isAdmin={isAdmin}
                                     onVote={handleVote}
                                     onClose={(id) => setCloseModalData({id, title: voting.title})}
-                                    onDelete={handleDeleteVoting}
+                                    onDelete={(id) => setConfirmAction({isOpen: true, type: 'deletingVoting', votingId: id, title: 'Eliminar Votación', message: '¿Estás seguro de que quieres eliminar esta votación?'})}
                                 />
                             ))
                         )}
@@ -267,6 +274,23 @@ const VotingPage: React.FC = () => {
                     votingTitle={closeModalData.title}
                 />
             )}
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                onConfirm={async () => {
+                    if(confirmAction.type === 'deletingVoting') await handleDeleteVoting(confirmAction.votingId);
+                }}
+            />
         </div>
     );
 };

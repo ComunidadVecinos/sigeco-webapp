@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, Trash2 } from "lucide-react";
 import { updateAvatar } from "@/services/userServices";
 import { getApiErrorMessage } from '@/lib/formErrors';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
 interface EditPhotoModalProps{
     isOpen: boolean;
@@ -37,6 +38,8 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [error, setError] = useState('');
     const [deleting, setDeleting] = useState(false);
+
+    const [confirmAction, setConfirmAction] = useState({isOpen: false, title: '', message: ''});
 
     useEffect(() => {
         setPreview(currentPhoto);
@@ -83,7 +86,6 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
 
     const handleDelete = async () => {
         if(!onDeletePhoto) return;
-        if(!window.confirm('¿Eliminar la imagen actual?')) return;
         setDeleting(true);
         setError('');
         try{
@@ -121,7 +123,7 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
                         <Upload className="mr-2 h-4 w-4" />{selectLabel}
                     </Button>
                     {onDeletePhoto && !isDefaultPhoto && (
-                        <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50" onClick={handleDelete} disabled={deleting}>
+                        <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50" onClick={ () => setConfirmAction({isOpen: true, title: 'Eliminar foto', message: '¿Eliminar la imagen actual?'})} disabled={deleting}>
                             <Trash2 className="mr-2 h-4 w-4" />{deleting ? 'Eliminando...' : 'Eliminar foto actual'}
                         </Button>
                     )}
@@ -132,6 +134,19 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
                     <Button onClick={handleSave}>{saveLabel}</Button>
                 </DialogFooter>
             </DialogContent>
+
+                    <ConfirmModal
+                        isOpen={confirmAction.isOpen}
+                        onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                        title={confirmAction.title}
+                        message={confirmAction.message}
+                        isDestructive={true}
+                        confirmText='Sí, eliminar'
+                        onConfirm={async () => {
+                            await handleDelete();
+                        }}
+                    />
+
         </Dialog>
     );
 };

@@ -3,6 +3,8 @@ import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '..
 import { Button } from '../button';
 import { regenerateAccessCode } from '@/services/adminService';
 import { Copy, RefreshCw, Check, Eye, EyeOff } from 'lucide-react';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+
 
 interface GenerateCodeModalProps {
     isOpen: boolean;
@@ -18,6 +20,9 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [visible, setVisible] = useState(false);
+
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
 
     useEffect(() => {
         if(isOpen) {
@@ -61,7 +66,7 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            alert('No se pudo copiar al portapapeles.');
+            setFeedback({isOpen: true, type: 'error', message: 'No se pudo copiar al portapapeles.'});
         }
     };
 
@@ -111,6 +116,14 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
                     <Button variant="outline" size="sm" onClick={onClose}>Cerrar</Button>
                 </DialogFooter>
             </DialogContent>
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+            
         </Dialog>
     );
 };

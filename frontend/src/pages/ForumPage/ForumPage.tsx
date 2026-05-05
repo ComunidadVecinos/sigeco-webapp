@@ -15,6 +15,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DateRange } from 'react-day-picker';
 import { useNavigate } from 'react-router-dom';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
+
 
 
 type PostCategory = 'question' | 'poll' | 'announcement' | 'request';
@@ -101,6 +104,12 @@ const ForumPage: React.FC = () => {
     const [editingPostId, setEditingPostId] = useState<string | null>(null);
     const [editPostContent, setEditPostContent] = useState('');
 
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'deletePost' | 'deleteComment' | null; idToDelete: string; title: string; message: string;}>({isOpen: false, type: null, idToDelete: '', title: '', message: ''});
+    
+
     useEffect(() => {
         if (!authLoading && user && !communityId) {
             navigate('/auth/me', { replace: true });
@@ -162,7 +171,7 @@ const ForumPage: React.FC = () => {
             loadPosts(0);
         }
         catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al crear publicación');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al crear publicación.'});
         }
     };
 
@@ -178,19 +187,19 @@ const ForumPage: React.FC = () => {
             setEditingPostId(null);
             setEditPostContent('');
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al editar publicación');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al editar publicación.'});
         }
     };
 
     //Eliminar post
     const handleDeletePost = async (postId: string) => {
-        if (!communityId || !confirm('¿Eliminar esta publicación?')) return;
+        if (!communityId) return;
         if (featureUnavailable) return;
         try {
             await deletePost(communityId, postId);
             setPosts(posts.filter(p => p.id !== postId));
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al eliminar publicación');
+           setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar publicación.'});
         }
     };
 
@@ -216,7 +225,7 @@ const ForumPage: React.FC = () => {
             setPage(0);
             loadPosts(0);
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al votar');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al votar en la publicación.'});
         }
     };
 
@@ -231,10 +240,11 @@ const ForumPage: React.FC = () => {
             else {
                 await pinPost(communityId, post.id);
             }
+            loadPosts(0);
             setPosts(prev => prev.map(p => p.id === post.id ? { ...p, pinned: !p.pinned } : p));
         }
         catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al fijar/desfijar publicación');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al fijar/desfijar la publicación.'});
         }
     };
 
@@ -262,7 +272,7 @@ const ForumPage: React.FC = () => {
             setCommentsList([...commentsList, res.data]);
             setPosts(posts.map(p => p.id === selectedPost.id ? { ...p, commentsCount: p.commentsCount + 1 } : p));
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al comentar');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al comentar en la publicación.'});
         }
     };
 
@@ -274,19 +284,19 @@ const ForumPage: React.FC = () => {
             await updateComment(communityId, commentId, { content });
             setCommentsList(commentsList.map(c => c.id === commentId ? { ...c, content, editedAt: new Date().toISOString() } : c));
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al editar comentario');
+           setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al editar comentario.'});
         }
     };
 
     // Eliminar comentario
     const handleDeleteComment = async (commentId: string) => {
-        if (!communityId || !selectedPost || !confirm('¿Eliminar este comentario?')) return;
+        if (!communityId || !selectedPost) return;
         if (featureUnavailable) return;
         try {
             const res = await deleteComment(communityId, commentId);
             setCommentsList(commentsList.map(c => c.id === commentId ? res.data : c));
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al eliminar comentario');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar comentario.'});
         }
     };
 
@@ -450,7 +460,7 @@ const ForumPage: React.FC = () => {
                                     }
                                 }}
                                 onEdit={post.category !== 'poll' ? () => { setEditingPostId(post.id); setEditPostContent(post.description); } : undefined}
-                                onDelete={() => handleDeletePost(post.id)}
+                                onDelete={() => setConfirmAction({ isOpen: true, type: 'deletePost', idToDelete: post.id, title: 'Eliminar Publicación', message: '¿Estás seguro de eliminar esta publicación?' })}
                                 onPin={isAdmin ? () => handleTogglePin(post) : undefined}
                                 pinned={post.pinned}
                                 editedAt={post.editedAt}
@@ -497,11 +507,32 @@ const ForumPage: React.FC = () => {
                 isAdmin={isAdmin}
                 onAddComment={handleAddComment}
                 onEditComment={handleEditComment}
-                onDeleteComment={handleDeleteComment}
+                onDeleteComment={(id) => setConfirmAction({ isOpen: true, type: 'deleteComment', idToDelete: id, title: 'Eliminar Comentario', message: '¿Estás seguro de eliminar este comentario?' })}
                 onLikeComment={handleLikeComment}
                 commentsSortBy={commentsSortby}
                 onChangeCommentsSortBy={async (sort) => { setCommentsSortBy(sort); await reloadComments(sort); }}
 
+            />
+
+             <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                isDestructive={true}
+                confirmText='Sí, eliminar'
+                onConfirm={async () => {
+                    if(confirmAction.type === 'deletePost') await handleDeletePost(confirmAction.idToDelete);
+                    if(confirmAction.type === 'deleteComment') await handleDeleteComment(confirmAction.idToDelete);
+
+                }}
             />
         </div>
     );
