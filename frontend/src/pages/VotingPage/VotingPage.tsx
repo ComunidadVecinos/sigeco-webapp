@@ -154,7 +154,8 @@ const VotingPage: React.FC = () => {
         if(!communityId) return;
         try{
             await deleteVoting(communityId, votingId);
-            setVotingList(prev => prev.filter(v => v.id !== votingId));
+            setPage(1);
+            loadVotings(1, false);
         } catch (err: any){
             setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al eliminar la votación')});
         }

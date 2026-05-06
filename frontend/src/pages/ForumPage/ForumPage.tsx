@@ -4,7 +4,7 @@ import Sidebar from '../../components/ui/Sidebar/Sidebar';
 import CreatePost from '../../components/ui/CreatePost/CreatePost';
 import PostCard from '../../components/ui/PostCard/PostCard';
 import CommentsModal from '../../components/ui/CommentsModal/CommentsModal';
-import { Menu, Filter, CalendarIcon } from 'lucide-react';
+import { Menu, Filter, CalendarIcon, Target } from 'lucide-react';
 import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,7 +92,6 @@ const ForumPage: React.FC = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [loading, setLoading] = useState(false);
-    const [featureUnavailable, setFeatureUnavailable] = useState(false);
     const [sortBy, setSortBy] = useState<'createdAt' | 'likes' | 'lastActivityAt'>('createdAt');
 
     //Comentarios
@@ -103,6 +102,7 @@ const ForumPage: React.FC = () => {
     //Editar post
     const [editingPostId, setEditingPostId] = useState<string | null>(null);
     const [editPostContent, setEditPostContent] = useState('');
+    const [editPostTitle, setEditPostTitle] = useState('');
 
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
     const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
@@ -121,7 +121,6 @@ const ForumPage: React.FC = () => {
         if (!communityId) return;
         setLoading(true);
         try {
-            setFeatureUnavailable(false);
             const res = await getPosts(communityId, {
                 page: pageNum + 1,
                 pageSize: 10,
@@ -136,7 +135,6 @@ const ForumPage: React.FC = () => {
             setHasMore(pagination.page < pagination.totalPages);
         } catch (err: any) {
             if (err?.response?.status === 404) {
-                setFeatureUnavailable(true);
                 setPosts([]);
                 setHasMore(false);
             }
@@ -157,7 +155,6 @@ const ForumPage: React.FC = () => {
     //Crear post
     const handleNewPost = async (title: string, description: string, category: PostCategory, pollOptions?: string[]) => {
         if (!communityId) return;
-        if (featureUnavailable) return;
         try {
             const data: any = { title, description, category }
             if (category === 'poll' && pollOptions) {
@@ -177,15 +174,15 @@ const ForumPage: React.FC = () => {
 
     //Editar post
     const handleEditPost = async (postId: string) => {
-        if (!communityId || !editPostContent.trim()) return;
-        if (featureUnavailable) return;
+        if (!communityId || !editPostContent.trim() || !editPostTitle.trim()) return;
         try {
-            await updatePost(communityId, postId, { description: editPostContent });
+            await updatePost(communityId, postId, { title: editPostContent, description: editPostContent });
             setPosts(prev => prev.map(p => 
-                p.id === postId ? {...p, description: editPostContent, editedAt: new Date().toISOString()} : p
+                p.id === postId ? {...p, title: editPostTitle, description: editPostContent, editedAt: new Date().toISOString()} : p
             ));
             setEditingPostId(null);
             setEditPostContent('');
+            setEditPostTitle('');
         } catch (err: any) {
             setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al editar publicación.'});
         }
@@ -194,7 +191,6 @@ const ForumPage: React.FC = () => {
     //Eliminar post
     const handleDeletePost = async (postId: string) => {
         if (!communityId) return;
-        if (featureUnavailable) return;
         try {
             await deletePost(communityId, postId);
             setPosts(posts.filter(p => p.id !== postId));
@@ -206,7 +202,6 @@ const ForumPage: React.FC = () => {
     //Dar o quitar like
     const handleLike = async (postId: string) => {
         if (!communityId) return;
-        if (featureUnavailable) return;
         try {
             const res = await toggleLike(communityId, postId);
             const newLikesCount = res.data.likesCount;
@@ -219,7 +214,6 @@ const ForumPage: React.FC = () => {
     // Votar encuesta
     const handleVote = async (postId: string, pollId: string, optionId: string) => {
         if (!communityId) return;
-        if (featureUnavailable) return;
         try {
             await votePoll(communityId, pollId, { optionId });
             setPage(0);
@@ -232,7 +226,6 @@ const ForumPage: React.FC = () => {
     //Fijar/desfijar publicacion
     const handleTogglePin = async (post: Post) => {
         if (!communityId) return;
-        if (featureUnavailable) return;
         try {
             if (post.pinned) {
                 await unpinPost(communityId, post.id);
@@ -253,7 +246,6 @@ const ForumPage: React.FC = () => {
         setSelectedPost(post);
         setCommentsSortBy('createdAt');
         if (!communityId) return;
-        if (featureUnavailable) return;
         try {
             const res = await getComments(communityId, post.id, { page: 1, pageSize: 50, sortBy: 'createdAt' });
             setCommentsList(res.data.items || []);
@@ -266,7 +258,6 @@ const ForumPage: React.FC = () => {
     // Añadir comentario
     const handleAddComment = async (content: string) => {
         if (!communityId || !selectedPost) return;
-        if (featureUnavailable) return;
         try {
             const res = await addComment(communityId, selectedPost.id, { content });
             setCommentsList([...commentsList, res.data]);
@@ -279,7 +270,6 @@ const ForumPage: React.FC = () => {
     // Editar comentario
     const handleEditComment = async (commentId: string, content: string) => {
         if (!communityId || !selectedPost) return;
-        if (featureUnavailable) return;
         try {
             await updateComment(communityId, commentId, { content });
             setCommentsList(commentsList.map(c => c.id === commentId ? { ...c, content, editedAt: new Date().toISOString() } : c));
@@ -291,7 +281,6 @@ const ForumPage: React.FC = () => {
     // Eliminar comentario
     const handleDeleteComment = async (commentId: string) => {
         if (!communityId || !selectedPost) return;
-        if (featureUnavailable) return;
         try {
             const res = await deleteComment(communityId, commentId);
             setCommentsList(commentsList.map(c => c.id === commentId ? res.data : c));
@@ -336,12 +325,6 @@ const ForumPage: React.FC = () => {
 
             <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px]'>
                 <h1 className='text-[28px] font-bold mb-7 text-center'>Foro comunitario</h1>
-
-                {featureUnavailable && (
-                    <div className='bg-white rounded-2xl border border-amber-200 p-6 mb-6 text-amber-800 shadow-sm'>
-                        El backend actual no expone todavía el módulo de foro. La pantalla se mantiene accesible, pero sus datos y acciones no están disponibles en esta arquitectura.
-                    </div>
-                )}
 
                 <div className='flex justify-between items-center mb-4'>
                     <div className="flex gap-2">
@@ -417,12 +400,19 @@ const ForumPage: React.FC = () => {
                     </div>
                 )}
 
-                {!featureUnavailable && <CreatePost onSubmit={handleNewPost} />}
+                <CreatePost onSubmit={handleNewPost} />
+
 
                 <div className="mt-7 flex flex-col gap-5">
                     {posts.map((post) => (
                         editingPostId === post.id ? (
                             <div key={post.id} className='bg-white rounded-2xl p-5 shadow-sm'>
+                                <input 
+                                    type="text" 
+                                    className='w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#104084] font-bold mb-3'
+                                    value={editPostTitle}
+                                    onChange={(e) => setEditPostTitle(e.target.value)}
+                                />
                                 <textarea
                                     className='w-full border border-gray-200 rounded-xl p-3 resize-none text-sm focus:outline-none focus:border-[#104084]'
                                     value={editPostContent}
@@ -459,7 +449,7 @@ const ForumPage: React.FC = () => {
                                         if (option) handleVote(post.id, post.poll.id, option.id);
                                     }
                                 }}
-                                onEdit={post.category !== 'poll' ? () => { setEditingPostId(post.id); setEditPostContent(post.description); } : undefined}
+                                onEdit={post.category !== 'poll' ? () => { setEditingPostId(post.id); setEditPostContent(post.description); setEditPostTitle(post.title); } : undefined}
                                 onDelete={() => setConfirmAction({ isOpen: true, type: 'deletePost', idToDelete: post.id, title: 'Eliminar Publicación', message: '¿Estás seguro de eliminar esta publicación?' })}
                                 onPin={isAdmin ? () => handleTogglePin(post) : undefined}
                                 pinned={post.pinned}

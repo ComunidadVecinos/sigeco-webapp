@@ -2,11 +2,11 @@ import React, {useEffect, useState} from 'react';
 import Header from '@/components/common/Header/Header';
 import Sidebar from '@/components/ui/Sidebar/Sidebar';
 import CreateEditSpaceModal from '@/components/ui/CreateEditSpaceModal/CreateEditSpaceModal';
-import { Menu, Plus, ArrowLeft, Clock, CalendarDays, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
+import { Menu, Plus, ArrowLeft, Clock, CalendarDays, ToggleLeft, ToggleRight, Trash2, Pencil } from 'lucide-react';
 import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { getSpaces, createSpace, changeSpaceStatus, deleteSpace, type Space} from '@/services/reservationService';
+import { getSpaces, createSpace, changeSpaceStatus, deleteSpace, updateSpace, type Space} from '@/services/reservationService';
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
@@ -27,6 +27,7 @@ const SpaceManagementPage: React.FC = () => {
     const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
+    const [spaceToEdit, setSpaceToEdit] = useState<Space | null>(null);
 
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
     const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
@@ -80,6 +81,24 @@ const SpaceManagementPage: React.FC = () => {
             setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al crear el espacio'});
         }
     };
+
+    // --- Modificar espacio --- //
+    const handelEditSpace = async (data: any) => {
+        if(!communityId || !spaceToEdit) return;
+        try{
+            const {isActive, ...updateData} = data;
+
+            if(!updateData.description) updateData.description = null;
+            if(updateData.occupancyMode === 'EXCLUSIVE') updateData.maxSeatsPerBooking = null;
+
+            const res = await updateSpace(communityId, spaceToEdit.id, updateData);
+
+            setSpaces(prev => prev.map(s => s.id == spaceToEdit.id ? res.data.space : s));
+            setSpaceToEdit(null);
+        } catch (err){
+            setFeedback({isOpen:true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al editar el espacio'});
+        }
+    }
 
     // ---- Cambiar estado de un espacio ---- //
     const handleToogleStatus = async () => {
@@ -287,6 +306,14 @@ const SpaceManagementPage: React.FC = () => {
                                     <Button
                                         size='sm'
                                         variant='outline'
+                                        className='text-blue-600 border-blue-200 hover:bg-blue-50 flex items-center gap-2'
+                                        onClick={() => setSpaceToEdit(selectedSpace)}
+                                    >
+                                        <Pencil className='h-4 w-4' /> Editar
+                                    </Button>
+                                    <Button
+                                        size='sm'
+                                        variant='outline'
                                         className={`flex items-center gap-2 ${selectedSpace.isActive ? 'text-amber-600 border-amber-200 hover:bg-amber-50' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'}`}
                                         onClick={() => setConfirmAction({isOpen: true, type: 'toggleStatus', title: selectedSpace.isActive ? 'Desactivar Espacio' : 'Activar Espacio', message: `¿${selectedSpace.isActive ? 'Desactivar' : 'Activar'} el espacio "${selectedSpace.name}"?`})}
                                     >
@@ -309,9 +336,10 @@ const SpaceManagementPage: React.FC = () => {
             </main>
 
             <CreateEditSpaceModal 
-                isOpen={isCreateSpaceOpen}
-                onClose={() => setIsCreateSpaceOpen(false)}
-                onSave={handleCreateSpace}
+                isOpen={isCreateSpaceOpen || spaceToEdit !== null}
+                onClose={() => {setIsCreateSpaceOpen(false); setSpaceToEdit(null);}}
+                onSave={(data) => spaceToEdit ? handelEditSpace(data) : handleCreateSpace(data)}
+                spaceToEdit={spaceToEdit}
             />
 
             <ConfirmModal

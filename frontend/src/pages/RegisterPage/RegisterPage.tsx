@@ -1,10 +1,10 @@
-import React, {useState} from 'react';
-import {Link, useNavigate} from 'react-router-dom';
-import {register} from '../../services/authServices';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { register } from '../../services/authServices';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';   
-import {Eye, EyeOff} from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Eye, EyeOff } from 'lucide-react';
 import { getApiErrorMessage, getApiFieldErrors, hasFieldErrors } from '@/lib/formErrors';
 
 interface FormData {
@@ -45,53 +45,53 @@ const RegisterPage: React.FC = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     //Validacion de nombre
-    const validateNombre = (value: string):string | undefined => {
-        if(!value.trim()) return 'El nombre es requerido';
+    const validateNombre = (value: string): string | undefined => {
+        if (!value.trim()) return 'El nombre es requerido';
         return undefined;
     };
 
     //Validacion de apellidos
-    const validateApellidos = (value: string):string | undefined => {
-        if(!value.trim()) return 'Los apellidos son requeridos';
+    const validateApellidos = (value: string): string | undefined => {
+        if (!value.trim()) return 'Los apellidos son requeridos';
         return undefined;
     };
 
     //Validacion de email
-    const validateEmail = (value: string):string | undefined => {
-        if(!value.trim()) return 'El email es requerido';
-        if(!value.endsWith('@ucm.es')) return 'El email debe ser @ucm.es';
+    const validateEmail = (value: string): string | undefined => {
+        if (!value.trim()) return 'El email es requerido';
+        if (!value.endsWith('@ucm.es')) return 'El email debe ser @ucm.es';
         return undefined;
     };
 
     //Validacion de telefono
-    const validateTelefono = (value: string):string | undefined => {
-        if(!value.trim()) return undefined;
-        if(!/^[\d\s]+$/.test(value)) return 'El telefono solo puede contener dígitos y espacios';
+    const validateTelefono = (value: string): string | undefined => {
+        if (!value.trim()) return undefined;
+        if (!/^[\d\s]+$/.test(value)) return 'El telefono solo puede contener dígitos y espacios';
         const soloNum = value.replace(/\s/g, '');
-        if(soloNum.length !== 9) return 'El teléfono debe tener 9 dígitos';
+        if (soloNum.length !== 9) return 'El teléfono debe tener 9 dígitos';
         return undefined;
     };
 
     //Validacion de contraseña
-    const validatePassword = (value: string):string | undefined => {
-        if(!value.trim()) return 'El contraseña es requerida';
-        if(value.length < 8) return 'Mínimo 8 caracteres';
-        if(!/[A-Z]/.test(value)) return 'Debe contener al menos una mayúscula';
-        if(!/[a-z]/.test(value)) return 'Debe contener al menos una minúscula';
-        if(!/[0-9]/.test(value)) return 'Debe contener al menos una número';
-        if(!/[!@#$%^&*(),.?":{}|<>]/.test(value)) return 'Debe contener un carácter especial (!@#$%^&*...)';
+    const validatePassword = (value: string): string | undefined => {
+        if (!value.trim()) return 'El contraseña es requerida';
+        if (value.length < 8) return 'Mínimo 8 caracteres';
+        if (!/[A-Z]/.test(value)) return 'Debe contener al menos una mayúscula';
+        if (!/[a-z]/.test(value)) return 'Debe contener al menos una minúscula';
+        if (!/[0-9]/.test(value)) return 'Debe contener al menos una número';
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(value)) return 'Debe contener un carácter especial (!@#$%^&*...)';
         return undefined;
     };
 
     //Validacion de confirmacion de contraseña
-    const validateConfirmPassword = (value: string):string | undefined => {
-        if(!value.trim()) return 'Debes repetir la contraseña';
-        if(value !== formData.password) return 'Las contraseñas no coinciden';
+    const validateConfirmPassword = (value: string): string | undefined => {
+        if (!value.trim()) return 'Debes repetir la contraseña';
+        if (value !== formData.password) return 'Las contraseñas no coinciden';
         return undefined;
     };
 
     //Validar todo 
-    const validateForm = (): boolean =>{
+    const validateForm = (): boolean => {
         const newErrors: FormErrors = {
             nombre: validateNombre(formData.nombre),
             apellidos: validateApellidos(formData.apellidos),
@@ -107,12 +107,12 @@ const RegisterPage: React.FC = () => {
 
     //Manejar cambios
     const handleChange = (field: keyof FormData, value: string) => {
-        setFormData({...formData, [field]: value});
+        setFormData({ ...formData, [field]: value });
     };
 
     //Manejar blur
     const handleBlur = (field: keyof FormData) => {
-        setTouched({...touched, [field]: true});
+        setTouched({ ...touched, [field]: true });
 
         const validators: Record<keyof FormData, (v: string) => string | undefined> = {
             nombre: validateNombre,
@@ -123,7 +123,7 @@ const RegisterPage: React.FC = () => {
             confirmPassword: validateConfirmPassword
         };
 
-        setErrors({...errors, [field]: validators[field](formData[field])});
+        setErrors({ ...errors, [field]: validators[field](formData[field]) });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -134,7 +134,7 @@ const RegisterPage: React.FC = () => {
         Object.keys(formData).forEach(key => allTouched[key] = true);
         setTouched(allTouched);
 
-        if(validateForm()) {
+        if (validateForm()) {
             try {
                 await register(
                     formData.nombre,
@@ -146,7 +146,7 @@ const RegisterPage: React.FC = () => {
                 );
                 navigate('/auth/login');
             }
-            catch (error: any){
+            catch (error: any) {
                 const fieldErrors = getApiFieldErrors(error, {
                     firstName: 'nombre',
                     lastName: 'apellidos',
@@ -162,16 +162,16 @@ const RegisterPage: React.FC = () => {
                 }
 
                 setGlobalError(getApiErrorMessage(error, 'No se ha podido completar el registro. Revisa los datos e inténtalo de nuevo.'));
-            } 
+            }
         }
     };
 
     const isFormValid =
-        !validateNombre(formData.nombre) && 
-        !validateApellidos(formData.apellidos) && 
-        !validateEmail(formData.email) && 
-        !validateTelefono(formData.telefono) && 
-        !validatePassword(formData.password) && 
+        !validateNombre(formData.nombre) &&
+        !validateApellidos(formData.apellidos) &&
+        !validateEmail(formData.email) &&
+        !validateTelefono(formData.telefono) &&
+        !validatePassword(formData.password) &&
         !validateConfirmPassword(formData.confirmPassword);
 
 
@@ -187,12 +187,12 @@ const RegisterPage: React.FC = () => {
 
                         <div className="space-y-2 w-full md:w-5/12">
                             <Label>Nombre</Label>
-                            <Input 
-                                type="text" 
-                                className={touched.nombre ? (errors.nombre ? 'border-red-500' : 'border-green-500') : ''} 
-                                placeholder='María' 
-                                value={formData.nombre} 
-                                onChange={(e) => handleChange('nombre', e.target.value)} 
+                            <Input
+                                type="text"
+                                className={touched.nombre ? (errors.nombre ? 'border-red-500' : 'border-green-500') : ''}
+                                placeholder='María'
+                                value={formData.nombre}
+                                onChange={(e) => handleChange('nombre', e.target.value)}
                                 onBlur={() => handleBlur('nombre')}
                             />
                             {touched.nombre && errors.nombre && <div className='text-sm text-red-500'>{errors.nombre}</div>}
@@ -200,12 +200,12 @@ const RegisterPage: React.FC = () => {
 
                         <div className="space-y-2 w-full md:w-7/12">
                             <Label>Apellidos</Label>
-                            <Input 
-                                type="text" 
-                                className={touched.apellidos ? (errors.apellidos ? 'border-red-500' : 'border-green-500') : ''} 
-                                placeholder='Pérez Gómez' 
-                                value={formData.apellidos} 
-                                onChange={(e) => handleChange('apellidos', e.target.value)} 
+                            <Input
+                                type="text"
+                                className={touched.apellidos ? (errors.apellidos ? 'border-red-500' : 'border-green-500') : ''}
+                                placeholder='Pérez Gómez'
+                                value={formData.apellidos}
+                                onChange={(e) => handleChange('apellidos', e.target.value)}
                                 onBlur={() => handleBlur('apellidos')}
                             />
                             {touched.apellidos && errors.apellidos && <div className='text-sm text-red-500'>{errors.apellidos}</div>}
@@ -217,15 +217,15 @@ const RegisterPage: React.FC = () => {
 
                         <div className="space-y-2 w-full md:w-8/12">
                             <Label htmlFor="register-email">Correo electrónico</Label>
-                            <Input 
+                            <Input
                                 id="register-email"
                                 name="email"
-                                type="email" 
+                                type="email"
                                 autoComplete="email"
-                                className={touched.email ? (errors.email ? 'border-red-500' : 'border-green-500') : ''}  
-                                placeholder='correo@ucm.es' 
-                                value={formData.email} 
-                                onChange={(e) => handleChange('email', e.target.value)} 
+                                className={touched.email ? (errors.email ? 'border-red-500' : 'border-green-500') : ''}
+                                placeholder='correo@ucm.es'
+                                value={formData.email}
+                                onChange={(e) => handleChange('email', e.target.value)}
                                 onBlur={() => handleBlur('email')}
                             />
                             {touched.email && errors.email && <div className='text-sm text-red-500'>{errors.email}</div>}
@@ -233,15 +233,15 @@ const RegisterPage: React.FC = () => {
 
                         <div className="space-y-2 w-full md:w-4/12">
                             <Label htmlFor="register-phone">Teléfono</Label>
-                            <Input 
+                            <Input
                                 id="register-phone"
                                 name="phone"
-                                type="tel" 
+                                type="tel"
                                 autoComplete="tel"
-                                className={touched.telefono ? (errors.telefono ? 'border-red-500' : 'border-green-500') : ''}   
-                                placeholder='600 123 456 (opcional)' 
-                                value={formData.telefono} 
-                                onChange={(e) => handleChange('telefono', e.target.value)} 
+                                className={touched.telefono ? (errors.telefono ? 'border-red-500' : 'border-green-500') : ''}
+                                placeholder='600 123 456 (opcional)'
+                                value={formData.telefono}
+                                onChange={(e) => handleChange('telefono', e.target.value)}
                                 onBlur={() => handleBlur('telefono')}
                             />
                             {touched.telefono && errors.telefono && <div className='text-sm text-red-500'>{errors.telefono}</div>}
@@ -252,15 +252,15 @@ const RegisterPage: React.FC = () => {
                     <div className="space-y-2">
                         <Label htmlFor="register-password">Contraseña</Label>
                         <div className='relative'>
-                            <Input 
+                            <Input
                                 id="register-password"
                                 name="password"
-                                type={showPassword ? 'text' : 'password'} 
+                                type={showPassword ? 'text' : 'password'}
                                 autoComplete="new-password"
-                                className={touched.password ? (errors.password ? 'border-red-500 pr-10' : 'border-green-500 pr-10') : 'pr-10'}   
-                                placeholder='********' 
-                                value={formData.password} 
-                                onChange={(e) => handleChange('password', e.target.value)} 
+                                className={touched.password ? (errors.password ? 'border-red-500 pr-10' : 'border-green-500 pr-10') : 'pr-10'}
+                                placeholder='********'
+                                value={formData.password}
+                                onChange={(e) => handleChange('password', e.target.value)}
                                 onBlur={() => handleBlur('password')}
                             />
                             <button type="button" tabIndex={-1} className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600' onClick={() => setShowPassword(p => !p)}>
@@ -273,15 +273,15 @@ const RegisterPage: React.FC = () => {
                     <div className="space-y-2">
                         <Label htmlFor="register-confirm-password">Repetir Contraseña</Label>
                         <div className='relative'>
-                            <Input 
+                            <Input
                                 id="register-confirm-password"
                                 name="confirmPassword"
-                                type={showPassword ? 'text' : 'password'} 
+                                type={showConfirmPassword ? 'text' : 'password'}
                                 autoComplete="new-password"
-                                className={touched.confirmPassword ? (errors.confirmPassword ? 'border-red-500 pr-10' : 'border-green-500 pr-10') : 'pr-10'}   
-                                placeholder='********' 
-                                value={formData.confirmPassword} 
-                                onChange={(e) => handleChange('confirmPassword', e.target.value)} 
+                                className={touched.confirmPassword ? (errors.confirmPassword ? 'border-red-500 pr-10' : 'border-green-500 pr-10') : 'pr-10'}
+                                placeholder='********'
+                                value={formData.confirmPassword}
+                                onChange={(e) => handleChange('confirmPassword', e.target.value)}
                                 onBlur={() => handleBlur('confirmPassword')}
                             />
                             <button type="button" tabIndex={-1} className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600' onClick={() => setShowConfirmPassword(p => !p)}>

@@ -83,6 +83,8 @@ const AdminPage: React.FC = () => {
 
     const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'cancelSuspension' | 'assignVP' | 'revokeVP' | null; userId: string; title: string; message: string;}>({isOpen: false, type: null, userId: '', title: '', message: ''});
 
+    const [avatarKey, setAvatarKey] = useState(Date.now());
+
     useEffect(() => {
         if (loading) return;
         if (!communityId || !isAdmin) navigate('/auth/me');
@@ -261,7 +263,7 @@ const AdminPage: React.FC = () => {
                                 <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
                                     <div className="relative">
                                         <img
-                                            src={summary?.community?.avatar || imagen_generica}
+                                            src={summary?.community?.avatar ? `${summary.community.avatar}${summary.community.avatar.includes('?') ? '&' : '?'}t=${avatarKey}` : imagen_generica}
                                             alt={summary?.community?.name || 'Comunidad'}
                                             className="w-40 h-40 rounded-full object-cover border-4 border-blue-100 shadow-sm"
                                         />
@@ -661,13 +663,16 @@ const AdminPage: React.FC = () => {
                 saveErrorFallback="No se ha podido actualizar el avatar de la comunidad."
                 uploadPhoto={(file) => updateCommunityAvatar(communityId, file)}
                 onSave={async (newPhotoUrl) => {
+                    setAvatarKey(Date.now());
                     setSummary((prev: any) => (prev ? { ...prev, community: { ...prev.community, avatar: newPhotoUrl } } : prev));
                     await reloadSummary();
+                    await refreshUser();
                 }}
                 onDeletePhoto={async () => {
                     await deleteCommunityAvatar(communityId);
                     setSummary((prev: any) => (prev ? { ...prev, community: { ...prev.community, avatar: null } } : prev));
                     await reloadSummary();
+                    await refreshUser();
                 }}
                 defaultPhoto={imagen_generica}
             />

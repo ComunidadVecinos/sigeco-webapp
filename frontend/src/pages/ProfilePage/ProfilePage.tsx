@@ -51,6 +51,8 @@ const ProfilePage: React.FC = () =>{
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
     const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
 
+    const [avatarKey, setAvatarKey] = useState(Date.now());
+
     const cargarSolicitudes = async () => {
         try{
             const res = await getMyRequests();
@@ -125,7 +127,7 @@ const ProfilePage: React.FC = () =>{
                     <div className="flex flex-col md:flex-row items-center mt-4 gap-6">
                         <div className="text-center">
                             <div className="relative inline-block">
-                                <img className="rounded-full border-3 border-gray-200 w-44 h-44 md:w-36 md:h-36 object-cover" src={profilePhoto} alt="Imagen del perfil"/>
+                                <img className="rounded-full border-3 border-gray-200 w-44 h-44 md:w-36 md:h-36 object-cover" src={profilePhoto !== imagen_generica ? `${profilePhoto}${profilePhoto.includes('?') ? '&' : '?'}t=${avatarKey}` : profilePhoto} alt="Imagen del perfil"/>
 
                                 <button onClick={() => setPhotoModalOpen(true)} className="absolute bottom-1 right-1 bg-primary text-primary-foreground rounded-full p-2 hover:opacity-90 transition-opacity">
                                     <Camera className="h-4 w-4"/>
@@ -162,7 +164,7 @@ const ProfilePage: React.FC = () =>{
                             <div className="space-y-3">
                                 {user.communities.map((com: any) => (
                                     <div key={com.communityId} className={`rounded-xl p-4 flex items-center gap-4 ${com.communityId === user?.activeCommunityId ? 'border-2 border-blue-300 bg-blue-50/40 ring-1 ring-blue-100' : 'border border-gray-200'}`}>
-                                        <img src={imagen_generica} alt={com.name} className='w-16 h-16 rounded-full object-cover border-2 border-gray-200' />
+                                        <img src={com.avatarUrl ? `${com.avatarUrl}?t=${avatarKey}` : imagen_generica} alt={com.name} className='w-16 h-16 rounded-full object-cover border-2 border-gray-200' />
                                         <div className="flex-1">
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex items-center gap-2">
@@ -208,7 +210,14 @@ const ProfilePage: React.FC = () =>{
                                 <div>
                                     <div className="flex items-center gap-2">
                                         <span className="font-bold text-sm">{sol.community?.name}</span>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full ${sol.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700': sol.status === 'APPROVED' ? 'bg-green-100 text-green-700': 'bg-red-100 text-red-700'}`}>{sol.status === 'PENDING' ? 'Pendiente': sol.status === 'APPROVED' ? 'Aceptada': 'Rechazada'}
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                            sol.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700': 
+                                            sol.status === 'APPROVED' ? 'bg-green-100 text-green-700': 
+                                            sol.status === 'CANCELLED' ? 'bg-gray-100 text-gray-700' :
+                                            'bg-red-100 text-red-700'}`}>
+                                                {sol.status === 'PENDING' ? 'Pendiente' : 
+                                                sol.status === 'APPROVED' ? 'Aceptada':
+                                                sol.status === 'CANCELLED' ? 'Cancelada' : 'Rechazada'}
                                         </span>
                                     </div>
                                     <p className="text-sm text-gray-500 mt-1">
@@ -281,7 +290,7 @@ const ProfilePage: React.FC = () =>{
                     isOpen={photoModalOpen}
                     onClose={() => setPhotoModalOpen(false)}
                     currentPhoto={profilePhoto}
-                    onSave={async (newPhoto) => {setProfilePhoto(newPhoto); await refreshUser();}}
+                    onSave={async (newPhoto) => {setAvatarKey(Date.now()); setProfilePhoto(newPhoto); await refreshUser();}}
                     onDeletePhoto={async () => {await deleteAvatar(); await refreshUser();}}
                     defaultPhoto={imagen_generica}
                 />

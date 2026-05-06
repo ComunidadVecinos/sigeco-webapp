@@ -243,10 +243,14 @@ async function createDocument(db, input) {
   });
 }
 
-async function renameDocument(db, { communityId, documentId, name }) {
+async function renameDocument(db, { communityId, documentId, name, description }) {
+  const data = {};
+  if(name !== undefined) data.name = name;
+  if(description !== undefined) data.description = description;
+
   const updated = await db.communityDocument.updateMany({
     where: { id: documentId, communityId, deletedAt: null },
-    data: { name }
+    data
   });
 
   if (updated.count !== 1) {

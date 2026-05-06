@@ -103,7 +103,7 @@ const CreatePost: React.FC<CreatePostProps> = ({userAvatar, onSubmit}) => {
                         <option value="announcement">📢 Anuncio</option>
                         <option value="request">🙋 Solicitud</option>
                     </select>
-                    <Button size="sm" onClick={handleSubmit} disabled={!content.trim() || !title.trim()}>Publicar</Button>
+                    <Button size="sm" onClick={handleSubmit} disabled={!content.trim() || !title.trim() || (category === 'poll' && pollOptions.filter(opt => opt.trim()).length < 2)}>Publicar</Button>
                 </div>
             </div>
         </div>

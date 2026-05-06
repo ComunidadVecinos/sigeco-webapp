@@ -35,7 +35,7 @@ const userProfileSelect = {
       suspendedUntil: true,
       suspensionReason: true,
       joinedAt: true,
-      community: { select: { id: true, name: true } },
+      community: { select: { id: true, name: true, avatar: {select: {storagePath: true} } } },
       property: {
         select: {
           id: true,

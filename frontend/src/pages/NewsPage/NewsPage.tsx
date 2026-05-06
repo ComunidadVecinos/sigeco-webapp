@@ -7,7 +7,7 @@ import { Menu, Filter, Plus, Search } from 'lucide-react';
 import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { getNews, createNews, updateNews, deleteNews } from '@/services/newsService';
+import { getNews, createNews, updateNews, deleteNews, deleteNewsImage } from '@/services/newsService';
 import { useNavigate } from 'react-router-dom';
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
@@ -47,7 +47,6 @@ const NewsPage: React.FC = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [loading, setLoading] = useState(false);
-    const [featureUnavailable, setFeatureUnavailable] = useState(false);
 
     //Modal de crear/editar
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -74,7 +73,6 @@ const NewsPage: React.FC = () => {
         if(!communityId) return;
         setLoading(true);
         try{
-            setFeatureUnavailable(false);
             const res: any = await getNews(communityId, {
                 page: pageNum,
                 pageSize: 10,
@@ -88,7 +86,6 @@ const NewsPage: React.FC = () => {
             setHasMore(!res.data.last);
         } catch(err: any){
             if(err?.response?.status === 404){
-                setFeatureUnavailable(true);
                 setNewsList([]);
                 setHasMore(false);
             }
@@ -109,9 +106,12 @@ const NewsPage: React.FC = () => {
     //Guardar noticia
     const handleSaveNews = async () => {
         if(!communityId || !formData.title.trim() || !formData.content.trim()) return;
-        if(featureUnavailable) return;
         try{
             if(editingNewsId) {
+                const originalNews = newsList.find(n => n.id === editingNewsId);
+                if(originalNews?.imageUrl && !formData.imagePreview && !formData.imageFile){
+                    await deleteNewsImage(communityId, editingNewsId);
+                }
                 await updateNews(communityId, editingNewsId, formData);
             }else{
                 await createNews(communityId, formData);
@@ -150,7 +150,6 @@ const NewsPage: React.FC = () => {
 
     const handleDeleteNews = async (newsId: string) => {
         if(!communityId) return;
-        if(featureUnavailable) return;
         try{
             await deleteNews(communityId, newsId);
             setNewsList(newsList.filter(n => n.id !== newsId));
@@ -176,15 +175,9 @@ const NewsPage: React.FC = () => {
             <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0'>
                 <h1 className='text-[28px] font-bold mb-7 text-center'>Tablón de noticias</h1>
 
-                {featureUnavailable && (
-                    <div className='bg-white rounded-2xl border border-amber-200 p-6 mb-6 text-amber-800 shadow-sm'>
-                        El backend actual no expone todavía el módulo de noticias. La pantalla se mantiene accesible, pero sus datos y acciones no están disponibles en esta arquitectura.
-                    </div>
-                )}
-
                 <div className="flex justify-between items-center mb-4">
                     {isAdmin ? (
-                        <Button onClick={handleOpenCreate} size="sm" className='flex items-center gap-2' disabled={featureUnavailable}>
+                        <Button onClick={handleOpenCreate} size="sm" className='flex items-center gap-2'>
                             <Plus className='h-4 w-4'/> Redactar Comunicado
                         </Button>
                     ) : <div></div> }
@@ -275,6 +268,11 @@ const NewsPage: React.FC = () => {
                             isAdmin={isAdmin}
                             onEdit={() => handleOpenEdit(news)}
                             onDelete={() => setConfirmAction({ isOpen: true, type: 'delete', idToDelete: news.id, title: 'Eliminar Noticia', message: '¿Estás seguro de eliminar esta noticia?' })}
+                            isEvent={news.isEvent}
+                            eventStartDate={news.eventStartDate}
+                            eventEndDate={news.eventEndDate}
+                            eventStartTime={news.eventStartTime}
+                            eventEndTime={news.eventEndTime}
                         />
                     ))}
                 </div>

@@ -8,7 +8,7 @@ import { Menu, Filter, Plus, AlertCircle, Clock, CheckCircle2, XCircle } from 'l
 import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { getIncidents, createIncident, updateIncident, deleteIncident, Incident, IncidentStatus, IncidentSummary } from '@/services/incidentService';
+import { getIncidents, createIncident, updateIncident, deleteIncident, Incident, IncidentStatus, IncidentSummary, deleteIncidentImage } from '@/services/incidentService';
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
@@ -115,6 +115,10 @@ const IncidentPage: React.FC = () => {
         if(!communityId || !formData.title.trim() || !formData.description.trim()) return;
         try{
             if(editingId) {
+                const originalIncident = incidents.find(i => i.id === editingId);
+                if(originalIncident?.imageUrl && !formData.imagePreview && !formData.imageFile){
+                    await deleteIncidentImage(communityId, editingId);
+                }
                 await updateIncident(communityId, editingId, formData);
             }else{
                 await createIncident(communityId, formData);
@@ -193,7 +197,7 @@ const IncidentPage: React.FC = () => {
                             createdAt={incident.createdAt}
                             editedAt={incident.editedAt}
                             isAdmin={isAdmin}
-                            isOwner={incident.author?.alias !== null && incident.author.alias === (activeCommunity?.alias || null)}
+                            isOwner={incident.author?.membershipId !== null && incident.author.membershipId === (activeCommunity?.membershipId || null)}
                             onEdit={() => handleOpenEdit(incident)}
                             onDelete={() => setConfirmAction({ isOpen: true, type: 'delete', idToDelete: incident.id, title: 'Eliminar Incidencia', message: '¿Estás seguro de eliminar esta incidencia?' })}
                             onChangeStatus={() => setStatusModal({open: true, incidentId: incident.id, currentStatus: incident.status})}

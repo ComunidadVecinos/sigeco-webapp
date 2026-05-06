@@ -34,7 +34,7 @@ export const uploadDocument = (communityId: string, data: {name: string, descrip
 };
 
 //Editar nombre de documento o carpeta
-export const updateDocument = (communityId: string, docId: string, type: string, data: {name: string}) =>{
+export const updateDocument = (communityId: string, docId: string, type: string, data: any) =>{
     const route = type === 'folder' ? 'folders' : 'files';
     return api.patch(`/api/communities/${communityId}/documents/${route}/${docId}`, data);
 };

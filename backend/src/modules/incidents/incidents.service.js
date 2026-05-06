@@ -11,6 +11,7 @@ const storageService = require('../../lib/storage/storage');
 const { hasAdministrativeRole } = require('../members/members.access');
 const membersRepository = require('../members/members.repository');
 const membersService = require('../members/members.service');
+const { membership } = require('../../lib/prisma');
 
 const DELETED_INCIDENT_AUTHOR_ALIAS = 'Usuario eliminado';
 const INCIDENT_STATUS_TO_PUBLIC = {
@@ -49,7 +50,7 @@ function mapIncident(incident) {
     description: incident.description,
     status: toPublicIncidentStatus(incident.status),
     imageUrl: storageService.getPublicFileUrl(incident.imageStoragePath || null),
-    author: { alias: authorAlias },
+    author: { alias: authorAlias, membershipId: incident.authorMembershipId },
     createdAt: incident.createdAt.toISOString(),
     editedAt: incident.editedAt ? incident.editedAt.toISOString() : null
   };

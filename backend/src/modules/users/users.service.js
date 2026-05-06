@@ -55,6 +55,7 @@ function buildCommunityProfile(membership) {
     membershipId: membership.id,
     communityId: membership.community.id,
     name: membership.community.name,
+    avatarUrl: storageService.getPublicFileUrl(membership.community.avatar?.storagePath || null),
     role: membership.role,
     address: formatAddress(property) || property?.label || null,
     addressDetails: buildAddressSummary(property),

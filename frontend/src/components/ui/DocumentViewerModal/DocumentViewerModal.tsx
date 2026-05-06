@@ -32,9 +32,6 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({isOpen, onClos
                             <Button variant="outline" size="sm" onClick={() => window.open(documentUrl, '_blank')}>
                                 <ExternalLink className="h-4 w-4 mr-2"/> Nueva pestaña
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={onClose}>
-                                <X className="h-4 w-4"/>
-                            </Button>
                         </div>
                     </div>
                 </DialogHeader>

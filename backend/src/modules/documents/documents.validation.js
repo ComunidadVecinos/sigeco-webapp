@@ -70,7 +70,7 @@ const createFolderSchema = z.object({ name: requiredTextSchema('name', 255), par
 // Body de PATCH /folders/:folderId: renombrado simple.
 const renameFolderSchema = z.object({ name: requiredTextSchema('name', 255) }).strict();
 // Body de PATCH /files/:documentId: renombrado lógico del documento, sin tocar el fichero físico.
-const renameDocumentSchema = z.object({ name: requiredTextSchema('name', 255) }).strict();
+const renameDocumentSchema = z.object({ name: requiredTextSchema('name', 255).optional(), description: z.union([optionalDescriptionSchema, z.null()]).optional() }).strict().refine((value) => Object.keys(value).length > 0, {message: 'Debes enviar al menos un campo editable'});
 
 // Body de POST /files: alta de documento PDF con metadatos lógicos.
 const createDocumentSchema = z.object({

@@ -134,3 +134,7 @@ export const updateNews = (communityId: string, newsId: string, data: {
 //Eliminar noticia
 export const deleteNews = (communityId: string, newsId: string) =>
     api.delete(`/api/communities/${communityId}/news/${newsId}`);
+
+//Eliminar imagen de noticia
+export const deleteNewsImage = (communityId: string, newsId: string) => 
+    api.delete(`/api/communities/${communityId}/news/${newsId}/image`);

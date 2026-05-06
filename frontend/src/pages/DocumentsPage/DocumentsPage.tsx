@@ -29,7 +29,7 @@ const DocumentsPage: React.FC = () => {
     const [folderModalOpen, setFolderModalOpen] = useState(false);
     const [documentModalOpen, setDocumentModalOpen] = useState(false);
     const [createInFolderId, setCreateInFolderId] = useState<string | null>(null);
-    const [editModal, setEditModal] = useState<{open: boolean; docId: string; name: string; type: string}>({open: false, docId: '', name: '', type: ''});
+    const [editModal, setEditModal] = useState<{open: boolean; docId: string; name: string; description?: string; type: string}>({open: false, docId: '', name: '', description: '', type: ''});
     const [viewerModal, setViewerModal] = useState<{open: boolean; url: string; name: string}>({open: false, url: '', name: ''});
 
     const [storageInfo, setStorageInfo] = useState<{quotaBytes: number; usedBytes: number} | null>(null);
@@ -184,7 +184,7 @@ const DocumentsPage: React.FC = () => {
             <span className='text-xs text-gray-400 flex-shrink-0'>{formatDate(doc.createdAt)}</span>
             {isAdmin && (
                 <div className='flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0' onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-blue-600' onClick={() => setEditModal({open: true, docId: doc.id, name: doc.name, type: doc.type})}>
+                    <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-blue-600' onClick={() => setEditModal({open: true, docId: doc.id, name: doc.name, description: doc.description, type: doc.type})}>
                         <Pencil className='h-3.5 w-3.5' />
                     </Button>
                     <Button variant="ghost" size="icon" className='h-7 w-7 text-gray-400 hover:text-red-600' onClick={() => setConfirmAction({ isOpen: true, type: 'delete', docId: doc.id, docType: doc.type, title: 'Eliminar Documento', message: `¿Eliminar el documento "${doc.name}"?`})}>
@@ -336,6 +336,7 @@ const DocumentsPage: React.FC = () => {
                 currentName={editModal.name}
                 type={editModal.type}
                 onSuccess={loadDocuments}
+                currentDescription={editModal.description}
             />
 
             <DocumentViewerModal

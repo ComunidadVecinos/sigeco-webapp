@@ -20,9 +20,10 @@ interface CreateEditSpaceModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (data: any) => void;
+    spaceToEdit?: any;
 }
 
-const CreateEditSpaceModal: React.FC<CreateEditSpaceModalProps> = ({isOpen, onClose, onSave}) => {
+const CreateEditSpaceModal: React.FC<CreateEditSpaceModalProps> = ({isOpen, onClose, onSave, spaceToEdit}) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [color, setColor] = useState('#1F6FEB');
@@ -39,6 +40,27 @@ const CreateEditSpaceModal: React.FC<CreateEditSpaceModalProps> = ({isOpen, onCl
     const [minAdvanceMinutes, setMinAdvanceMinutes] = useState(60);
     const [maxAdvanceDays, setMaxAdvanceDays] = useState(30);
     const [cancellationNoticeMinutes, setCancellationNoticeMinutes] = useState(120);
+
+    React.useEffect(() => {
+        if(isOpen){
+            if(spaceToEdit){
+                setName(spaceToEdit.name);
+                setDescription(spaceToEdit.description || '');
+                setColor(spaceToEdit.colorHex);
+                setTotalCapacity(spaceToEdit.totalCapacity);
+                setOccupancyMode(spaceToEdit.occupancyMode);
+                setMaxSeatsPerBooking(spaceToEdit.maxSeatsPerBooking || '');
+                setOpeningTime(spaceToEdit.openingTime);
+                setClosingTime(spaceToEdit.closingTime);
+                setSlotMinutes(spaceToEdit.slotMinutes);
+                setAllowedDays(spaceToEdit.allowedDays);
+                setMaxConsecutiveSlots(spaceToEdit.maxConsecutiveSlots);
+                setMinAdvanceMinutes(spaceToEdit.minAdvanceMinutes);
+                setMaxAdvanceDays(spaceToEdit.maxAdvanceDays);
+                setCancellationNoticeMinutes(spaceToEdit.cancellationNoticeMinutes);
+            }
+        }
+    }, [isOpen, spaceToEdit]);
 
     const toggleDay = (key: string) => {
         setAllowedDays(prev => ({...prev, [key]: !prev[key as keyof typeof prev]}));
@@ -98,7 +120,7 @@ const CreateEditSpaceModal: React.FC<CreateEditSpaceModalProps> = ({isOpen, onCl
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
             <DialogContent className='sm:max-w-[600px] max-h-[90vh] overflow-y-auto'>
                 <DialogHeader>
-                    <DialogTitle>Crear nuevo espacio</DialogTitle>
+                    <DialogTitle>{spaceToEdit ? 'Editar espacio' : 'Crear nuevo espacio'}</DialogTitle>
                 </DialogHeader>
 
                 <div className='grid gap-4 py-4'>
@@ -196,7 +218,7 @@ const CreateEditSpaceModal: React.FC<CreateEditSpaceModalProps> = ({isOpen, onCl
 
                 <DialogFooter>
                     <Button variant="outline" onClick={handleClose}>Cancelar</Button>
-                    <Button onClick={handleSave} disabled={!isValid}>Crear espacio</Button>
+                    <Button onClick={handleSave} disabled={!isValid}>{spaceToEdit ? 'Guardar cambios' : 'Crear espacio'}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

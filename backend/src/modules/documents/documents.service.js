@@ -406,15 +406,17 @@ async function renameDocument(context, communityId, documentId, input, documents
 
   const document = await getDocumentOrFail(communityId, documentId, documentsRepository);
   ensureDocumentIsActive(document, 'El documento ya está eliminado');
-  await ensureDocumentNameAvailable({
-    communityId,
-    folderId: document.folderId,
-    name: input.name,
-    excludeDocumentId: document.id
-  }, documentsRepository);
+  if(input.name !== undefined){
+    await ensureDocumentNameAvailable({
+      communityId,
+      folderId: document.folderId,
+      name: input.name,
+      excludeDocumentId: document.id
+    }, documentsRepository);
+  }
 
   const updatedDocument = await documentsRepository.withTransaction((db) =>
-    documentsRepository.renameDocument(db, { communityId, documentId, name: input.name })
+    documentsRepository.renameDocument(db, { communityId, documentId, name: input.name, description: input.description })
   );
 
   if (!updatedDocument) {

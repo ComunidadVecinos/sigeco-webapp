@@ -4,6 +4,7 @@ export type IncidentStatus = 'pending' | 'inProgress' | 'resolved' | 'cancelled'
 
 export interface IncidentAuthor {
     alias: string | null;
+    membershipId: string | null;
 }
 
 export interface Incident {
