@@ -1,3 +1,4 @@
+//Página de incidencias: resumen por estado (tarjetas), listado paginado con filtro, creación/edición/eliminación y cambio de estado para admin
 import React, {useEffect, useState} from 'react';
 import Header from '@/components/common/Header/Header';
 import Sidebar from '@/components/ui/Sidebar/Sidebar';
@@ -12,7 +13,7 @@ import { getIncidents, createIncident, updateIncident, deleteIncident, Incident,
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
-
+//Configuración visual de las tarjetas de resumen: icono, color y clave por estado
 const summaryCards: {key: keyof Omit<IncidentSummary, 'total'>; label: string; icon: React.ReactNode; bg:string; border: string; text: string }[] = [
     {key: 'pending', label: 'Pendientes', icon: <AlertCircle className='h-5 w-5' />, bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700'},
     {key: 'inProgress', label: 'En proceso', icon: <Clock className='h-5 w-5' />, bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700'},
@@ -20,6 +21,7 @@ const summaryCards: {key: keyof Omit<IncidentSummary, 'total'>; label: string; i
     {key: 'cancelled', label: 'Canceladas', icon: <XCircle className='h-5 w-5' />, bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700'}
 ];
 
+//Mapeo del filtro de UI al parámetro de la API
 const statusFilterToApi: Record<string, string> = {
     '': 'open',
     pending: 'pending',
@@ -35,28 +37,26 @@ const IncidentPage: React.FC = () => {
     const communityId = user?.activeCommunityId;
     const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
     const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
-    const currentMembershipId = activeCommunity?.membershipId;
-    
+    //Estado de la vista: sidebar, lisatdo de incidencias, resumen, paginación y carga    
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [incidents, setIncidents] = useState<Incident[]>([]);
     const [summary, setSummary] = useState<IncidentSummary>({total: 0, pending: 0, inProgress: 0, resolved: 0, cancelled: 0});
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
-
+    //Filtro de estado activo
     const [statusFilter, setStatusFilter] = useState('');
-
+    //Modal de crear/editar incidencia: visibilidad, ID de edición, datos del formulario y modal de cambio de estado
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState({title: '', description: '', imageFile: null as File | null, imagePreview: ''});
     const [statusModal, setStatusModal] = useState<{open: boolean; incidentId: string; currentStatus: IncidentStatus}>({open: false, incidentId: '', currentStatus: 'pending'});
-    
+    //Feedback global y confirmación de eliminación
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
     const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
-
     const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'delete' | null; idToDelete: string; title: string; message: string;}>({isOpen: false, type: null, idToDelete: '', title: '', message: ''});
     
-
+    //Redirige al perfil si el usuario no tiene comunidad activa
     useEffect(() => {
         if (!authLoading && user && !communityId) {
             navigate('/auth/me', { replace: true });
@@ -85,21 +85,25 @@ const IncidentPage: React.FC = () => {
         }
     };
 
+    //Recarga las incidencias desde la página 0 cuando cambia el filtro o la comunidad
     useEffect(() => {setPage(0); loadIncidents(0);}, [communityId, statusFilter]);
 
+    //Craga la siguiente página de incidencias y las añade al listado existente
     const handleLoadMore = () => {
         const nextPage = page + 1;
         setPage(nextPage);
         loadIncidents(nextPage, true);
     };
 
+    //Abre el modal en modo creación con el formulario vacío
     const handleOpenCreate = () => {
         setFormData({title: '', description: '', imageFile: null, imagePreview: ''});
         setEditingId(null);
         setIsFormOpen(true);
     };
 
-      const handleOpenEdit = (incident: Incident) => {
+    //Abre el modal en modo edición con los datos de la incidencia seleccionada
+    const handleOpenEdit = (incident: Incident) => {
         setFormData({
             title: incident.title,
             description: incident.description,
@@ -133,6 +137,7 @@ const IncidentPage: React.FC = () => {
         }
     };
 
+    //Eliminar incidencia
     const handleDeleteIncident = async (incidentId: string) => {
         if(!communityId) return;
         try{
@@ -161,6 +166,7 @@ const IncidentPage: React.FC = () => {
             <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0'>
                 <h1 className='text-[28px] font-bold mb-7 text-center'>Incidencias</h1>
 
+                {/*Tarjeta de resumen por estado - funcionan como filtro rápido al hacer clic*/}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-7">
                     {summaryCards.map(card => (
                         <div key={card.key} className={`${card.bg} ${card.border} border rounded-xl p-4 cursor-pointer transition-shadow hover:shadow-md ${statusFilter === card.key ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`} onClick={() => setStatusFilter(statusFilter === card.key ? '' : card.key)}>
@@ -172,7 +178,8 @@ const IncidentPage: React.FC = () => {
                         </div>
                     ))}
                 </div>
-
+                
+                {/*Barra de acciones: reportar incidencia y toggle ver abiertas/todas*/}
                 <div className="flex justify-between items-center mb-4">
 
                     <Button onClick={handleOpenCreate} size="sm" className='flex items-center gap-2'>
@@ -184,6 +191,7 @@ const IncidentPage: React.FC = () => {
                     </Button>
                 </div>
 
+                {/*Listado de incidencias con IncidentCard*/}
                 <div className='flex flex-col gap-5 mt-7'>
                     {incidents.map((incident) => (
                         <IncidentCard
@@ -205,6 +213,7 @@ const IncidentPage: React.FC = () => {
                     ))}
                 </div>
 
+                {/*Paginación y mensajes de fin de lista / lista vacía*/}
                 {hasMore && (
                     <div className='text-center py-6'>
                         <Button variant="outline" onClick={handleLoadMore} disabled={loading}>
@@ -216,6 +225,7 @@ const IncidentPage: React.FC = () => {
                 {incidents.length === 0 && !loading && <p className='text-center text-gray-400 text-sm py-6'>No hay incidencias registradas.</p>}
             </main>
 
+            {/*Modales: crear/editar incidencia, cambiar estado, feedback y confirmación de eliminación*/}
             <CreateEditIncidentModal
                 isOpen={isFormOpen}
                 onClose={() => setIsFormOpen(false)}

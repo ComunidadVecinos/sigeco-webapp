@@ -1,3 +1,4 @@
+//Modal de confirmación para cancelar una reserva con campo de motivo opcional
 import React, {useState} from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../dialog';
 import { Button } from '../button';
@@ -13,11 +14,13 @@ interface CancelBookingModalProps {
 const CancelBookingModal: React.FC<CancelBookingModalProps> = ({isOpen, onClose, onConfirm}) => {
     const [reason, setReason] = useState('');
 
+    //Confirma la cancelación enviando el motivo (si lo hay) y limpia el formulario
     const handleConfirm = () => {
         onConfirm(reason.trim() || undefined);
         setReason('');
     };
 
+    //Resetea el modal a los valores iniciales una vez se cierra
     const handleClose = () => {
         setReason('');
         onClose();

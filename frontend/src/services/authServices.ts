@@ -1,3 +1,4 @@
+//Servicios de autenticación: registro, login, logout y gestión de contraseña
 import api from './api';
 
 //Registrar a un usuario
@@ -5,9 +6,9 @@ export const register = (
     firstName: string,
     lastName: string,
     email: string,
-    phone?: string,
     password: string,
-    passwordConfirmation: string
+    passwordConfirmation: string,
+    phone?: string,
 ) => api.post('/api/auth/registrations', {firstName, lastName, email, phone, password, passwordConfirmation});
 
 //Iniciar sesion

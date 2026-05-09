@@ -1,3 +1,4 @@
+//Modal para cambair la contraseña: validación local de requisitos
 import React, {useState} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
@@ -23,7 +24,7 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
-
+    //Valida los requisitos de la contraseña y envía al backend
     const handleSubmit = async () => {
         setError('');
 
@@ -64,6 +65,7 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
             return;
         }
 
+        //Si la validación local pasa se envía al backend y mapea errores de la API a los campos del formulario
         try{
             await onSave(currentPassword, newPassword);
             handleClose();
@@ -83,6 +85,7 @@ const EditPasswordModal: React.FC<EditPasswordModalProps> = ({isOpen, onClose, o
         }
     };
 
+    //Limpia todos los campos y errores al cerrar el modal
     const handleClose = () => {
         setCurrentPassword('');
         setNewPassword('');

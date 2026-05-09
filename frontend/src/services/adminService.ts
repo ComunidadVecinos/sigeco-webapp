@@ -1,5 +1,7 @@
+//Servicios de administarción: gestión de miembros, roles, solicitudes y configuración de comunidad
 import api from './api';
 
+//Elimina parámetros vacíos o undefined antes de enviarlos como query params
 function cleanOptionalParams<T extends Record<string, string | number | undefined>>(params: T) {
     return Object.fromEntries(
         Object.entries(params).filter(([, value]) => value !== undefined && value !== '')

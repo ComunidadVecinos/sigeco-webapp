@@ -1,3 +1,4 @@
+//Servicios de incidencias: CRUD, cambio de estado y gestión de imágenes
 import api from './api';
 
 export type IncidentStatus = 'pending' | 'inProgress' | 'resolved' | 'cancelled';
@@ -39,6 +40,7 @@ export interface IncidentListResponse {
     summary: IncidentSummary;
 }
 
+//Construye el payload (JSON o FormData si hay imagen) para crear o editar una incidencia
 function buildIncidentPayload(data: {
     title?: string;
     description?: string;

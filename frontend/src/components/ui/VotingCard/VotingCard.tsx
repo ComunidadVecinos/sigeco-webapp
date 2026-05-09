@@ -1,3 +1,4 @@
+//Tarjeta de votación: opciones con barra de progreso, cuenta atrás y menú de admin
 import React, {useState, useEffect, useRef} from 'react';
 import {CheckCircle2, Clock, Users, MoreHorizontal, Lock, Trash2, CircleUserRound} from 'lucide-react';
 import { formatUtcIsoInBusinessZone } from '@/lib/businessDateTime';
@@ -26,6 +27,7 @@ interface VotingCardProps {
     onDelete?: (votingId: string) => void;
 }
 
+//Calcula el tiempo restante hasta el cierre de la votación
 function getTimeRemaining(endsAt: string | null): string {
     if(!endsAt) return 'Sin fecha de cierre';
     const now = new Date().getTime();
@@ -53,6 +55,7 @@ const VotingCard: React.FC<VotingCardProps> = ({id, title, description, creatorA
     const hasVoted = myVoteOptionId !== null;
     const participationPercent = possibleVoters > 0 ? Math.round((totalVotes / possibleVoters) * 100) : 0;
 
+    //Actualiza la cuenta atrás cada minuto mientras las votación esté abierta
     useEffect(() => {
         if(!isOpen || !endsAt) return;
         const interval = setInterval(() => {
@@ -61,6 +64,7 @@ const VotingCard: React.FC<VotingCardProps> = ({id, title, description, creatorA
         return () => clearInterval(interval);
     }, [endsAt, isOpen]);
 
+    //Cierra el menú de acciones al hacer clic fuera
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if(menuRef.current && !menuRef.current.contains(event.target as Node)){
@@ -71,6 +75,7 @@ const VotingCard: React.FC<VotingCardProps> = ({id, title, description, creatorA
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [menuOpen]);
 
+    //Emite el voto si hay ópcion seleccionada, no ha votado aún y la votación sigue abierta
     const handleVote = () => {
         if(selectedOption && !hasVoted && isOpen){
             onVote(id, selectedOption);
@@ -128,7 +133,8 @@ const VotingCard: React.FC<VotingCardProps> = ({id, title, description, creatorA
                     )}
                 </div>
             </div>
-
+            
+            {/*Lista de opciones: seleccionable si no ha votado, con barra de progreso animda*/}
             <div className='px-5 pb-3 space-y-2'>
                 {options.map((option) => {
                     const percent = totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0;
@@ -163,6 +169,7 @@ const VotingCard: React.FC<VotingCardProps> = ({id, title, description, creatorA
                 })}
             </div>
 
+            {/*Participación total y botón de votar o confirmaci´pon de voto emitido*/}
             <div className='px-5 py-3 border-t border-gray-100 flex items-center justify-between flex-wrap gap-2'>
                 <div className='flex items-center gap-4 text-xs text-gray-400'>
                     <span className='flex items-center gap-1'>

@@ -1,3 +1,4 @@
+//Página 404: mensaje de error con enlace a la lading y su hay sesión activa enlace al perfil
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ const NotFoundPage: React.FC = () => {
                     La ruta a la que has intentado acceder no existe o ya no está disponible.
                 </p>
 
+                {/*Navegación de salida: landing siempre visible y perfil si hay usuario autenticado*/}
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Button asChild size="lg">
                         <Link to="/">Ir a la landing</Link>

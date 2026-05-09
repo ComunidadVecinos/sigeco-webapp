@@ -1,3 +1,4 @@
+//Modal de confirmación para cerrar manualmente una votación abierta
 import React from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '../dialog';
 import {Button} from '../button';

@@ -1,3 +1,4 @@
+//Modal para crear o editar una noticia: formularios con título, imagen, cuerpo y fechas de evento opcionales
 import React, { useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../dialog';
 import { Button } from '../button';
@@ -38,9 +39,10 @@ const CreateEditNewsModal: React.FC<CreateEditNewsModalProps> = ({isOpen, onClos
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    //Validar que no este vacio
+    //Validación: título y cuerpo obligatorios y si es evento también fecha y hora de inicio
     const isValid = !!formData.title.trim() && !!formData.content.trim() && (!formData.isEvent || (!!formData.eventStartDate && !!formData.eventStartTime));
 
+    //Lee el archivo seleccionado y genera una vista previa para mostrarla en el formulario
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if(!file) return;
@@ -51,6 +53,7 @@ const CreateEditNewsModal: React.FC<CreateEditNewsModalProps> = ({isOpen, onClos
         reader.readAsDataURL(file);
     };
 
+    //Elimina la imagen seleccionada y limpia el input de archivo
     const handleRemoveImage = () => {
         setFormData({...formData, imageFile: null, imagePreview: ''});
         if(fileInputRef.current) fileInputRef.current.value = '';
@@ -96,7 +99,8 @@ const CreateEditNewsModal: React.FC<CreateEditNewsModalProps> = ({isOpen, onClos
                             onChange={(e) => setFormData({...formData, content: e.target.value})}
                         />
                     </div>
-
+                    
+                    {/*Toggle para marcar la noticia como evento: activa los campos de fecha*/}
                     <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
                         <div>
                             <Label className='font-bold'>¿Es un evento?</Label>
@@ -112,6 +116,7 @@ const CreateEditNewsModal: React.FC<CreateEditNewsModalProps> = ({isOpen, onClos
                             </button>
                     </div>
 
+                    {/*Campos de fecha/hora de inicio (obligatorio) y fin (opcional) del evento*/}
                     {formData.isEvent && (
                         <div className="flex flex-col gap-4 bg-blue-50/50 border border-blue-100 rounded-lg p-4">
                             <div className="flex flex-col gap-2">

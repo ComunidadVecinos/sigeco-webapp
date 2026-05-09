@@ -1,3 +1,8 @@
+/*
+  Punto de entrada de la aplicación React.
+  Aquí se monta el componente raíz <App /> envuelto en StrictMode y BrowserRouter para el enrutamiento.
+*/
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';

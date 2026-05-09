@@ -1,3 +1,4 @@
+// Componente Avatar (shadcn/ui) — imagen de perfil con fallback y variantes de tamaño
 import * as React from "react"
 import { Avatar as AvatarPrimitive } from "radix-ui"
 

@@ -1,3 +1,4 @@
+//Formulario para crear una publicación en el foro: título, contenido, categoría y en caso de encuesta sus opciones
 import React, {useState} from "react";
 import {Button} from '@/components/ui/button';
 import { CircleUserRound, X, Plus } from "lucide-react";
@@ -15,6 +16,7 @@ const CreatePost: React.FC<CreatePostProps> = ({userAvatar, onSubmit}) => {
     const [category, setCategory] = useState<PostCategory>('question');
     const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
 
+    //Publica si hay contenido y si es encuesta compueba que existan 2 opciones válidas
     const handleSubmit = () => {
         if(content.trim()){
             if(category === 'poll'){
@@ -32,18 +34,21 @@ const CreatePost: React.FC<CreatePostProps> = ({userAvatar, onSubmit}) => {
         }
     };
 
+    //Gestión dinámica de opciones de encuesta: actualizar, añadir (max 5) y eliminar (min 2)
     const updatePollOption = (index: number, value: string) => {
         const newOptions = [...pollOptions];
         newOptions[index] = value;
         setPollOptions(newOptions);
     };
 
+    //Añadir una opción a una encuesta (máximo 5)
     const addPollOption = () =>{
         if(pollOptions.length < 5){
             setPollOptions([...pollOptions, '']);
         }
     };
 
+    //Quitar una opción a una encuesta (mínimo 5)
     const removePollOption = (index: number) => {
         if(pollOptions.length > 2){
             setPollOptions(pollOptions.filter((_, i) => i != index));
@@ -93,6 +98,7 @@ const CreatePost: React.FC<CreatePostProps> = ({userAvatar, onSubmit}) => {
                     </div>
                 )}
 
+                {/*Selector de categoría y botón de publicar*/}
                 <div className="flex justify-end gap-2.5 mt-2.5">
                     <select
                         className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-[#104084]" 

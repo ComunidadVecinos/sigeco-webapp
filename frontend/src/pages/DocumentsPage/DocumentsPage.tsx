@@ -1,3 +1,4 @@
+//Gestor de documentos de la comunidad: árbol jerárquico de carpetas/archivos con drag & drop, visor, CRUD (solo admins) y barra de capacidad
 import React, {useEffect, useState} from 'react';
 import Header from '@/components/common/Header/Header';
 import Sidebar from '@/components/ui/Sidebar/Sidebar';
@@ -20,28 +21,28 @@ const DocumentsPage: React.FC = () => {
     const communityId = user?.activeCommunityId;
     const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
     const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
-
+    //Estado de la vista: sidebar, listado de documentos, carga y carpetas expandidas
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [documents, setDocuments] = useState<DocItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
-
+    //Modales: crear carpeta, subir documento, editar nombre, visor de archivo
     const [folderModalOpen, setFolderModalOpen] = useState(false);
     const [documentModalOpen, setDocumentModalOpen] = useState(false);
     const [createInFolderId, setCreateInFolderId] = useState<string | null>(null);
     const [editModal, setEditModal] = useState<{open: boolean; docId: string; name: string; description?: string; type: string}>({open: false, docId: '', name: '', description: '', type: ''});
     const [viewerModal, setViewerModal] = useState<{open: boolean; url: string; name: string}>({open: false, url: '', name: ''});
-
+    //Almacenamiento y estado de drag & drop
     const [storageInfo, setStorageInfo] = useState<{quotaBytes: number; usedBytes: number} | null>(null);
     const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
     const [dragOverRoot, setDragOverRoot] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-
+    //Feedback global y confirmación de eliminación
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
     const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
-
     const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'delete' | null; docId: string; docType: string; title: string; message: string;}>({isOpen: false, type: null, docId: '', docType: '', title: '', message: ''});
 
+    //Craga el árbol raíz de documentos (carpetas + archivos) y la info de almacenamiento
     const loadDocuments = async () => {
         if(!communityId) return;
         setLoading(true);
@@ -70,6 +71,7 @@ const DocumentsPage: React.FC = () => {
         }
     };
 
+    //Carga bajo demanda los hijos de una carpeta
     const loadChildren = async (folderId: string) => {
         if(!communityId) return;
         if(documents.some(d => d.parentId === folderId)) return;
@@ -86,8 +88,10 @@ const DocumentsPage: React.FC = () => {
         }
     };
 
+    //Recarga los documentos cuando cambia la comunidad activa
     useEffect(() => {loadDocuments();}, [communityId]);
 
+    //Expande o colapsa la carpeta, cargando sus hijos si es la primera vez
     const toggleFolder = async (folderId: string) => {
         if(!expandedFolders.has(folderId)){
             await loadChildren(folderId);
@@ -99,6 +103,7 @@ const DocumentsPage: React.FC = () => {
         });
     };
 
+    //Elimina un documento o carpeta y recarga el árbol completo
     const handleDelete = async (docId: string, name: string, type: string) => {
         if(!communityId) return;
         try{
@@ -109,13 +114,14 @@ const DocumentsPage: React.FC = () => {
         }
     };
 
-    // --- Drag & Drop --- //
+    //Drag & Drop: inicia el drag guardando el id, tipo y parentId del elemento arrastrado
     const handleDragStart = (e: React.DragEvent, item: DocItem) => {
         e.dataTransfer.setData('application/json', JSON.stringify({id: item.id, type: item.type, parentId: item.parentId}));
         e.dataTransfer.effectAllowed = 'move';
         setIsDragging(true);
     };
 
+    //Mueve un elemento dentro de una carpeta destino vía API
     const handleDropOnFolder = async (e: React.DragEvent, targetFolderId: string) => {
         e.preventDefault();
         e.stopPropagation();
@@ -133,6 +139,7 @@ const DocumentsPage: React.FC = () => {
         }
     };
 
+    //Mueve un elemento a la raíz
     const handleDropOnRoot = async (e: React.DragEvent) => {
         e.preventDefault();
         setDragOverRoot(false);
@@ -149,10 +156,12 @@ const DocumentsPage: React.FC = () => {
         }
     };
 
+    //Listas filtradas: carpetas y archvios raíz, hijos por carpeta
     const rootFolders = documents.filter(d => d.type === 'folder' && d.parentId === null);
     const rootFiles = documents.filter(d => d.type === 'file' && d.parentId === null);
     const getChildren = (folderId: string) => documents.filter(d => d.parentId === folderId);
 
+    //Utilidad para fecha legible
     const formatDate = (date: string) => {
         try {
             return format(new Date(date), "d MMM yyyy", {locale: es}); 
@@ -161,6 +170,7 @@ const DocumentsPage: React.FC = () => {
         }
     };
     
+    //Utilidad para tamaño de archivo en unidades humanas
     const formatBytes = (bytes: number) => {
         if(bytes === 0) return '0 B';
         const units = ['B', 'KB', 'MB', 'GB'];
@@ -168,6 +178,7 @@ const DocumentsPage: React.FC = () => {
         return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
     };
 
+    //Renderiza una fila de archivo: icono, nombre, descripción, fecha y acciones(editar/eliminar) si es admin
     const renderFileRow = (doc: DocItem, indent = false) => (
         <div
             key={doc.id}
@@ -195,6 +206,7 @@ const DocumentsPage: React.FC = () => {
         </div>
     );
 
+    //Renderiza una carpeta expandible con sus hijos recursivamente, soporte drag & drop y acciones admin
     const renderFolder = (folder: DocItem, nested = false) => {
         const isExpanded = expandedFolders.has(folder.id);
         const children = getChildren(folder.id);
@@ -246,6 +258,7 @@ const DocumentsPage: React.FC = () => {
         );
     };
 
+    //Porcentaje de almacenamiento usado (para la barra de capacidad)
     const storage = storageInfo ? Math.min((storageInfo.usedBytes / storageInfo.quotaBytes) * 100, 100) : 0;
 
     return (
@@ -259,7 +272,7 @@ const DocumentsPage: React.FC = () => {
                 
             <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0 pb-16' onDragEnd={() => {setIsDragging(false); setDragOverFolderId(null); setDragOverRoot(false);}}>
                 <h1 className='text-[28px] font-bold mb-7 text-center'>Documentos</h1>
-
+                {/*Botones de creación: nueva carpeta y subir documento (solo admin)*/}
                 {isAdmin && (
                     <div className='flex gap-3 mb-6'>
                         <Button size="sm" variant="outline" onClick={() => {setCreateInFolderId(null); setFolderModalOpen(true)}}>
@@ -271,6 +284,7 @@ const DocumentsPage: React.FC = () => {
                     </div>
                 )}
 
+                {/*Árbol de documentos: carpetas expandibles + archivos, con drag & drop para reordendar*/}
                 <div 
                     className='bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100'
                     onDragOver={(e) => {e.preventDefault();}}
@@ -284,6 +298,7 @@ const DocumentsPage: React.FC = () => {
                     {rootFiles.map(file => renderFileRow(file))}
                 </div>
 
+                {/*Zona de frop para mover elementos a la raíz*/}
                 {isAdmin && isDragging && (
                     <div
                         className={`mt-4 border-2 border-dashed rounded-xl py-6 text-center text-sm transition-all ${dragOverRoot ? 'border-blue-400 bg-blue-50 text-blue-600' : 'border-gray-300 text-gray-400'}`}
@@ -312,6 +327,7 @@ const DocumentsPage: React.FC = () => {
                 </div>
             )}
 
+            {/*Modales: crear carpeta, subir documento, editar, visor, feedback y confirmación*/}
             <CreateFolderModal
                 isOpen={folderModalOpen} 
                 onClose={() => setFolderModalOpen(false)}

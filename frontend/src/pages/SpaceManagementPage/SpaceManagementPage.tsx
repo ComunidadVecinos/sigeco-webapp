@@ -1,3 +1,4 @@
+//Gestión de espacios comunes (solo admins): listado lateral, detalle con capacidad/horario/reglas y CRUD con activación/desactivación
 import React, {useEffect, useState} from 'react';
 import Header from '@/components/common/Header/Header';
 import Sidebar from '@/components/ui/Sidebar/Sidebar';
@@ -10,7 +11,7 @@ import { getSpaces, createSpace, changeSpaceStatus, deleteSpace, updateSpace, ty
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
-
+//Traducción de los días de la semana al español para la visualización de días permitidos
 const DAY_LABELS: Record<string, string> = {
     monday: 'Lunes', tuesday: 'Martes', wednesday: 'Miércoles', thursday: 'Jueves', friday: 'Viernes', saturday: 'Sábado', sunday: 'Domingo'
 };
@@ -21,17 +22,16 @@ const SpaceManagementPage: React.FC = () => {
     const communityId = user?.activeCommunityId;
     const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
     const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
-
+    //Estado de la vista: sidebar, listado de espacios, espacio seleccionado, carga y modal de creación/edición
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [spaces, setSpaces] = useState<Space[]>([]);
     const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
     const [spaceToEdit, setSpaceToEdit] = useState<Space | null>(null);
-
+    //Feedback global y confirmación de acciones (activar/desactivar, eliminar)
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
     const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
-
     const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'toggleStatus' | 'deleteSpace' | null; title: string; message: string;}>({isOpen: false, type: null, title: '', message: ''});
     
 
@@ -64,8 +64,10 @@ const SpaceManagementPage: React.FC = () => {
         }
     };
 
+    //Recarga los espacios cuando cambia la comunidad activa
     useEffect(() => {loadSpaces(); }, [communityId]);
 
+    //Espacio actualmente seleccionado en el panel lateral
     const selectedSpace = spaces.find(s => s.id === selectedSpaceId) || null;
 
     // ---- Crear espacio ---- //
@@ -140,6 +142,7 @@ const SpaceManagementPage: React.FC = () => {
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
             <main className='max-w-[1100px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0 pb-12'>
+                {/*Cabecera de la página con las acciones de crear un espacio o volver a reservas*/}
                 <div className='flex justify-between items-center mb-6'>
                     <h1 className='text-[28px] font-bold text-gray-900'>Gestión de espacios</h1>
                     <div className='flex gap-2'>
@@ -152,7 +155,9 @@ const SpaceManagementPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/*Layout de dos columnas: a la izquierda el listado de espacios y a la derecha el detalle del espacio seleccionado*/}
                 <div className='flex flex-col md:flex-row gap-6'>
+                    {/*Panel izquierdo: listado de espacios*/}
                     <div className='md:w-[320px] shrink-0'>
                         <div className='bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden'>
                             <div className='p-4 border-b border-gray-100'>
@@ -186,7 +191,7 @@ const SpaceManagementPage: React.FC = () => {
                         </div>
                     </div>
 
-                    
+                    {/*Panel derecho: cabeceta con nombre y esatdo, secciones de capacidad, horario, días y reglas, y acciones (editar/activar/eliminar)*/}
                     <div className='flex-1'>
                         {!selectedSpace ? (
                             <div className='bg-white p-12 rounded-2xl border border-dashed border-gray-300 text-center'>
@@ -335,6 +340,7 @@ const SpaceManagementPage: React.FC = () => {
                 </div>
             </main>
 
+            {/*Modales: crear/editar espacio, confirmación de acciones y feedback*/}
             <CreateEditSpaceModal 
                 isOpen={isCreateSpaceOpen || spaceToEdit !== null}
                 onClose={() => {setIsCreateSpaceOpen(false); setSpaceToEdit(null);}}

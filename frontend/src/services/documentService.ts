@@ -1,3 +1,4 @@
+//Servicios de documentos: CRUD de archivos y carpetas y drag and drop
 import api from './api';
 
 export interface DocItem {

@@ -1,3 +1,4 @@
+//Servicios de comunidad: creación, solicitudes de ingreso/edición y gestión de membresía
 import api from './api';
 
 //Crear una nueva comunidad
@@ -62,7 +63,7 @@ export const requestJoinCommunity = (accessCode: string, data: {
     requestComment: data.comment
 });
 
-//Solicitar editar mi informacion en la comunidad
+//Solicitar editar mi información en la comunidad
 export const requestProfileChange = (communityId: string, data: {
     alias?: string;
     comment?: string;

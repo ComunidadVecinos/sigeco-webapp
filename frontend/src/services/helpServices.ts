@@ -1,3 +1,4 @@
+//Servicios de ayuda: secciones de ayuda general y por comunidad
 import api from './api';
 
 //Ayuda general

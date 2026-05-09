@@ -1,3 +1,4 @@
+//Modal de confirmación para abandonar una comunidad
 import React, {useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '../dialog';
 import {Button} from '../button';
@@ -19,6 +20,7 @@ const LeaveCommunityModal: React.FC<LeaveCommunityModalProps> = ({isOpen, onClos
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
     const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
 
+    //Envía la petición de abandono al backend
     const handleLeave = async () => {
         setLoading(true);
         try{

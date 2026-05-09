@@ -1,3 +1,4 @@
+//Modal para expulsar a un miembro: requiere escribir el alias para confirmar
 import React, {useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Button } from '../button';
@@ -18,6 +19,7 @@ const ExpelMemberModal: React.FC<ExpelMemberModalProps> = ({isOpen, onClose, com
     const [confirmText, setConfirmText] = useState('');
     const [error, setError] = useState('');
 
+    //Comprueba que el texto coincida con el alias del miembro y envía la petición de expulsión
     const handleSubmit = async () => {
         setError('');
         if(confirmText !== memberAlias){
@@ -34,6 +36,7 @@ const ExpelMemberModal: React.FC<ExpelMemberModalProps> = ({isOpen, onClose, com
         }
     };
 
+    //Limpia el formulario al cerrar
     const handleClose = () => {
         setConfirmText('');
         setError('');

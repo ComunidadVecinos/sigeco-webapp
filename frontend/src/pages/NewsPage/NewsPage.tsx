@@ -1,3 +1,4 @@
+//Página del tablón de noticias: listado paginado con filtros, creación/edición/eliminación (solo admins)
 import React, {useEffect, useState} from 'react';
 import Header from '@/components/common/Header/Header';
 import Sidebar from '@/components/ui/Sidebar/Sidebar';
@@ -12,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
-
+//Estructura de una noticia del tablón
 interface News {
     id: string;
     title: string;
@@ -33,11 +34,11 @@ const NewsPage: React.FC = () => {
     const {user, loading: authLoading} = useAuth();
     const communityId = user?.activeCommunityId;
 
-    //Rol del usuario
+    //Determina el rol del usuario en la comunidad activa para controlar acciones de admin
     const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
     const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
 
-    
+    //Estado de la vista: sidebar, listado de noticias, paginación, búsqueda y filtros
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [newsList, setNewsList] = useState<News[]>([]);
     const [page, setPage] = useState(0);
@@ -47,20 +48,19 @@ const NewsPage: React.FC = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [loading, setLoading] = useState(false);
-
-    //Modal de crear/editar
+    //Estado del modal de crear/editar: visibilidad, ID de edición y datos del formulario
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
     const [formData, setFormData] = useState({title: '', content: '', isEvent: false, eventStartDate: '', eventStartTime: '', eventEndDate: '', eventEndTime: '', imageFile: null as File | null, imagePreview: ''});
-
+    //Filtro por tipo de noticia
     const [eventTypeFilter, setEventTypeFilter] = useState<'all' | 'event' | 'nonEvent'>('all');
-
+    //Modales de feedback y confirmaciñon de eliminación
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
-    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
-
     const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'delete' | null; idToDelete: string; title: string; message: string;}>({isOpen: false, type: null, idToDelete: '', title: '', message: ''});
+
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));    
     
-    
+    //Redirige al perfil si el usuario no tiene comunidad activa
     useEffect(() => {
         if (!authLoading && user && !communityId) {
             navigate('/auth/me', { replace: true });
@@ -95,8 +95,10 @@ const NewsPage: React.FC = () => {
         }
     };
 
+    //Recargar las noticias desde la página 0 cuando cambian los filtros o la comunidad
     useEffect(() => {setPage(0); loadNews(0);}, [communityId, searchQuery, startDate, endDate, eventTypeFilter]);
 
+    //Carga la siguiente página de noticias y las añade al listado existente
     const handleLoadMore = () => {
         const nextPage = page + 1;
         setPage(nextPage);
@@ -126,12 +128,14 @@ const NewsPage: React.FC = () => {
         }
     };
 
+    //Abre el modal en modo creación con el formulario vacío
     const handleOpenCreate = () => {
         setFormData({title: '', content: '', isEvent: false, eventStartDate: '', eventStartTime: '', eventEndDate: '', eventEndTime: '', imageFile: null as File | null, imagePreview: ''});
         setEditingNewsId(null);
         setIsFormOpen(true);
     };
 
+    //Abre el modal en modo edición con los datos de la noticia seleccionada
     const handleOpenEdit = (news: News) => {
         setFormData({
             title: news.title,
@@ -148,6 +152,7 @@ const NewsPage: React.FC = () => {
         setIsFormOpen(true);
     };
 
+    //Elimina una noticia y la quita del listado 
     const handleDeleteNews = async (newsId: string) => {
         if(!communityId) return;
         try{
@@ -174,7 +179,7 @@ const NewsPage: React.FC = () => {
 
             <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0'>
                 <h1 className='text-[28px] font-bold mb-7 text-center'>Tablón de noticias</h1>
-
+                {/*Barra de acciones: botón para redactar y toggle de filtros*/}
                 <div className="flex justify-between items-center mb-4">
                     {isAdmin ? (
                         <Button onClick={handleOpenCreate} size="sm" className='flex items-center gap-2'>
@@ -254,6 +259,7 @@ const NewsPage: React.FC = () => {
                     </div>
                 )}
 
+                {/*Listado de noticias con NewsCard*/}
                 <div className='flex flex-col gap-5 mt-7'>
                     {newsList.map((news) => (
                         <NewsCard
@@ -277,6 +283,7 @@ const NewsPage: React.FC = () => {
                     ))}
                 </div>
 
+                {/*Paginación: botón de carga mas y mensajes de fin de lista*/}
                 {hasMore && (
                     <div className='text-center py-6'>
                         <Button variant="outline" onClick={handleLoadMore} disabled={loading}>
@@ -288,6 +295,7 @@ const NewsPage: React.FC = () => {
                 {newsList.length === 0 && !loading && <p className='text-center text-gray-400 text-sm py-6'>No hay comunicados publicados.</p>}
             </main>
 
+            {/*Modales: crear/editar noticia, feedback y configuración*/}
             <CreateEditNewsModal
                 isOpen={isFormOpen}
                 onClose={() => setIsFormOpen(false)}

@@ -1,3 +1,4 @@
+// Componente Calendar (shadcn/ui + react-day-picker) — selector de fechas
 "use client"
 
 import * as React from "react"

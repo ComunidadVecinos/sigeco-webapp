@@ -1,3 +1,4 @@
+//Modal para trasnferir la presidencia o vicepresidencia a otro miembro
 import React, {useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Button } from '../button';
@@ -21,8 +22,10 @@ const TransferRoleModal: React.FC<TransferRoleModalProps> = ({isOpen, onClose, c
     const [error, setError] = useState('');
     const { refreshUser } = useAuth();
 
+    //Texto de confirmación dinámico según el tipo de transferencia
     const expectedText = transferType === 'president' ? 'TRANSFERIR PRESIDENTE' : 'TRANSFERIR VICEPRESIDENTE';
 
+    //Valida el texto, ejecuta la transferencia de rol y refresca el usuario
     const handleSubmit = async () => {
         setError('');
         if(confirmText !== expectedText){
@@ -45,6 +48,7 @@ const TransferRoleModal: React.FC<TransferRoleModalProps> = ({isOpen, onClose, c
         }
     };
 
+    //Limpia el formulario al cerrar
     const handleClose = () => {
         setConfirmText('');
         setError('');
@@ -64,7 +68,7 @@ const TransferRoleModal: React.FC<TransferRoleModalProps> = ({isOpen, onClose, c
                     <div className='bg-red-50 border border-red-200 rounded-lg p-3'>
                         <p className="text-sm text-red-700 font-medium">⚠️ Esta acción es irreversible.</p>
                         <p className="text-sm text-red-600 mt-1">
-                            {transferType === 'president' ? 'Perderas tu rol de presidente y pasaras a a ser vecino. Esta acción no se puede deshacer.' : 'Perderas tu rol de vicepresidente y pasarás a ser vecino.'}
+                            {transferType === 'president' ? 'Perderás tu rol de presidente y pasarás a ser vecino. Esta acción no se puede deshacer.' : 'Perderas tu rol de vicepresidente y pasarás a ser vecino.'}
                         </p>
                     </div>
 

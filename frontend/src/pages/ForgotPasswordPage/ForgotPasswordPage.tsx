@@ -1,3 +1,4 @@
+//Página de recuperacion de contraseña: solicita el email y envía una contraseña temporal al correo y muestra una pantalla de confirmación tras el envío
 import React, {useState} from 'react';
 import {Link} from 'react-router-dom';
 import { resetPassword } from '@/services/authServices';
@@ -45,8 +46,10 @@ const ForgotPassword: React.FC = () => {
         }
     };
 
+    //El botón de envío solo se habilita si el email pasa la validación
     const isFormValid = !validateEmail(email);
 
+    //Si el email se enviío correctamente, muestra la pantalla de confirmación en lugar del formulario
     if(enviado){
         return(
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 px-4">

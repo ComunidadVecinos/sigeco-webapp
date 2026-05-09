@@ -1,3 +1,4 @@
+//Modal para subir un documento PDF con nombre y descripción opcional
 import React, {useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '../dialog';
 import { Button } from '../button';
@@ -24,8 +25,10 @@ const CreateDocumentModal: React.FC<CreateDocumentModaProps> = ({isOpen, onClose
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
     const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
 
+    //Limpia todos los campos del formulario
     const resetForm = () => {setName(''); setDescription(''); setFile(null);};
 
+    //Sube el archivo al backend y refresca el listado de documentos
     const handleSave = async () => {
         if(!name.trim() || !file) return;
         setLoading(true);

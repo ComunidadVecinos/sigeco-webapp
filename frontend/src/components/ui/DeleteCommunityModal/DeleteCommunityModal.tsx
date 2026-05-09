@@ -1,3 +1,4 @@
+//Modal para eliminar una comunidad: requiere texto de confirmación y contraseña del presidente
 import React, {useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Button } from '../button';
@@ -22,8 +23,11 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({isOpen, onCl
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const navigate = useNavigate();
     const { refreshUser } = useAuth();
+    
+    //Texto exacto que el usuario debe escribir para desbloquear la acción
     const expectedText = 'ELIMINAR COMUNIDAD';
 
+    //Valida texto y contraseña localmente, envía al backend, refresca el formulario y redirige al perfil
     const handleSubmit = async () => {
         setError('');
 
@@ -60,6 +64,7 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({isOpen, onCl
         }
     };
 
+    //Limpia todos los campos y errores al cerrar
     const handleClose = () =>{
         setConfirmText('');
         setPassword('');

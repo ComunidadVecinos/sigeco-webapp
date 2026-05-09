@@ -1,3 +1,4 @@
+//Modal para cambiar el estado de una incidencia
 import React, { useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../dialog';
 import { Button } from '../button';
@@ -15,6 +16,7 @@ interface ChangeStatusModalProps {
     onSuccess: () => void;
 }
 
+//Transiciones de estado permitidas desde cada estado actual
 const transitions: Record<IncidentStatus, {value: 'inProgress' | 'resolved' | 'cancelled'; label: string}[]> = {
     pending: [
         {value: 'inProgress', label: 'En proceso'},
@@ -33,6 +35,7 @@ const transitions: Record<IncidentStatus, {value: 'inProgress' | 'resolved' | 'c
     ]
 };
 
+//Etiquetas para cada estado de incidencia
 const statusLabels: Record<IncidentStatus, string> = {
     pending: 'Pendiente',
     inProgress: 'En proceso',
@@ -48,6 +51,7 @@ const ChangeStatusModal: React.FC<ChangeStatusModalProps> = ({isOpen, onClose, c
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
     const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
 
+    //Envía el cambio de estado al backend
     const handleSave = async () => {
         setLoading(true);
         try{
@@ -86,11 +90,11 @@ const ChangeStatusModal: React.FC<ChangeStatusModalProps> = ({isOpen, onClose, c
             </DialogContent>
 
                 <FeedbackModal 
-                isOpen={feedback.isOpen}
-                type={feedback.type}
-                message={feedback.message}
-                onClose={closeFeedback}
-            />
+                    isOpen={feedback.isOpen}
+                    type={feedback.type}
+                    message={feedback.message}
+                    onClose={closeFeedback}
+                />
 
         </Dialog>
     );

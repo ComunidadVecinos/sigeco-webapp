@@ -1,3 +1,4 @@
+//Modal para que un vecino solicite un cambios de alias y/o domicilio en su comunidad
 import React, {useEffect, useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
@@ -49,6 +50,7 @@ const EditCommunityInfoModal: React.FC<EditCommunityInfoModalProps> = ({
     const [success, setSuccess] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+    //Sincroniza los campos del formulario con los datos actuales al abrir el modal
     useEffect(() => {
         if (!isOpen) {
             return;
@@ -73,11 +75,13 @@ const EditCommunityInfoModal: React.FC<EditCommunityInfoModalProps> = ({
         setFieldErrors({});
     }, [currentAlias, currentDomicile, isOpen]);
 
+    //Actualiza un campo del domicilio y limpia su error asociado
     const handleDomicilioChange = (campo: string, valor: string) => {
         setDomicilio({...domicilio, [campo]: valor});
         setFieldErrors((prev) => ({ ...prev, [campo]: '' }));
     };
 
+    //Valida todos los campos obligatorios del domicilio y envía la solicitud de cambio
     const handleSubmit = async () => {
         setError('');
         setSuccess('');
@@ -126,6 +130,7 @@ const EditCommunityInfoModal: React.FC<EditCommunityInfoModalProps> = ({
             return;
         }
 
+        //Envía al backend la solicitud; los errores de la API se mapean a los campos del formulario
         try{
             await requestProfileChange(communityId, {
                 alias: alias.trim(),
@@ -173,6 +178,7 @@ const EditCommunityInfoModal: React.FC<EditCommunityInfoModalProps> = ({
         }
     };
 
+    //Restaura los valores previos y limpia errores al cerrar
     const handleClose = () => {
         setAlias(currentAlias);
         setDomicilio({

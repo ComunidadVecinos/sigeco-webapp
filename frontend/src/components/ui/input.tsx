@@ -1,3 +1,4 @@
+// Componente Input (shadcn/ui) — campo de texto
 import * as React from "react"
 
 import { cn } from "@/lib/utils"

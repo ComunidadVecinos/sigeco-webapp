@@ -1,3 +1,4 @@
+//Servicios de reservas: gestion de espacios, disponibilidad y reservas de usuarios
 import api from './api';
 
 export type Type = 'SHARED' | 'EXCLUSIVE';

@@ -1,3 +1,5 @@
+//Página de registro: formulario con nombre, apellidos, email (@ucm.es), teléfono opcional, contraseña con requisitos de seguridad
+//Validación en tiempo real por campo y mapeo de errores de la API
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../../services/authServices';
@@ -7,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Eye, EyeOff } from 'lucide-react';
 import { getApiErrorMessage, getApiFieldErrors, hasFieldErrors } from '@/lib/formErrors';
 
+//Formulario de datos
 interface FormData {
     nombre: string;
     apellidos: string;
@@ -15,7 +18,7 @@ interface FormData {
     password: string;
     confirmPassword: string;
 }
-
+//Formulario de errores
 interface FormErrors {
     nombre?: string;
     apellidos?: string;
@@ -28,6 +31,7 @@ interface FormErrors {
 const RegisterPage: React.FC = () => {
     const navigate = useNavigate();
 
+    //Estado del formulario, errores por campo, error global y campos tocados para el feedback visual
     const [formData, setFormData] = useState<FormData>({
         nombre: '',
         apellidos: '',
@@ -63,10 +67,10 @@ const RegisterPage: React.FC = () => {
         return undefined;
     };
 
-    //Validacion de telefono
+    //Validacion de teléfono
     const validateTelefono = (value: string): string | undefined => {
         if (!value.trim()) return undefined;
-        if (!/^[\d\s]+$/.test(value)) return 'El telefono solo puede contener dígitos y espacios';
+        if (!/^[\d\s]+$/.test(value)) return 'El teléfono solo puede contener dígitos y espacios';
         const soloNum = value.replace(/\s/g, '');
         if (soloNum.length !== 9) return 'El teléfono debe tener 9 dígitos';
         return undefined;
@@ -126,6 +130,7 @@ const RegisterPage: React.FC = () => {
         setErrors({ ...errors, [field]: validators[field](formData[field]) });
     };
 
+    //Marca todos los campos como tocados, valida el formulario completo, lo envía al backend y mapea los errores de la API
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setGlobalError('');
@@ -140,9 +145,9 @@ const RegisterPage: React.FC = () => {
                     formData.nombre,
                     formData.apellidos,
                     formData.email,
-                    formData.telefono.trim() || undefined,
                     formData.password,
-                    formData.confirmPassword
+                    formData.confirmPassword,
+                    formData.telefono.trim() || undefined,
                 );
                 navigate('/auth/login');
             }
@@ -166,6 +171,7 @@ const RegisterPage: React.FC = () => {
         }
     };
 
+    //El botón de registro solo se habilita si todos lso campos pasan su validación
     const isFormValid =
         !validateNombre(formData.nombre) &&
         !validateApellidos(formData.apellidos) &&
@@ -183,8 +189,8 @@ const RegisterPage: React.FC = () => {
                 {globalError && <div className='bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-5'>{globalError}</div>}
 
                 <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">
+                    {/*Fila 1: Nombre y apellidos*/}
                     <div className="flex flex-col md:flex-row gap-4">
-
                         <div className="space-y-2 w-full md:w-5/12">
                             <Label>Nombre</Label>
                             <Input
@@ -213,6 +219,7 @@ const RegisterPage: React.FC = () => {
 
                     </div>
 
+                    {/*Fila 2: Email (obligatorio y @ucm.es) y teléfono (opcional, 9 dígitos)*/}
                     <div className="flex flex-col md:flex-row gap-4">
 
                         <div className="space-y-2 w-full md:w-8/12">
@@ -249,6 +256,7 @@ const RegisterPage: React.FC = () => {
 
                     </div>
 
+                    {/*Fila 3: Contraseña*/}
                     <div className="space-y-2">
                         <Label htmlFor="register-password">Contraseña</Label>
                         <div className='relative'>
@@ -270,6 +278,7 @@ const RegisterPage: React.FC = () => {
                         {touched.password && errors.password && <div className='text-sm text-red-500'>{errors.password}</div>}
                     </div>
 
+                    {/*Fila 3: Reptir contraseña*/}
                     <div className="space-y-2">
                         <Label htmlFor="register-confirm-password">Repetir Contraseña</Label>
                         <div className='relative'>

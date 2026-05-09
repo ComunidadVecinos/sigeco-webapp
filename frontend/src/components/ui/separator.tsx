@@ -1,3 +1,4 @@
+// Componente Separator (shadcn/ui) — línea divisoria horizontal o vertical
 import * as React from "react"
 import { Separator as SeparatorPrimitive } from "radix-ui"
 

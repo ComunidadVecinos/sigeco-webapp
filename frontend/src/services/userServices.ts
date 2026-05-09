@@ -1,3 +1,4 @@
+//Servicios de usuarios: perfil, avatar y eliminación de cuenta
 import api from './api';
 
 //Consultar perfil completo

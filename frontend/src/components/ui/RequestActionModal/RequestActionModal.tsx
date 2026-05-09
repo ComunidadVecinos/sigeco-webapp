@@ -1,3 +1,4 @@
+//Modal para que el admin apruebe o rechace una solicitud
 import React, {useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Button } from '../button';
@@ -20,6 +21,7 @@ const RequestActionModal: React.FC<RequestActionModalProps> = ({isOpen, onClose,
     const [success, setSuccess] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+    //Ejecuta la acción (aprobar o rechazar) según la acción, envía al backend y mapea errores
     const handleSubmit = async () => {
         setError('');
         setSuccess('');
@@ -50,6 +52,7 @@ const RequestActionModal: React.FC<RequestActionModalProps> = ({isOpen, onClose,
         }
     };
 
+    //Limpia mensajes y errores al cerrar
     const handleClose = () => {
         setMessage('');
         setError('');

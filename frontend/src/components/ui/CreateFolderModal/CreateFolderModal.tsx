@@ -1,3 +1,4 @@
+//Modal para crear una carpeta o subcarpeta en el módulo de documentos
 import React, {useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '../dialog';
 import { Button } from '../button';
@@ -22,6 +23,7 @@ const CreateFolderModal: React.FC<CreateFolderModaProps> = ({isOpen, onClose, co
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
     const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
 
+    //Crea la carpeta en el backend y refresca el resultado
     const handleSave = async () => {
         if(!name.trim()) return;
         setLoading(true);

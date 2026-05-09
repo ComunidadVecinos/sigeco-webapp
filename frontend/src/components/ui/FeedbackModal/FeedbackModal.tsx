@@ -1,3 +1,4 @@
+//Modal genérico de feedback: muestra un mensaje de éxito o error con icono
 import React from 'react';
 import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from '../dialog';
 import {Button} from '../button';
@@ -11,7 +12,7 @@ interface FeedbackModalProps {
 }
 
 const FeedbackModal: React.FC<FeedbackModalProps> = ({isOpen, onClose, type, message}) => {
-
+    //Se selecciona el tipo de icono, color y título según el tipo de feedback
     const isSuccess = type === 'success';
     const Icon = isSuccess ? CheckCircle2 : XCircle;
     const iconColor = isSuccess ? 'text-green-500' : 'text-red-500';

@@ -1,9 +1,9 @@
+//Tarjeta de publicación del foro: autor, categoría, encuesta, likes, comentarios y acciones
 import React, {useState, useEffect, useRef} from "react";
 import {CircleUserRound, Heart, MessageCircle, MoreHorizontal, Pencil, Trash2, Pin} from "lucide-react";
 import { formatUtcIsoInBusinessZone } from '@/lib/businessDateTime';
 
 type PostCategory = 'question' | 'poll' | 'announcement' | 'request';
-
 
 interface PollOption {
     text: string;
@@ -35,6 +35,7 @@ interface PostCardProps{
     editedAt?: string | null;
 }
 
+//Estilos y eqiquetas por categoría de publicación
 const categoryStyles = {
     question : {bg: 'bg-blue-50', text: 'text-[#104084]'},
     poll: {bg: 'bg-yellow-50', text: 'text-yellow-700'},
@@ -42,6 +43,7 @@ const categoryStyles = {
     request: {bg: 'bg-red-50', text: 'text-red-800'}
 };
 
+//Emoji y texto descriptivo para cada categoría
 const categoryLabels = {
     question: {emoji: '❓', label: 'Pregunta'},
     poll: {emoji: '📊', label: 'Encuesta'},
@@ -79,6 +81,7 @@ const PostCard: React.FC<PostCardProps> = ({
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
+    //Cierra el menú de acciones al hacer clic fuera de él
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if(menuRef.current && !menuRef.current.contains(event.target as Node)){
@@ -93,6 +96,7 @@ const PostCard: React.FC<PostCardProps> = ({
         };
     }, [menuOpen]);
 
+    //Calculo de porcentaje para las barras de la encuesta
     const totalVotes = (pollOptions || []).reduce((sum, opt) => sum + opt.votes, 0);
 
     const getPercentage = (votes: number) => {
@@ -179,7 +183,8 @@ const PostCard: React.FC<PostCardProps> = ({
                     <p className="text-sm text-gray-600 mt-1">{content}</p>
                 )}
             </div>
-
+            
+            {/*Opciones de encuesta clickables si no ha votado con una barra de porcenate animada*/}
             {category === 'poll' && pollOptions && pollOptions.length > 0 && (
                 <div className="my-3">
                     {pollOptions.map((option, index) => (
@@ -197,6 +202,7 @@ const PostCard: React.FC<PostCardProps> = ({
                 </div>
             )}
 
+            {/*Botón de like y contador de comentarios*/}
             <div className="flex gap-5 pt-3 border-t border-gray-100">
                 <span className={`flex items-center gap-1.5 text-sm cursor-pointer ${hasLiked ? 'text-red-500' : 'text-gray-500'}`} onClick={handleLike}>
                     <Heart className='h-4 w-4' fill={hasLiked ? "currentColor": "none" }/> {likes}

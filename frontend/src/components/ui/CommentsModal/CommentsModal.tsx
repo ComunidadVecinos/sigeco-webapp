@@ -1,3 +1,4 @@
+//Modal de comentarios de una publicación: listdo con likes, edición, eliminación y ordenación
 import React, {useState} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from '@/components/ui/dialog';
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
 
     if(!isOpen) return null;
 
+    //Envía un nuevo comentario y limpia el campo de texto
     const handleSubmit = () => {
         if(newComment.trim()){
             onAddComment(newComment);
@@ -61,11 +63,13 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
         }
     };
 
+    //Activa el modo edición de un comentario existente
     const startEdit = (comment: Comment) => {
         setEditingId(comment.id);
         setEditContent(comment.content);
     };
 
+    //Confirma la edición del comentario y desactiva el modo de edición
     const confirmEdit = () => {
         if(editingId && editContent.trim() && onEditComment){
             onEditComment(editingId, editContent);
@@ -74,6 +78,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
         }
     };
 
+    //Cancela la edición
     const cancelEdit = () => {
         setEditingId(null);
         setEditContent('');
@@ -85,7 +90,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
                 <DialogHeader>
                     <DialogTitle>{postTitle || 'Comentarios'}</DialogTitle>
                 </DialogHeader>
-
+                {/*Botones de ordenación por recientes o por likes*/}
                 {onChangeCommentsSortBy && (
                     <div className="flex gap-2 pt-2">
                         <Button variant={commentsSortBy === 'createdAt' ? 'default' : 'outline'} size="sm" onClick={() => onChangeCommentsSortBy('createdAt')}>
@@ -101,6 +106,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
                     {comments.length === 0 ? (
                         <p className="text-center text-gray-400 text-sm">No hay comentarios todavía. ¡Sé el primero!</p>
                     ) : (
+                        /*Lista de comentarios*/
                         comments.map((comment) => (
                             <div className="flex gap-3" key={comment.id}>
                                 <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center shrink-0">
@@ -159,6 +165,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
                     )}
                 </div>
 
+            {/*Campo de texto y botón para enviar un nuevo comentario*/}
             <div className="flex gap-2.5 pt-3 border-t border-gray-200">
                 <Input 
                     placeholder="Escribe un comentario..." 

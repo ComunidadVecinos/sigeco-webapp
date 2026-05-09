@@ -1,3 +1,4 @@
+//Modal para editar el nombre de un documento o carpeta y descripción si es archivo
 import React, {useEffect, useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '../dialog';
 import { Button } from '../button';
@@ -26,8 +27,10 @@ const EditDocumentModal: React.FC<EditDocumentModaProps> = ({isOpen, onClose, co
     const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
     const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
 
+    //Sincroniza los campos con los valores actuales 
     useEffect(() => {setName(currentName); setDescription(currentDescription || ''); }, [currentName, currentDescription]);
 
+    //Envía los cambios al backend
     const handleSave = async () => {
         if(!name.trim()) return;
         setLoading(true);

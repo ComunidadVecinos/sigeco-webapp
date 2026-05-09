@@ -1,3 +1,4 @@
+// Componente Popover (shadcn/ui) — contenido flotante anclado a un elemento
 import * as React from "react"
 import { Popover as PopoverPrimitive } from "radix-ui"
 

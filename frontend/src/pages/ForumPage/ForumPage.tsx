@@ -1,25 +1,20 @@
+//Foro comunitario: listado paginado de publicaciones con filtros (categoría, fecha, orden), likes, encuestas, pin y sistema de comentarios
 import React, { useEffect, useState } from 'react';
 import Header from '../../components/common/Header/Header';
 import Sidebar from '../../components/ui/Sidebar/Sidebar';
 import CreatePost from '../../components/ui/CreatePost/CreatePost';
 import PostCard from '../../components/ui/PostCard/PostCard';
 import CommentsModal from '../../components/ui/CommentsModal/CommentsModal';
-import { Menu, Filter, CalendarIcon, Target } from 'lucide-react';
+import { Menu, Filter } from 'lucide-react';
 import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getPosts, createPost, updatePost, deletePost, toggleLike, getComments, addComment, updateComment, deleteComment, votePoll, pinPost, unpinPost, toggleCommentLike } from '@/services/forumService';
-import { format } from "date-fns";
-import { es } from 'date-fns/locale';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DateRange } from 'react-day-picker';
 import { useNavigate } from 'react-router-dom';
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
-
-
+//Tipos del foro: categoría de publicación, opciones de encuesta, datos de autor y estructura de comentario
 type PostCategory = 'question' | 'poll' | 'announcement' | 'request';
 
 interface PollOption {
@@ -82,7 +77,7 @@ const ForumPage: React.FC = () => {
     //Rol del usuario
     const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
     const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
-
+    //Estado de la vista: sidebar, listado de posts, paginaciópn, filtros y ordenación
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [posts, setPosts] = useState<Post[]>([]);
     const [page, setPage] = useState(0);
@@ -93,23 +88,20 @@ const ForumPage: React.FC = () => {
     const [endDate, setEndDate] = useState('');
     const [loading, setLoading] = useState(false);
     const [sortBy, setSortBy] = useState<'createdAt' | 'likes' | 'lastActivityAt'>('createdAt');
-
     //Comentarios
     const [selectedPost, setSelectedPost] = useState<Post | null>(null);
     const [commentsList, setCommentsList] = useState<Comment[]>([]);
     const [commentsSortby, setCommentsSortBy] = useState<'createdAt' | 'likes'>('createdAt');
-
     //Editar post
     const [editingPostId, setEditingPostId] = useState<string | null>(null);
     const [editPostContent, setEditPostContent] = useState('');
     const [editPostTitle, setEditPostTitle] = useState('');
+    //Feedback global y confirmación de eliminación
+    const [feedback, setFeedback] = useState<{ isOpen: boolean, type: 'success' | 'error', message: string }>({ isOpen: false, type: 'success', message: '' });
+    const closeFeedback = () => setFeedback(prev => ({ ...prev, isOpen: false }));
+    const [confirmAction, setConfirmAction] = useState<{ isOpen: boolean; type: 'deletePost' | 'deleteComment' | null; idToDelete: string; title: string; message: string; }>({ isOpen: false, type: null, idToDelete: '', title: '', message: '' });
 
-    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
-    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
-
-    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'deletePost' | 'deleteComment' | null; idToDelete: string; title: string; message: string;}>({isOpen: false, type: null, idToDelete: '', title: '', message: ''});
-    
-
+    //Redirige al perfil si el usuario no tiene comunidad activa
     useEffect(() => {
         if (!authLoading && user && !communityId) {
             navigate('/auth/me', { replace: true });
@@ -144,8 +136,10 @@ const ForumPage: React.FC = () => {
         }
     };
 
+    //Recarga los posts desde la página 0 cuando cambian los filtros, orden o comunidad
     useEffect(() => { setPage(0); loadPosts(0); }, [communityId, categoryFilter, startDate, endDate, sortBy]);
 
+    //Carga la siguiente página de posts y los añade al listado existente
     const handleLoadMore = () => {
         const nextPage = page + 1;
         setPage(nextPage);
@@ -168,7 +162,7 @@ const ForumPage: React.FC = () => {
             loadPosts(0);
         }
         catch (err: any) {
-            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al crear publicación.'});
+            setFeedback({ isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al crear publicación.' });
         }
     };
 
@@ -177,14 +171,14 @@ const ForumPage: React.FC = () => {
         if (!communityId || !editPostContent.trim() || !editPostTitle.trim()) return;
         try {
             await updatePost(communityId, postId, { title: editPostContent, description: editPostContent });
-            setPosts(prev => prev.map(p => 
-                p.id === postId ? {...p, title: editPostTitle, description: editPostContent, editedAt: new Date().toISOString()} : p
+            setPosts(prev => prev.map(p =>
+                p.id === postId ? { ...p, title: editPostTitle, description: editPostContent, editedAt: new Date().toISOString() } : p
             ));
             setEditingPostId(null);
             setEditPostContent('');
             setEditPostTitle('');
         } catch (err: any) {
-            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al editar publicación.'});
+            setFeedback({ isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al editar publicación.' });
         }
     };
 
@@ -195,7 +189,7 @@ const ForumPage: React.FC = () => {
             await deletePost(communityId, postId);
             setPosts(posts.filter(p => p.id !== postId));
         } catch (err: any) {
-           setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar publicación.'});
+            setFeedback({ isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar publicación.' });
         }
     };
 
@@ -219,7 +213,7 @@ const ForumPage: React.FC = () => {
             setPage(0);
             loadPosts(0);
         } catch (err: any) {
-            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al votar en la publicación.'});
+            setFeedback({ isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al votar en la publicación.' });
         }
     };
 
@@ -237,7 +231,7 @@ const ForumPage: React.FC = () => {
             setPosts(prev => prev.map(p => p.id === post.id ? { ...p, pinned: !p.pinned } : p));
         }
         catch (err: any) {
-            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al fijar/desfijar la publicación.'});
+            setFeedback({ isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al fijar/desfijar la publicación.' });
         }
     };
 
@@ -263,7 +257,7 @@ const ForumPage: React.FC = () => {
             setCommentsList([...commentsList, res.data]);
             setPosts(posts.map(p => p.id === selectedPost.id ? { ...p, commentsCount: p.commentsCount + 1 } : p));
         } catch (err: any) {
-            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al comentar en la publicación.'});
+            setFeedback({ isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al comentar en la publicación.' });
         }
     };
 
@@ -274,7 +268,7 @@ const ForumPage: React.FC = () => {
             await updateComment(communityId, commentId, { content });
             setCommentsList(commentsList.map(c => c.id === commentId ? { ...c, content, editedAt: new Date().toISOString() } : c));
         } catch (err: any) {
-           setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al editar comentario.'});
+            setFeedback({ isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al editar comentario.' });
         }
     };
 
@@ -285,7 +279,7 @@ const ForumPage: React.FC = () => {
             const res = await deleteComment(communityId, commentId);
             setCommentsList(commentsList.map(c => c.id === commentId ? res.data : c));
         } catch (err: any) {
-            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar comentario.'});
+            setFeedback({ isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar comentario.' });
         }
     };
 
@@ -300,6 +294,7 @@ const ForumPage: React.FC = () => {
         }
     };
 
+    //Recarga los comentarios del post abierto con el nuevo criterio de ordenación
     const reloadComments = async (sort: 'createdAt' | 'likes') => {
         if (!communityId || !selectedPost) return;
         try {
@@ -326,6 +321,7 @@ const ForumPage: React.FC = () => {
             <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px]'>
                 <h1 className='text-[28px] font-bold mb-7 text-center'>Foro comunitario</h1>
 
+                {/*Barra de ordenación (recientes/actividad/likes) y toggle de filtros*/}
                 <div className='flex justify-between items-center mb-4'>
                     <div className="flex gap-2">
                         <Button variant={sortBy === 'createdAt' ? 'default' : 'outline'} size="sm" onClick={() => setSortBy('createdAt')}>
@@ -343,6 +339,7 @@ const ForumPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/*Panel de filtros: categoría y rango de fechas*/}
                 {showAdvancedFilters && (
                     <div className='bg-white rounded-2xl border border-gray-200 p-6 mb-6 shadow-sm'>
                         <div className='flex flex-col md:flex-row gap-6'>
@@ -400,15 +397,16 @@ const ForumPage: React.FC = () => {
                     </div>
                 )}
 
+                {/*Formulario de nueva publicación*/}
                 <CreatePost onSubmit={handleNewPost} />
 
-
+                {/*Listado de posts*/}
                 <div className="mt-7 flex flex-col gap-5">
                     {posts.map((post) => (
                         editingPostId === post.id ? (
                             <div key={post.id} className='bg-white rounded-2xl p-5 shadow-sm'>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     className='w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#104084] font-bold mb-3'
                                     value={editPostTitle}
                                     onChange={(e) => setEditPostTitle(e.target.value)}
@@ -429,7 +427,7 @@ const ForumPage: React.FC = () => {
                                 key={post.id}
                                 postId={post.id}
                                 title={post.title}
-                                authorName={post.author?.alias || 'Anonimo'}
+                                authorName={post.author?.alias || 'Anónimo'}
                                 authorAvatar={post.author?.profileImageUrl || undefined}
                                 content={post.description}
                                 timestamp={post.createdAt}
@@ -478,6 +476,7 @@ const ForumPage: React.FC = () => {
 
             </main>
 
+            {/*Modales: cometarios, feedback y confirmación*/}
             <CommentsModal
                 isOpen={selectedPost !== null}
                 onClose={() => { setSelectedPost(null); setCommentsList([]); }}
@@ -486,7 +485,7 @@ const ForumPage: React.FC = () => {
                 postAuthor={selectedPost?.author?.alias || ''}
                 comments={commentsList.map(c => ({
                     id: c.id,
-                    authorName: c.author?.alias || 'Anonimo',
+                    authorName: c.author?.alias || 'Anónimo',
                     authorAvatar: c.author?.profileImageUrl || undefined,
                     content: c.content,
                     timestamp: c.createdAt,
@@ -504,7 +503,7 @@ const ForumPage: React.FC = () => {
 
             />
 
-             <FeedbackModal 
+            <FeedbackModal
                 isOpen={feedback.isOpen}
                 type={feedback.type}
                 message={feedback.message}
@@ -513,14 +512,14 @@ const ForumPage: React.FC = () => {
 
             <ConfirmModal
                 isOpen={confirmAction.isOpen}
-                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                onClose={() => setConfirmAction({ ...confirmAction, isOpen: false })}
                 title={confirmAction.title}
                 message={confirmAction.message}
                 isDestructive={true}
                 confirmText='Sí, eliminar'
                 onConfirm={async () => {
-                    if(confirmAction.type === 'deletePost') await handleDeletePost(confirmAction.idToDelete);
-                    if(confirmAction.type === 'deleteComment') await handleDeleteComment(confirmAction.idToDelete);
+                    if (confirmAction.type === 'deletePost') await handleDeletePost(confirmAction.idToDelete);
+                    if (confirmAction.type === 'deleteComment') await handleDeleteComment(confirmAction.idToDelete);
 
                 }}
             />

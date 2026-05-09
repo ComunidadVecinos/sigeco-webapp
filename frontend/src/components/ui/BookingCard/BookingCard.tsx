@@ -1,3 +1,4 @@
+//Tarjeta de reserva: fecha, horario, espacio, estado y botón de cancelación
 import React from 'react';
 import {Clock, Users, CalendarDays, XCircle } from 'lucide-react';
 import { Button } from '../button';
@@ -17,6 +18,7 @@ const BookingCard: React.FC<BookingCardProps> = ({booking, showOwner = false, on
     return (
         <div className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-shadow hover:shadow-md ${isActive ? 'border-gray-100' : 'border-gray-200 opacity-75'}`}>
             <div className="flex">
+                {/*Banda lateral con el color identificativo del espacio reservado*/}
                 <div className='w-1.5 shrink-0 rounded-l-2xl' style={{backgroundColor: booking.space.colorHex}} />
 
                 <div className='flex-1 p-5'>
@@ -48,6 +50,7 @@ const BookingCard: React.FC<BookingCardProps> = ({booking, showOwner = false, on
                                         ({booking.slotCount} {booking.slotCount === 1 ? 'slot' : 'slots'})
                                     </span>
                                 </div>
+                                {/*Muestra el número de plazas solo en espacios compartidos*/}
                                 {booking.space.occupancyMode === 'SHARED' && (
                                     <div className='flex items-center gap-2'>
                                         <Users className='w-4 h-4 text-gray-400' />
@@ -62,6 +65,7 @@ const BookingCard: React.FC<BookingCardProps> = ({booking, showOwner = false, on
                                 </p>
                             )}
 
+                            {/*Detalle de cancelación*/}
                             {!isActive && (
                                 <div className='mt-3 p-3 bg-red-50/50 rounded-lg border border-red-100'>
                                     {booking.cancellationReason && (

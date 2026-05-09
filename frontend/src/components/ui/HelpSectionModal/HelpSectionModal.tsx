@@ -1,3 +1,4 @@
+//Modal para crear o editar una sección de ayuda de la comunidad con título y descripción
 import React, {useEffect, useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Button } from '../button';
@@ -23,6 +24,7 @@ const HelpSectionModal: React.FC<HelpSectionModalProps> = ({isOpen, onClose, com
 
     const isEdit = !!section;
 
+    //Rellena los campos si lo esta editando o los vacía si es una nueva sección
     useEffect(() => {
         if (section) {
             setTitle(section.title);
@@ -37,6 +39,7 @@ const HelpSectionModal: React.FC<HelpSectionModalProps> = ({isOpen, onClose, com
         setFieldErrors({});
     }, [isOpen, section]);
 
+    //Valida campos localmente, envía al backend (crear o actualizar) y mapea errores de la API
     const handleSubmit = async () => {
         setError('');
         setSuccess('');
@@ -84,6 +87,7 @@ const HelpSectionModal: React.FC<HelpSectionModalProps> = ({isOpen, onClose, com
         }
     };
 
+    //Limpia formulario y errores al cerrar
     const handleClose = () => {
         setTitle('');
         setDescription('');

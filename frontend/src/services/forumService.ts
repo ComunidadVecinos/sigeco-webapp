@@ -1,3 +1,4 @@
+//Servicios del foro: publicaciones, comentarios, likes, encuestas y pin/unpin
 import api from './api';
 
 export type Category = 'question' | 'poll' | 'announcement' | 'request';
@@ -73,9 +74,10 @@ export const votePoll = (communityId: string, pollId: string, data: {
     optionId: string;
 }) => api.post(`/api/communities/${communityId}/forum/polls/${pollId}/vote`, data);
 
-//Pin/unpin
+//Fijar publicacion
 export const pinPost = (communityId: string, postId: string) =>
     api.post(`/api/communities/${communityId}/forum/posts/${postId}/pin`);
 
+//Desfijar publicacion
 export const unpinPost = (communityId: string, postId: string) =>
     api.post(`/api/communities/${communityId}/forum/posts/${postId}/unpin`);

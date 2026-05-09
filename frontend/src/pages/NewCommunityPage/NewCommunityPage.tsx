@@ -1,3 +1,4 @@
+//Página para unirse a una comunidad existente (con código) o crear una nueva (con datos de la comunidad y del domicilio del presidente)
 import React, {useMemo, useState} from 'react';
 import Header from '../../components/common/Header/Header';
 import { Input } from '@/components/ui/input';
@@ -10,14 +11,18 @@ import { getApiErrorMessage, getApiFieldErrors, hasFieldErrors } from '@/lib/for
 import { isValidCommunityOwnersCif, isValidSpanishPostalCode, isValidStreetNumberKm } from '@/lib/communityValidation';
 import { ArrowLeft } from 'lucide-react';
 
+//Tipo de flujo: "unete" para unirse con código, "crear" para fundar una nueva comunidad
 type Opcion = 'unete' | 'crear' | '';
 
+//Formato del código de acceso
 const ACCESS_CODE_REGEX = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/;
 
 const NewCommunityPage: React.FC = () => {
-    const navigate = useNavigate();
-    const {refreshUser} = useAuth();
 
+    const navigate = useNavigate();
+
+    const {refreshUser} = useAuth();
+    //Estado del formulario: opción elegida, errores por campo, campos tocados, flags de validación y envío
     const [opcion, setOpcion] = useState<Opcion>('');
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -25,49 +30,29 @@ const NewCommunityPage: React.FC = () => {
     const [codigoValidated, setCodigoValidated] = useState(false);
     const [communityValidated, setCommunityValidated] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-
+    //Datos de los tres formularios: código de acceso, crear comunidad y domicilio del usuario
     const [codigo, setCodigo] = useState('');
-    const [comunidad, setComunidad] = useState({
-        nombre: '',
-        cif: '',
-        pais: '',
-        provincia: '',
-        municipio: '',
-        tipoVia: '',
-        nombreVia: '',
-        cp: '',
-        numero: ''
-    });
+    const [comunidad, setComunidad] = useState({nombre: '', cif: '', pais: '', provincia: '', municipio: '', tipoVia: '', nombreVia: '', cp: '', numero: ''});
+    const [domicilio, setDomicilio] = useState({alias: '', comentario: '', pais: '', provincia: '', municipio: '', tipoVia: '', nombreVia: '', cp: '', numero: '', bloque: '', planta: '', puerta: ''});
 
-    const [domicilio, setDomicilio] = useState({
-        alias: '',
-        comentario: '',
-        pais: '',
-        provincia: '',
-        municipio: '',
-        tipoVia: '',
-        nombreVia: '',
-        cp: '',
-        numero: '',
-        bloque: '',
-        planta: '',
-        puerta: ''
-    });
-
+    //Muestra la tarjeta de domicilio solo si la sección anterior (código o comunidad) está validada
     const showPropertyCard = useMemo(() => {
         return (opcion === 'unete' && codigoValidated) || (opcion === 'crear' && communityValidated);
     }, [codigoValidated, communityValidated, opcion]);
 
+    //Limpia todos los errores, campos tocados y error global
     const resetFeedback = () => {
         setErrors({});
         setTouched({});
         setGlobalError('');
     };
 
+    //Matrca una lista de campos como tocados paea activar su feedback visual
     const setTouchedFields = (keys: string[]) => {
         setTouched((prev) => keys.reduce((acc, key) => ({ ...acc, [key]: true }), prev));
     };
 
+    //Reemplaza los errores de los campos indicados sin borrar los errores de otros campos
     const mergeErrors = (keys: string[], nextErrors: Record<string, string>) => {
         setErrors((prev) => {
             const remainingEntries = Object.entries(prev).filter(([key]) => !keys.includes(key));
@@ -75,6 +60,7 @@ const NewCommunityPage: React.FC = () => {
         });
     };
 
+    //Validación génerica por nombre de campo: vacío, formato CIF, CP español, num/km
     const validateField = (name: string, value: string): string | undefined => {
         const trimmedValue = value.trim();
 
@@ -121,6 +107,7 @@ const NewCommunityPage: React.FC = () => {
         }
     };
 
+    //Valida el código de acceso y habilita la tarjeta de domicilio si es correcto
     const validateJoinCode = () => {
         const codeError = validateField('codigo', codigo);
         setTouchedFields(['codigo']);
@@ -130,6 +117,7 @@ const NewCommunityPage: React.FC = () => {
         return !codeError;
     };
 
+    //Valida todos los campos de la comunidad
     const validateCommunitySection = () => {
         const fields = ['nombre', 'cif', 'pais', 'provincia', 'municipio', 'tipoVia', 'nombreVia', 'cp', 'numero'];
         const keys = fields.map((field) => `com_${field}`);
@@ -147,6 +135,7 @@ const NewCommunityPage: React.FC = () => {
         return Object.keys(nextErrors).length === 0;
     };
 
+    //Valida los campos del domicilio del usuario
     const validatePropertySection = () => {
         const fields = ['pais', 'provincia', 'municipio', 'tipoVia', 'nombreVia', 'cp', 'numero', 'alias'];
         const keys = fields.map((field) => `dom_${field}`);
@@ -164,6 +153,7 @@ const NewCommunityPage: React.FC = () => {
         return Object.keys(nextErrors).length === 0;
     };
 
+    //Cambia de flujo, reseteando validaciones y feedback anteriores
     const handleSelectOption = (nextOption: Opcion) => {
         setOpcion(nextOption);
         setCodigoValidated(false);
@@ -171,6 +161,7 @@ const NewCommunityPage: React.FC = () => {
         resetFeedback();
     };
 
+    //Actualiza el código y revalida en tiempo real si el campo ya fue tocado
     const handleCodigoChange = (value: string) => {
         setCodigo(value);
 
@@ -180,6 +171,7 @@ const NewCommunityPage: React.FC = () => {
         }
     };
 
+    //Actualiza un campo de la comunidad y revalida en tiempo real si ya fie tocado
     const handleComunidadChange = (campo: string, valor: string) => {
         setComunidad({ ...comunidad, [campo]: valor});
         if(touched[`com_${campo}`]){
@@ -188,12 +180,14 @@ const NewCommunityPage: React.FC = () => {
         }
     };
 
+    //Marca el campo como tocado al perder el foco y ejecuta su validación
     const handleComunidadBlur = (campo: string) => {
         setTouchedFields([`com_${campo}`]);
         const err = validateField(campo, (comunidad as Record<string, string>)[campo]);
         mergeErrors([`com_${campo}`], err ? { [`com_${campo}`]: err } : {});
     };
 
+    //Actualiza un campo del domicilio y revalida en tiempo real si ya fue tocado
     const handleDomicilioChange = (campo: string, valor: string) => {
         setDomicilio({ ...domicilio, [campo]: valor});
         if(touched[`dom_${campo}`]){
@@ -203,6 +197,7 @@ const NewCommunityPage: React.FC = () => {
         }
     };
 
+    //Marca el campo del domicilio como tocado al perder el foco y ejecuta su validación
     const handleDomicilioBlur = (campo: string) => {
         setTouchedFields([`dom_${campo}`]);
         const validationField = campo === 'alias' ? 'alias' : campo;
@@ -211,6 +206,7 @@ const NewCommunityPage: React.FC = () => {
         mergeErrors([`dom_${campo}`], err ? { [`dom_${campo}`]: err } : {});
     };
 
+    //Envío final: valida todas las secciones, construye el objeto de datos y llama a la API
     const handleSubmit = async () => {
         resetFeedback();
 
@@ -326,11 +322,13 @@ const NewCommunityPage: React.FC = () => {
         }
     };
 
+    //Devuelve la clase CSS de borde según el estado de validación del campo
     const inputClass = (key: string): string => {
         if(!touched[key]) return '';
         return errors[key] ? 'border-red-500 focus-visible:ring-red-500' : 'border-green-500 focus-visible:ring-green-500';
     };
 
+    //Renderiza el mensaje de error debajo del campo si existe
     const renderInlineError = (key: string) => {
         if(!errors[key]) return null;
         return <p className='text-sm text-red-500'>{errors[key]}</p>;
@@ -354,7 +352,7 @@ const NewCommunityPage: React.FC = () => {
                         {globalError}
                     </div>
                 )}
-
+                {/*Paso 1: Selector de flujo - tarjetas Uniser y Crear */}
                 <div className="border border-gray-200 rounded-2xl bg-white shadow-sm mb-12 mt-5">
                     <div className="p-6">
                         <h3 className='font-bold ml-4 mt-4'>¿Cómo vas a conectar?</h3>
@@ -385,7 +383,8 @@ const NewCommunityPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
-
+                
+                {/*Paso 2a (unirse): Validación del código de acceso*/}
                 {opcion === 'unete' && (
                     <div className="border border-gray-200 rounded-2xl bg-white shadow-sm mb-12">
                         <div className="p-6">
@@ -420,6 +419,7 @@ const NewCommunityPage: React.FC = () => {
                     </div>
                 )}
 
+                {/*Paso 2b (crear): Formulario con nombre, CIF y ubicación*/}
                 {opcion === 'crear' && (
                     <div className="border border-gray-200 rounded-2xl bg-white shadow-sm mb-12">
                         <div className="p-6">
@@ -559,6 +559,7 @@ const NewCommunityPage: React.FC = () => {
                     </div>
                 )}
 
+                {/*Paso 3: Formulario del domicilio del usuario - solo visible tras validar el paso anterior*/}
                 {showPropertyCard && (
                     <div className="border border-gray-200 rounded-2xl bg-white shadow-sm mb-12">
                         <div className="p-6">

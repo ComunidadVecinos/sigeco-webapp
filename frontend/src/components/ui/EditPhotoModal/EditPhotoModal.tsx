@@ -1,3 +1,4 @@
+//Modal reutilizable para cambiar o eliminar la foto de perfil o comunidad con vista previa
 import React, {useEffect, useRef, useState} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -41,10 +42,12 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
 
     const [confirmAction, setConfirmAction] = useState({isOpen: false, title: '', message: ''});
 
+    //Sincroniza la vista previa con la foto actual cada vez que se abre el modal   
     useEffect(() => {
         setPreview(currentPhoto);
     }, [currentPhoto, isOpen]);
 
+    //Lee el archivo seleccionado y genera una vista previa
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if(file){
@@ -58,10 +61,12 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
         }
     };
 
+    //Elige la imagen que se quiere poner
     const handleSelectFile = () => {
         fileInputRef.current?.click();
     };
 
+    //Sube la imagen al backend y devuelve la nueva url
     const handleSave = async () => {
         if(!selectedFile) {
             setError('Selecciona primero una imagen.');
@@ -84,6 +89,7 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
         }
     };
 
+    //Elimina la foto actual y restaura la imagen por defecto
     const handleDelete = async () => {
         if(!onDeletePhoto) return;
         setDeleting(true);
@@ -99,6 +105,7 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
         }
     }
 
+    //Limpia el archivo seleccionado y restaura la vista previa al cerrar
     const handleClose = () => {
         setSelectedFile(null);
         setPreview(currentPhoto);
@@ -106,6 +113,7 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
         onClose();
     };
 
+    //No muestra el boton de eliminar si ya tiene la foto por defecto
     const isDefaultPhoto = defaultPhoto && currentPhoto === defaultPhoto;
 
     return (

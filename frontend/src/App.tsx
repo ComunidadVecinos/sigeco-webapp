@@ -1,8 +1,9 @@
-//Componente principal que monta toda la aplicación
-
+/*
+  Componente raíz de la aplicación.
+  Aquí se definen todas las rutas de SIGECO y envuelve la aplicación con el AuthProvider para gestionar la autenticación global.
+*/
 import React from 'react';
 import {Routes, Route} from 'react-router-dom';
-
 import LandingPage from './pages/LandingPage/LandingPage';
 import WelcomePage from './pages/WelcomePage/WelcomePage';
 import RegisterPage from './pages/RegisterPage/RegisterPage';
@@ -29,17 +30,22 @@ const App: React.FC = () => {
         <AuthProvider>
             <div className="App">
                 <Routes>
+                    {/*Rutas públicas (landing y acceso)*/}
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/access" element={<WelcomePage />} /> 
+
+                    {/*Rutas de autenticación*/}
                     <Route path="/auth/register" element={<RegisterPage />} />
                     <Route path="/auth/login" element={<LogInPage />} />
                     <Route path="/auth/reset-password" element={<ForgotPasswordPage />} />
                     <Route path="/auth/change-password" />
                     <Route path="/auth/me" element={<ProfilePage />} />
-                    <Route path="/forum" element={<ForumPage />} />
                     <Route path="/auth/logout" />
                     <Route path="/auth/delete-account" />
                     <Route path="/auth/new-community" element={<NewCommunityPage />}/>
+
+                    {/*Rutas de módulos de la comunidad*/}
+                    <Route path="/forum" element={<ForumPage />} />
                     <Route path='/admin' element={<AdminPage/>}/>
                     <Route path='/help' element={<HelpPage/>}/>
                     <Route path='/news' element={<NewsPage/>}/>
@@ -49,6 +55,8 @@ const App: React.FC = () => {
                     <Route path='/incidents' element={<IncidentPage/>} />
                     <Route path='/reservations' element={<ReservationsPage/>} />
                     <Route path='/space-management' element={<SpaceManagementPage/>} />
+
+                    {/*Rutas para páginas no encontradas*/}
                     <Route path="*" element={<NotFoundPage />} />
                 </Routes>
             </div>
