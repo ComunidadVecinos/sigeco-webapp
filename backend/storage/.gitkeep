@@ -1,0 +1,2 @@
+Este archivo permite mantener versionado la carpeta storage en GitHub, que la aplicación utiliza como almacenamiento local de
+imágenes y documentos en runtime.

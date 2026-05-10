@@ -1,0 +1,421 @@
+# Users API
+
+> API index: [docs/api/README.md](./README.md)
+
+This module exposes self-service operations for the authenticated user profile.
+
+Base path: `/api/users`
+
+---
+
+## Access rules
+
+All endpoints in this module require a valid authenticated session cookie.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/users/me` | Get the authenticated profile summary |
+| `PATCH` | `/api/users/me` | Update the authenticated profile |
+| `PUT` | `/api/users/me/active-community` | Change the active community context |
+| `PUT` | `/api/users/me/avatar` | Upload or replace the profile avatar |
+| `DELETE` | `/api/users/me/avatar` | Delete the current profile avatar |
+| `DELETE` | `/api/users/me` | Delete the authenticated account |
+
+---
+
+## Common response shapes
+
+### Profile response
+
+`GET /me` and `PATCH /me` return the same shape:
+
+```json
+{
+  "id": "uuid",
+  "firstName": "Ana",
+  "lastName": "Garcia",
+  "email": "ana@ucm.es",
+  "phone": "600123456",
+  "profileImageUrl": "/uploads/users/avatar.jpg",
+  "activeCommunityId": "uuid",
+  "communities": [
+    {
+      "membershipId": "uuid",
+      "communityId": "uuid",
+      "name": "Comunidad SIGECO",
+      "role": "MEMBER",
+      "address": "Calle Mayor 12",
+      "addressDetails": {
+        "country": "España",
+        "province": "Madrid",
+        "municipality": "Madrid",
+        "streetType": "Calle",
+        "streetName": "Mayor",
+        "postalCode": "28001",
+        "streetNumberKm": "12",
+        "block": null,
+        "floor": null,
+        "door": null,
+        "formatted": "Calle Mayor 12"
+      },
+      "province": "Madrid",
+      "municipality": "Madrid",
+      "memberSince": "2026-01-10T09:30:00.000Z",
+      "alias": "Ana Vecina",
+      "suspensionActive": false,
+      "suspensionUntil": null
+    }
+  ]
+}
+```
+
+- `profileImageUrl` is a public URL or `null`
+- `activeCommunityId` is the community selected in the current access context or `null`
+- `communities[].membershipId` identifies the user's own membership row in that community
+- `communities` includes only memberships that are not deleted, not ended, and belong to non-deleted communities
+- `communities` is ordered by `joinedAt` ascending
+- `address` is a UI-friendly string and may be `null`
+- `addressDetails` may be `null` when the membership has no active property
+
+### Active community change response
+
+`PUT /me/active-community` returns a reduced access-context payload:
+
+```json
+{
+  "activeMembership": {
+    "membershipId": "uuid",
+    "communityId": "uuid",
+    "role": "VICE_PRESIDENT",
+    "alias": "Ana Admin"
+  },
+  "context": {
+    "actorType": "DelegatedAdmin"
+  }
+}
+```
+
+Possible `context.actorType` values:
+
+| Value | Meaning |
+|---|---|
+| `RegisteredUserNoCommunity` | User has no active community membership |
+| `StandardMember` | User is a normal community member |
+| `DelegatedAdmin` | User is `VICE_PRESIDENT` |
+| `PrincipalAdmin` | User is `PRESIDENT` |
+
+---
+
+## 1. Get my profile
+
+`GET /api/users/me`
+
+Returns the aggregated profile of the authenticated user.
+
+### Request
+
+Requires valid `sid` cookie.
+
+No request body.
+
+### Success
+
+- Status: `200 OK`
+
+Response shape: see [Profile response](#profile-response).
+
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
+| `500` | `INTERNAL_ERROR` | Backend could not resolve the current profile/context |
+
+---
+
+## 2. Update my profile
+
+`PATCH /api/users/me`
+
+Updates the authenticated user's basic profile data.
+
+The endpoint expects the full editable profile payload. `phone` is optional; `firstName`, `lastName` and `email` are required.
+
+### Request
+
+```http
+Content-Type: application/json
+Cookie: sid=<session_cookie>
+```
+
+```json
+{
+  "firstName": "Ana",
+  "lastName": "Garcia",
+  "email": "ana@ucm.es",
+  "phone": "600 123 456"
+}
+```
+
+### Validation rules
+
+| Field | Rules |
+|---|---|
+| `firstName` | Required, trimmed, letters/spaces/apostrophe/hyphen only |
+| `lastName` | Required, trimmed, letters/spaces/apostrophe/hyphen only |
+| `email` | Required, valid email, normalized to lowercase, must end with `@ucm.es` |
+| `phone` | Optional, 9 digits, spaces allowed, normalized before saving |
+
+### Success
+
+- Status: `200 OK`
+
+Response shape: same as `GET /api/users/me`.
+
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
+| `422` | `VALIDATION_ERROR` | Invalid body |
+| `422` | `EMAIL_ALREADY_REGISTERED` | Another user already uses that email |
+| `422` | `PHONE_ALREADY_REGISTERED` | Another user already uses that phone |
+
+---
+
+## 3. Change active community
+
+`PUT /api/users/me/active-community`
+
+Changes the active community context for both the current session and the persisted user preference.
+
+### Request
+
+```http
+Content-Type: application/json
+Cookie: sid=<session_cookie>
+```
+
+```json
+{
+  "communityId": "uuid"
+}
+```
+
+### Validation rules
+
+| Field | Rules |
+|---|---|
+| `communityId` | Required, valid UUID |
+
+The target community must exist and still belong to the user. Suspended memberships can still be selected as active context.
+
+### Success
+
+- Status: `200 OK`
+
+Response shape: see [Active community change response](#active-community-change-response).
+
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
+| `403` | `FORBIDDEN` | User does not belong to that community |
+| `404` | `ACTIVE_COMMUNITY_NOT_FOUND` | Community does not exist |
+| `422` | `ACTIVE_COMMUNITY_INVALID` | `communityId` is missing or not a valid UUID |
+
+---
+
+## 4. Update my avatar
+
+`PUT /api/users/me/avatar`
+
+Uploads or replaces the current profile avatar.
+
+### Request
+
+```http
+Content-Type: multipart/form-data
+Cookie: sid=<session_cookie>
+```
+
+Form field:
+
+| Field | Type | Rules |
+|---|---|---|
+| `avatar` | File | Required, JPG or PNG, max `5 MB` |
+
+### Behavior notes
+
+- Backend validates both the reported MIME type and the binary signature of the uploaded file
+- Upload replaces the previous avatar if one already exists
+- Response returns the new public URL ready to render
+
+### Success
+
+- Status: `200 OK`
+
+```json
+{
+  "profileImageUrl": "/uploads/users/avatar.jpg"
+}
+```
+
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
+| `404` | `NOT_FOUND` | Authenticated user no longer exists |
+| `413` | `FILE_TOO_LARGE` | File exceeds `5 MB` |
+| `415` | `FILE_TYPE_UNSUPPORTED` | File is not a valid JPG/PNG |
+| `422` | `VALIDATION_ERROR` | Missing `avatar` file |
+| `503` | `STORAGE_UNAVAILABLE` | Storage layer could not persist the file |
+
+---
+
+## 5. Delete my avatar
+
+`DELETE /api/users/me/avatar`
+
+Deletes the current profile avatar without affecting the rest of the user profile.
+
+### Request
+
+Requires valid `sid` cookie.
+
+No request body.
+
+### Behavior notes
+
+- Backend removes the avatar reference from the database first
+- Stored file cleanup is attempted afterwards as a best-effort step
+- If the physical file is already missing, the avatar is still considered deleted from the API point of view
+
+### Success
+
+- Status: `200 OK`
+
+```json
+{
+  "profileImageUrl": null
+}
+```
+
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
+| `404` | `NOT_FOUND` | Authenticated user no longer exists |
+| `409` | `CONFLICT` | User does not currently have an avatar |
+
+---
+
+## 6. Delete my account
+
+`DELETE /api/users/me`
+
+Soft-deletes the authenticated account and clears the current session cookie.
+
+### Request
+
+```http
+Content-Type: application/json
+Cookie: sid=<session_cookie>
+```
+
+```json
+{
+  "email": "ana@ucm.es",
+  "confirmationText": "ELIMINAR MI CUENTA"
+}
+```
+
+### Validation rules
+
+| Field | Rules |
+|---|---|
+| `email` | Required, valid email, normalized to lowercase, must match the authenticated user's current email |
+| `confirmationText` | Required, non-empty string, must be exactly `ELIMINAR MI CUENTA` |
+
+### Behavior notes
+
+- Users who are president of one or more active communities cannot delete their account until they transfer those presidencies
+- On success, backend invalidates all active sessions of the user
+- The current response clears the `sid` cookie
+- Memberships are ended and soft-deleted
+- Related properties of those memberships are soft-deleted
+- Votes emitted by the user are removed from votings and polls that remain open; closed votings preserve their stored result
+- Forum likes emitted by the user are deleted
+- Forum posts authored by the user are soft-deleted and forum comments are anonymized
+- News items authored by the user are preserved and expose the author as `Usuario eliminado`
+- Automatic calendar events of type `NEWS` linked to preserved news are also preserved
+- Visible community requests of the user are archived; if any were still pending they are cancelled first
+- The avatar DB record is removed and the stored file is deleted asynchronously
+- The response includes a `futureDataPolicy` object summarizing the cleanup already applied
+
+### Success
+
+- Status: `200 OK`
+
+```json
+{
+  "message": "Cuenta eliminada correctamente.",
+  "futureDataPolicy": {
+    "votesCalendarReservations": "open_votes_removed_closed_votes_preserved_calendar_personal_events_soft_deleted",
+    "forum": "posts_soft_deleted_comments_anonymized",
+    "news": "preserved_author_anonymized_events_preserved"
+  }
+}
+```
+
+### Expected errors
+
+| Status | Code | Notes |
+|---|---|---|
+| `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
+| `409` | `CONFLICT` | Account could not be deleted in its current state |
+| `409` | `ACCOUNT_DELETION_BLOCKED_BY_PRESIDENCY` | User is president of one or more active communities |
+| `422` | `VALIDATION_ERROR` | Invalid body |
+| `422` | `ACCOUNT_DELETION_EMAIL_MISMATCH` | `email` does not match the authenticated user |
+| `422` | `CONFIRMATION_TEXT_MISMATCH` | `confirmationText` is not exactly `ELIMINAR MI CUENTA` |
+| `500` | `ACCOUNT_DELETION_FAILED` | Backend failed during account deletion |
+
+---
+
+## Common users error cases
+
+| Scenario | Status | Code |
+|---|---|---|
+| Missing session cookie | `401` | `UNAUTHORIZED` |
+| Invalid or expired session | `401` | `UNAUTHORIZED` |
+| Invalid profile payload | `422` | `VALIDATION_ERROR` |
+| Email already in use when updating profile | `422` | `EMAIL_ALREADY_REGISTERED` |
+| Phone already in use when updating profile | `422` | `PHONE_ALREADY_REGISTERED` |
+| Invalid active community payload | `422` | `ACTIVE_COMMUNITY_INVALID` |
+| Selected active community does not exist | `404` | `ACTIVE_COMMUNITY_NOT_FOUND` |
+| Missing avatar file | `422` | `VALIDATION_ERROR` |
+| User tries to delete an avatar but none exists | `409` | `CONFLICT` |
+| Invalid account deletion confirmation text | `422` | `CONFIRMATION_TEXT_MISMATCH` |
+| Email mismatch during account deletion | `422` | `ACCOUNT_DELETION_EMAIL_MISMATCH` |
+| User tries to delete their account while still holding a presidency | `409` | `ACCOUNT_DELETION_BLOCKED_BY_PRESIDENCY` |
+
+Standard error shape:
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Error de validación",
+    "details": [
+      {
+        "field": "email",
+        "location": "body",
+        "message": "El correo electrónico debe coincidir con el del usuario autenticado"
+      }
+    ]
+  }
+}
+```
