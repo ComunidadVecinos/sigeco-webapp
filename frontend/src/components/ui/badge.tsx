@@ -1,3 +1,4 @@
+// Componente Badge (shadcn/ui) — etiqueta con variantes de estilo
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { Slot } from "radix-ui"

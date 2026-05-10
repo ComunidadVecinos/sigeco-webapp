@@ -1,9 +1,7 @@
-/**
- * Helpers para datos de dirección (property) compartidos entre servicios de users, communities, memebrs y requests.
- * Reciben entidades de Prisma o payloads ya validados y devuelven una representación lista para API.
- */
+// Helpers de dirección compartidos por varios servicios del backend.
+// Aquí solo se da formato y se arma una vista estable para la API; no hay validación ni reglas de negocio.
 
-// Compacta una dirección en una cadena legible para respuestas de API. Devuelve una cadena formateada o null si no hay datos suficientes.
+// Compacta una dirección en una cadena legible para respuestas de API.
 function formatAddress(address) {
   if (!address) { return null; }
 
@@ -20,12 +18,11 @@ function formatAddress(address) {
   return formatted || null;
 }
 
-// Construye una vista resumida y estable de una dirección para respuestas HTTP. Devuelve un objeto con los datos de dirección.
+// Construye la versión resumida que devolvemos en respuestas HTTP.
 function buildAddressSummary(address) {
   if (!address) {
     return null;
   }
-
   return {
     country: address.country,
     province: address.province,

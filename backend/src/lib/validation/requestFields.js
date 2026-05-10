@@ -1,8 +1,6 @@
+// Helpers de validación para params y query strings.
+// El objetivo aquí es normalizar entradas de Express antes de que lleguen a cada módulo.
 const { z } = require('zod');
-
-/**
- * Helpers reutilizables para params y query strings compartidos entre módulos.
- */
 
 const optionalTrimmedStringSchema = z.union([z.string(), z.undefined()])
   .transform((value) => {
@@ -12,10 +10,9 @@ const optionalTrimmedStringSchema = z.union([z.string(), z.undefined()])
   });
 
 const uuidFieldSchema = (fieldName) => z.string().uuid(`El campo ${fieldName} debe ser un UUID válido`);
-
 const uuidParamSchema = (...fieldNames) => z.object(Object.fromEntries(fieldNames.map((fieldName) => [fieldName, uuidFieldSchema(fieldName)])));
 
-// Los query params se normalizan a número aquí.
+// Los query params numéricos se convierten aquí para que el servicio ya reciba enteros.
 const positiveIntegerQuerySchema = (
   fieldName, { min = 1, max = Number.MAX_SAFE_INTEGER, defaultValue } = {}
 ) =>
@@ -30,7 +27,7 @@ const positiveIntegerQuerySchema = (
     .refine((value) => value >= min, `El campo ${fieldName} debe ser como mínimo ${min}`)
     .refine((value) => value <= max, `El campo ${fieldName} debe ser como máximo ${max}`);
 
-// Parsea fechas solo después de validar que Date no devuelve un valor inválido.
+// Convierte una fecha opcional de query solo cuando el valor es parseable.
 const optionalDateQuerySchema = (fieldName) =>
   optionalTrimmedStringSchema
     .refine(

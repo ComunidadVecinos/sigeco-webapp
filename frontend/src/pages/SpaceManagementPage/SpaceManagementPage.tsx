@@ -1,13 +1,17 @@
+//Gestión de espacios comunes (solo admins): listado lateral, detalle con capacidad/horario/reglas y CRUD con activación/desactivación
 import React, {useEffect, useState} from 'react';
 import Header from '@/components/common/Header/Header';
 import Sidebar from '@/components/ui/Sidebar/Sidebar';
 import CreateEditSpaceModal from '@/components/ui/CreateEditSpaceModal/CreateEditSpaceModal';
-import { Menu, Plus, ArrowLeft, Clock, CalendarDays, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
+import { Menu, Plus, ArrowLeft, Clock, CalendarDays, ToggleLeft, ToggleRight, Trash2, Pencil } from 'lucide-react';
 import { useAuth } from '@/context/authContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { getSpaces, createSpace, changeSpaceStatus, deleteSpace, type Space} from '@/services/reservationService';
+import { getSpaces, createSpace, changeSpaceStatus, deleteSpace, updateSpace, type Space} from '@/services/reservationService';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
+//Traducción de los días de la semana al español para la visualización de días permitidos
 const DAY_LABELS: Record<string, string> = {
     monday: 'Lunes', tuesday: 'Martes', wednesday: 'Miércoles', thursday: 'Jueves', friday: 'Viernes', saturday: 'Sábado', sunday: 'Domingo'
 };
@@ -18,12 +22,18 @@ const SpaceManagementPage: React.FC = () => {
     const communityId = user?.activeCommunityId;
     const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
     const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
-
+    //Estado de la vista: sidebar, listado de espacios, espacio seleccionado, carga y modal de creación/edición
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [spaces, setSpaces] = useState<Space[]>([]);
     const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
+    const [spaceToEdit, setSpaceToEdit] = useState<Space | null>(null);
+    //Feedback global y confirmación de acciones (activar/desactivar, eliminar)
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'toggleStatus' | 'deleteSpace' | null; title: string; message: string;}>({isOpen: false, type: null, title: '', message: ''});
+    
 
     // ---- Redirect si no es admin o no existe la comunidad ---- //
     useEffect(() => {
@@ -54,8 +64,10 @@ const SpaceManagementPage: React.FC = () => {
         }
     };
 
+    //Recarga los espacios cuando cambia la comunidad activa
     useEffect(() => {loadSpaces(); }, [communityId]);
 
+    //Espacio actualmente seleccionado en el panel lateral
     const selectedSpace = spaces.find(s => s.id === selectedSpaceId) || null;
 
     // ---- Crear espacio ---- //
@@ -68,35 +80,51 @@ const SpaceManagementPage: React.FC = () => {
             setSelectedSpaceId(newSpace.id);
             setIsCreateSpaceOpen(false);
         } catch (err){
-            alert((err as any).response?.data?.error?.message || 'Error al crear el espacio');
+            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al crear el espacio'});
         }
     };
+
+    // --- Modificar espacio --- //
+    const handelEditSpace = async (data: any) => {
+        if(!communityId || !spaceToEdit) return;
+        try{
+            const {isActive, ...updateData} = data;
+
+            if(!updateData.description) updateData.description = null;
+            if(updateData.occupancyMode === 'EXCLUSIVE') updateData.maxSeatsPerBooking = null;
+
+            const res = await updateSpace(communityId, spaceToEdit.id, updateData);
+
+            setSpaces(prev => prev.map(s => s.id == spaceToEdit.id ? res.data.space : s));
+            setSpaceToEdit(null);
+        } catch (err){
+            setFeedback({isOpen:true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al editar el espacio'});
+        }
+    }
 
     // ---- Cambiar estado de un espacio ---- //
     const handleToogleStatus = async () => {
         if(!communityId || !selectedSpace) return;
         const newStatus = !selectedSpace.isActive;
-        if(!confirm(`¿${newStatus ? 'Activar' : 'Desactivar'} el espacio "${selectedSpace.name}"?`)) return;
 
         try{
             const res = await changeSpaceStatus(communityId, selectedSpace.id, newStatus);
             setSpaces(prev => prev.map(s => s.id === selectedSpace.id ? res.data.space : s));
         } catch(err){
-            alert((err as any).response?.data?.error?.message || 'Error al cambiar el estado');
+            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al cambiar el estado.'});
         }
     };
 
     // ---- Eliminar un espacio ---- //
     const handleDeleteSpace = async () => {
         if(!communityId || !selectedSpace) return;
-        if(!confirm(`¿Eliminar el espacio "${selectedSpace.name}"? Esta acción no se puede deshacer.`)) return;
 
         try{
             await deleteSpace(communityId, selectedSpace.id);
             setSpaces(prev => prev.filter(s => s.id !== selectedSpace.id));
             setSelectedSpaceId(null);
         } catch (err) {
-            alert((err as any).response?.data?.error?.message || 'Error al eliminar el espacio');
+            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al eliminar el espacio'});
         }
     };
 
@@ -114,6 +142,7 @@ const SpaceManagementPage: React.FC = () => {
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
             <main className='max-w-[1100px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0 pb-12'>
+                {/*Cabecera de la página con las acciones de crear un espacio o volver a reservas*/}
                 <div className='flex justify-between items-center mb-6'>
                     <h1 className='text-[28px] font-bold text-gray-900'>Gestión de espacios</h1>
                     <div className='flex gap-2'>
@@ -126,7 +155,9 @@ const SpaceManagementPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/*Layout de dos columnas: a la izquierda el listado de espacios y a la derecha el detalle del espacio seleccionado*/}
                 <div className='flex flex-col md:flex-row gap-6'>
+                    {/*Panel izquierdo: listado de espacios*/}
                     <div className='md:w-[320px] shrink-0'>
                         <div className='bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden'>
                             <div className='p-4 border-b border-gray-100'>
@@ -160,7 +191,7 @@ const SpaceManagementPage: React.FC = () => {
                         </div>
                     </div>
 
-                    
+                    {/*Panel derecho: cabeceta con nombre y esatdo, secciones de capacidad, horario, días y reglas, y acciones (editar/activar/eliminar)*/}
                     <div className='flex-1'>
                         {!selectedSpace ? (
                             <div className='bg-white p-12 rounded-2xl border border-dashed border-gray-300 text-center'>
@@ -280,8 +311,16 @@ const SpaceManagementPage: React.FC = () => {
                                     <Button
                                         size='sm'
                                         variant='outline'
+                                        className='text-blue-600 border-blue-200 hover:bg-blue-50 flex items-center gap-2'
+                                        onClick={() => setSpaceToEdit(selectedSpace)}
+                                    >
+                                        <Pencil className='h-4 w-4' /> Editar
+                                    </Button>
+                                    <Button
+                                        size='sm'
+                                        variant='outline'
                                         className={`flex items-center gap-2 ${selectedSpace.isActive ? 'text-amber-600 border-amber-200 hover:bg-amber-50' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'}`}
-                                        onClick={handleToogleStatus}
+                                        onClick={() => setConfirmAction({isOpen: true, type: 'toggleStatus', title: selectedSpace.isActive ? 'Desactivar Espacio' : 'Activar Espacio', message: `¿${selectedSpace.isActive ? 'Desactivar' : 'Activar'} el espacio "${selectedSpace.name}"?`})}
                                     >
                                         {selectedSpace.isActive ? <ToggleLeft className='h-4 w-4' /> : <ToggleRight className='h-4 w-4' />}
                                         {selectedSpace.isActive ? 'Desactivar' : 'Activar'}
@@ -290,7 +329,7 @@ const SpaceManagementPage: React.FC = () => {
                                         size='sm'
                                         variant='outline'
                                         className='text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-2'
-                                        onClick={handleDeleteSpace}
+                                        onClick={() => setConfirmAction({isOpen: true, type: 'deleteSpace', title: 'Eliminar Espacio', message: `¿Eliminar el espacio ${selectedSpace.name}"? Esta acción no se puede deshacer. `})}
                                     >
                                         <Trash2 className='h-4 w-4' /> Eliminar
                                     </Button>
@@ -301,10 +340,30 @@ const SpaceManagementPage: React.FC = () => {
                 </div>
             </main>
 
+            {/*Modales: crear/editar espacio, confirmación de acciones y feedback*/}
             <CreateEditSpaceModal 
-                isOpen={isCreateSpaceOpen}
-                onClose={() => setIsCreateSpaceOpen(false)}
-                onSave={handleCreateSpace}
+                isOpen={isCreateSpaceOpen || spaceToEdit !== null}
+                onClose={() => {setIsCreateSpaceOpen(false); setSpaceToEdit(null);}}
+                onSave={(data) => spaceToEdit ? handelEditSpace(data) : handleCreateSpace(data)}
+                spaceToEdit={spaceToEdit}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                onConfirm={async () => {
+                    if(confirmAction.type === 'toggleStatus') await handleToogleStatus();
+                    if(confirmAction.type === 'deleteSpace') await handleDeleteSpace();
+                }}
+            />
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
             />
         </div>
     );

@@ -1,5 +1,4 @@
-//El componente que contendra todo el diseño
-
+//Página acceso pública: presenta SIGECO, con tarjetas de características y CTA de regsitro
 import React, {useEffect} from 'react';
 import Footer from '../../components/common/Footer/Footer';
 import FeatureCard from '../../components/ui/FeatureCard/FeatureCard';  
@@ -11,12 +10,14 @@ import { Button } from '@/components/ui/button';
 
 const LandingPage: React.FC = () =>{
 
+    //Fuerza el scroll al inicio cada vez que se monta la página
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
 
     return (
         <>
+            {/*Barra superior con logo y botón de acceso*/}
             <header>
                 <nav className="flex items-center justify-between px-6 py-3 bg-white shadow-sm">
                         <Link to="/">
@@ -31,7 +32,9 @@ const LandingPage: React.FC = () =>{
                 </nav>  
             </header>
 
+            {/*Contenido principal: hero, tarjetas de valor, sección ¿Por qué SIGECO? y CTA de registro*/}
             <main> 
+                {/*Hero: título, descripción de la plataforma e imagen de vecindario*/}
                 <section className="bg-gradient-to-br from-gray-50 to-gray-200 pt-28 pb-16 min-h-[70vh]">
                     <div className="max-w-7xl mx-auto px-4">
                         <div className="flex flex-col lg:flex-row items-center">
@@ -57,6 +60,7 @@ const LandingPage: React.FC = () =>{
                     </div>
                 </section> 
 
+                {/*Tarjetas de propuesta de valor: Simplicidad, Conexión y Transparencia*/}
                 <section className="py-24 bg-white">         
                     <div className="max-w-7xl mx-auto px-4 flex justify-center flex-wrap gap-8">
                         <FeatureCard
@@ -80,6 +84,7 @@ const LandingPage: React.FC = () =>{
                     </div>
                 </section>
 
+                {/*Sección informativa: argumentos de por qué usar SIGECO*/}
                 <section className='py-20 bg-gradient-to-b from-gray-50 to-white'>
                     <div className="max-w-3xl mx-auto px-4 text-center">
                         <h2 className='text-4xl sm:text-3xl font-bold text-gray-900 tracking-tight'>¿Por qué SIGECO?</h2>
@@ -91,6 +96,7 @@ const LandingPage: React.FC = () =>{
                     </div>
                 </section>
 
+                {/*CTA: botón de regsitro*/}
                 <section className="text-center py-10 pb-20">
                     <Button asChild size="lg" className='bg-[#104084] hover:bg-[#0d3366] px-12 py-7 text-lg font-semibold rounded-xl hover:-translate-y-1 transition-all hover:shadow-lg'>
                         <Link to="/auth/register">
@@ -99,7 +105,8 @@ const LandingPage: React.FC = () =>{
                     </Button>
                 </section>
             </main>
-
+            
+            {/*Pie de página*/}
             <Footer />
         </>
     );

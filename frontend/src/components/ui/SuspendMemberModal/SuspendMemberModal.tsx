@@ -1,3 +1,4 @@
+//Modal para suspender temporalmente a un miembro: fecha de fin obligatoria y comentario opcional
 import React, {useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Button } from '../button';
@@ -22,6 +23,7 @@ const SuspendMemberModal: React.FC<SuspendMemberModalProps> = ({isOpen, onClose,
     const [success, setSuccess] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+    //Valida la fecha de fin, envía la suspensión al backend y mapea errores de la API
     const handleSubmit = async () => {
         setError('');
         setSuccess('');
@@ -59,6 +61,7 @@ const SuspendMemberModal: React.FC<SuspendMemberModalProps> = ({isOpen, onClose,
         }
     };
 
+    //Limpia todos los campos y errores al cerrar
     const handleClose = () => {
         setEndDate('');
         setComment('');

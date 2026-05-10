@@ -1,5 +1,7 @@
+//Servicios de administarción: gestión de miembros, roles, solicitudes y configuración de comunidad
 import api from './api';
 
+//Elimina parámetros vacíos o undefined antes de enviarlos como query params
 function cleanOptionalParams<T extends Record<string, string | number | undefined>>(params: T) {
     return Object.fromEntries(
         Object.entries(params).filter(([, value]) => value !== undefined && value !== '')
@@ -89,6 +91,10 @@ export const expelMember = (communityId: string, userId: string, reason?: string
 //Asignar vicepresidente
 export const assignVicepresident = (communityId: string, userId: string) =>
     api.put(`/api/communities/${communityId}/members/${userId}/roles/VICE_PRESIDENT`);
+
+//Revocar vicepresidencia 
+export const revokeVicepresidency = (communityId: string, userId: string) =>
+    api.put(`/api/communities/${communityId}/members/${userId}/roles/MEMBER`);
 
 //Transferir presidente
 export const transferPresident = (communityId: string, userId: string) =>

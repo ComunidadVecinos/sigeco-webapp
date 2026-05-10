@@ -1,3 +1,4 @@
+//Modal de confirmación para cerrar sesión
 import React from "react";
 import {Dialog, DialogContent, DialogFooter} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";

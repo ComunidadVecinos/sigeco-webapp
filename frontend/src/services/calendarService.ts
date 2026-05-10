@@ -1,3 +1,4 @@
+//Servicios de calendario: eventos del mes y CRUD de eventos personales
 import api from './api';
 import { businessFormToUtcIso, getBusinessDateKeyFromUtcIso, utcIsoToBusinessForm } from '@/lib/businessDateTime';
 
@@ -10,6 +11,7 @@ export type CalendarEventDto = {
     endTime: string;
 };
 
+//Transforma un evento del backend al DTO local con fechas en zona de negocio
 function mapCalendarEvent(event: any): CalendarEventDto {
     const start = event.startsAt ? utcIsoToBusinessForm(event.startsAt) : null;
     const end = event.endsAt ? utcIsoToBusinessForm(event.endsAt) : null;

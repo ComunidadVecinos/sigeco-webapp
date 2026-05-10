@@ -1,28 +1,11 @@
+//Panel de administración de la comunidad: resumen de datos, gestión de solicitudes pendientes y control de miembros
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    CalendarDays,
-    Camera,
-    ChevronLeft,
-    ChevronRight,
-    FileText,
-    Pencil,
-    Search,
-    Shield,
-    Key
-} from 'lucide-react';
+import { CalendarDays,Camera, ChevronLeft, ChevronRight, FileText, Pencil, Search, Shield, Key } from 'lucide-react';
 import Header from '../../components/common/Header/Header';
 import imagen_generica from '../../assets/images/perfil_generico.png';
 import { useAuth } from '@/context/authContext';
-import {
-    assignVicepresident,
-    cancelSuspension,
-    getAdminSummary,
-    getMembers,
-    getRequests,
-    updateCommunityAvatar,
-    deleteCommunityAvatar
-} from '@/services/adminService';
+import { assignVicepresident, cancelSuspension, getAdminSummary, getMembers, getRequests, updateCommunityAvatar, deleteCommunityAvatar, revokeVicepresidency} from '@/services/adminService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import EditCommunityModal from '@/components/ui/EditCommunityModal/EditCommunityModal';
@@ -33,14 +16,17 @@ import TransferRoleModal from '@/components/ui/TransferRoleModal/TransferRoleMod
 import DeleteCommunityModal from '@/components/ui/DeleteCommunityModal/DeleteCommunityModal';
 import EditPhotoModal from '@/components/ui/EditPhotoModal/EditPhotoModal';
 import GenerateCodeModal from '@/components/ui/GenerateCodeModal/GenerateCodeModal';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
-
+//Filtros de paginación para las solicitudes pendientes
 type RequestFilterState = {
     type: string;
     page: number;
     pageSize: number;
 };
 
+//Filtros de búsqueda, estado de suspensión y rango de fechas para el listados de miembros
 type MemberFilterState = {
     q: string;
     suspensionStatus: string;
@@ -50,11 +36,13 @@ type MemberFilterState = {
     pageSize: number;
 };
 
+//Utilidades para fecha legible
 function formatDate(value?: string | null) {
     if (!value) return '-';
     return new Date(value).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+//Utilidades para rol traducido
 function formatRole(role?: string | null) {
     if (role === 'PRESIDENT') return 'Presidente';
     if (role === 'VICE_PRESIDENT') return 'Vicepresidente';
@@ -62,6 +50,7 @@ function formatRole(role?: string | null) {
     return role || '-';
 }
 
+//Utilidades para topo de solicitud en español
 function formatRequestType(type?: string | null) {
     return type === 'JOIN' ? 'Solicitud de acceso' : 'Modificación de datos';
 }
@@ -73,7 +62,7 @@ const AdminPage: React.FC = () => {
     const activeCommunity = user?.communities?.find((community) => community.communityId === communityId);
     const role = activeCommunity?.role;
     const isAdmin = role === 'PRESIDENT' || role === 'VICE_PRESIDENT';
-
+    //Datos de la comunidad (resumen), solicitudes pendientes y listado de miembros con sus paginaciones
     const [summary, setSummary] = useState<any>(null);
     const [summaryLoading, setSummaryLoading] = useState(false);
     const [requests, setRequests] = useState<any[]>([]);
@@ -83,38 +72,30 @@ const AdminPage: React.FC = () => {
     const [requestTotalPages, setRequestTotalPages] = useState(0);
     const [members, setMembers] = useState<any[]>([]);
     const [membersLoading, setMembersLoading] = useState(false);
-    const [membersFilters, setMembersFilters] = useState<MemberFilterState>({
-        q: '',
-        suspensionStatus: '',
-        joinedAfter: '',
-        joinedBefore: '',
-        page: 1,
-        pageSize: 10
-    });
+    const [membersFilters, setMembersFilters] = useState<MemberFilterState>({q: '', suspensionStatus: '', joinedAfter: '', joinedBefore: '', page: 1, pageSize: 10});
     const [memberTotalPages, setMembersTotalPages] = useState(0);
+    //Visibilidad de modales: editar comunidad, avatar, solicitudes, suspender, expulsar, transferir, eliminar y código
     const [editCommunityModalOpen, setEditCommunityModalOpen] = useState(false);
     const [communityAvatarModalOpen, setCommunityAvatarModalOpen] = useState(false);
-    const [requestActionModal, setRequestActionModal] = useState<{ open: boolean; action: 'approve' | 'reject'; requestId: string }>({
-        open: false,
-        action: 'approve',
-        requestId: ''
-    });
+    const [requestActionModal, setRequestActionModal] = useState<{ open: boolean; action: 'approve' | 'reject'; requestId: string }>({open: false, action: 'approve', requestId: ''});
     const [suspendModal, setSuspendModal] = useState({ open: false, userId: '', alias: '' });
     const [expelModal, setExpelModal] = useState({ open: false, userId: '', alias: '' });
-    const [transferModal, setTransferModal] = useState<{ open: boolean; userId: string; alias: string; type: 'president' | 'vicepresident' }>({
-        open: false,
-        userId: '',
-        alias: '',
-        type: 'president'
-    });
+    const [transferModal, setTransferModal] = useState<{ open: boolean; userId: string; alias: string; type: 'president' | 'vicepresident' }>({open: false, userId: '', alias: '', type: 'president'});
     const [deleteCommunityModalOpen, setDeleteCommunityModalOpen] = useState(false);
     const [generateCodeModalOpen, setGenerateCodeModalOpen] = useState(false);
+    //Feedback global, confirmación de acciones y cache-busting del avatar
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'cancelSuspension' | 'assignVP' | 'revokeVP' | null; userId: string; title: string; message: string;}>({isOpen: false, type: null, userId: '', title: '', message: ''});
+    const [avatarKey, setAvatarKey] = useState(Date.now());
 
+    //Redirige al perfil si el usuario no es admin o no tiene comundidad activa
     useEffect(() => {
         if (loading) return;
         if (!communityId || !isAdmin) navigate('/auth/me');
     }, [communityId, isAdmin, loading, navigate]);
 
+    //Carga el resuemn de la comunidad al montar y cuando cambia la comunidad activa
     useEffect(() => {
         if (!communityId || !isAdmin) return;
         let cancelled = false;
@@ -137,6 +118,7 @@ const AdminPage: React.FC = () => {
         };
     }, [communityId, isAdmin]);
 
+    //Carga las solicitudes pendientes cuando cambian los filtros o la comunidad
     useEffect(() => {
         if (!communityId || !isAdmin) return;
         let cancelled = false;
@@ -163,6 +145,7 @@ const AdminPage: React.FC = () => {
         };
     }, [communityId, isAdmin, requestFilters]);
 
+    //Carfa el lisatdo de miembros cuando cambian los filtros o la comunidad
     useEffect(() => {
         if (!communityId || !isAdmin) return;
         let cancelled = false;
@@ -188,12 +171,14 @@ const AdminPage: React.FC = () => {
         };
     }, [communityId, isAdmin, membersFilters]);
 
+    //Función de recarga del resumen 
     const reloadSummary = async () => {
         if (!communityId) return;
         const res = await getAdminSummary(communityId);
         setSummary(res.data);
     };
 
+    //Función de recarga de solicitudes
     const reloadRequests = async () => {
         if (!communityId) return;
         const res = await getRequests(communityId, requestFilters);
@@ -202,6 +187,7 @@ const AdminPage: React.FC = () => {
         setRequestTotalPages(Math.max(1, Math.ceil((res.data.total || 0) / requestFilters.pageSize)));
     };
 
+    //Función de recarga de miembros
     const reloadMembers = async () => {
         if (!communityId) return;
         const res = await getMembers(communityId, membersFilters);
@@ -209,27 +195,41 @@ const AdminPage: React.FC = () => {
         setMembersTotalPages(res.data.pagination?.totalPages || 0);
     };
 
+    //Recarga las tres secciones en paralelo
     const refreshAll = async () => {
         await Promise.all([reloadSummary(), reloadRequests(), reloadMembers()]);
     };
 
+    //Cancela la suspensión de un miembro y recarga miembros y resumen
     const handleCancelSuspension = async (userId: string) => {
-        if (!communityId || !window.confirm('¿Cancelar la suspensión de este miembro?')) return;
+        if (!communityId) return;
         try {
             await cancelSuspension(communityId, userId);
             await Promise.all([reloadMembers(), reloadSummary()]);
         } catch (err: any) {
-            window.alert(err.response?.data?.error?.message || 'No se ha podido cancelar la suspensión.');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al cancelar la suspensión.'});
         }
     };
 
+    //Asigna el rol de vicepresidente a un miembro
     const handleAssignVicepresidency = async (userId: string) => {
-        if (!communityId || !window.confirm('¿Asignar a este miembro como vicepresidente?')) return;
+        if (!communityId) return;
         try {
             await assignVicepresident(communityId, userId);
             await Promise.all([reloadMembers(), reloadSummary(), refreshUser()]);
         } catch (err: any) {
-            window.alert(err.response?.data?.error?.message || 'No se ha podido asignar la vicepresidencia.');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al asignar vicepresidencia.'});
+        }
+    };
+
+    //Revoca el rol de vicepresidente de un miembro
+    const handleRevokeVicepresidency = async (userId: string) => {
+        if(!communityId) return;
+        try{
+            await revokeVicepresidency(communityId, userId);
+            await Promise.all([reloadMembers(), reloadSummary(), refreshUser()]);
+        } catch (err: any){
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al revocar vicepresidencia.'});
         }
     };
 
@@ -247,6 +247,7 @@ const AdminPage: React.FC = () => {
                     </p>
                 </div>
 
+                {/*Sección 1: Datos de la comunidad*/}
                 <section className="border border-gray-200 rounded-[28px] bg-white shadow-sm p-6 md:p-8 mb-8">
                     <div className="flex flex-col gap-6">
                         <div className="flex items-start justify-between gap-4">
@@ -278,7 +279,7 @@ const AdminPage: React.FC = () => {
                                 <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
                                     <div className="relative">
                                         <img
-                                            src={summary?.community?.avatar || imagen_generica}
+                                            src={summary?.community?.avatar ? `${summary.community.avatar}${summary.community.avatar.includes('?') ? '&' : '?'}t=${avatarKey}` : imagen_generica}
                                             alt={summary?.community?.name || 'Comunidad'}
                                             className="w-40 h-40 rounded-full object-cover border-4 border-blue-100 shadow-sm"
                                         />
@@ -330,6 +331,7 @@ const AdminPage: React.FC = () => {
                     </div>
                 </section>
 
+                {/*Sección 2: Solicitudes pendientes*/}
                 <section className="border border-gray-200 rounded-[28px] bg-white shadow-sm p-6 md:p-8 mb-8">
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
                         <div className="flex items-center gap-3">
@@ -434,6 +436,7 @@ const AdminPage: React.FC = () => {
                     )}
                 </section>
 
+                {/*Sección 3: Lista de miembros*/}
                 <section className="border border-gray-200 rounded-[28px] bg-white shadow-sm p-6 md:p-8">
                     <div className="flex flex-col gap-4 mb-6">
                         <div className="flex items-center gap-3">
@@ -530,7 +533,7 @@ const AdminPage: React.FC = () => {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                onClick={() => handleCancelSuspension(member.membershipId)}
+                                                onClick={() => setConfirmAction({isOpen: true, type: 'cancelSuspension', userId: member.membershipId, title: 'Cancelar Suspensión', message: '¿Estás seguro de que deseas cancelar la suspensión de este miembro?' })}
                                             >
                                                 Reactivar
                                             </Button>
@@ -575,9 +578,20 @@ const AdminPage: React.FC = () => {
                                                 size="sm"
                                                 variant="outline"
                                                 className="text-blue-700 border-blue-200 hover:bg-blue-50"
-                                                onClick={() => handleAssignVicepresidency(member.membershipId)}
+                                                onClick={() => setConfirmAction({isOpen: true, type: 'assignVP', userId: member.membershipId, title: 'Asignar Vicepresidencia', message: '¿Confirmas que deseas asignar a este miembro como vicepresidente?' })}
                                             >
                                                 Asignar vicepresidencia
+                                            </Button>
+                                        )}
+
+                                        {role === 'PRESIDENT' && member.role === 'VICE_PRESIDENT' && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-orange-700 border-orange-200 hover:bg-orange-50"
+                                                onClick={() => setConfirmAction({isOpen: true, type: 'revokeVP', userId: member.membershipId, title: 'Quitar Vicepresidencia', message: '¿Confirmas que deseas revocar el cargo de vicepresidente a este miembro?' })}
+                                            >
+                                                Quitar vicepresidencia
                                             </Button>
                                         )}
 
@@ -650,6 +664,7 @@ const AdminPage: React.FC = () => {
                 </section>
             </main>
 
+            {/*Modales: editar comunidad, avatar, aprobar/rechazar solicitud, suspender, expulsar, transferir, eliminar, código de acceso, confirmación y feedback*/}
             <EditCommunityModal
                 isOpen={editCommunityModalOpen}
                 onClose={() => setEditCommunityModalOpen(false)}
@@ -667,13 +682,16 @@ const AdminPage: React.FC = () => {
                 saveErrorFallback="No se ha podido actualizar el avatar de la comunidad."
                 uploadPhoto={(file) => updateCommunityAvatar(communityId, file)}
                 onSave={async (newPhotoUrl) => {
+                    setAvatarKey(Date.now());
                     setSummary((prev: any) => (prev ? { ...prev, community: { ...prev.community, avatar: newPhotoUrl } } : prev));
                     await reloadSummary();
+                    await refreshUser();
                 }}
                 onDeletePhoto={async () => {
                     await deleteCommunityAvatar(communityId);
                     setSummary((prev: any) => (prev ? { ...prev, community: { ...prev.community, avatar: null } } : prev));
                     await reloadSummary();
+                    await refreshUser();
                 }}
                 defaultPhoto={imagen_generica}
             />
@@ -741,6 +759,25 @@ const AdminPage: React.FC = () => {
                         community: { ...prev.community, accessCode: newCode }
                     } : null);
                 }}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                onConfirm={async () => {
+                    if(confirmAction.type === 'cancelSuspension') await handleCancelSuspension(confirmAction.userId);
+                    if(confirmAction.type === 'assignVP') await handleAssignVicepresidency(confirmAction.userId);
+                    if(confirmAction.type === 'revokeVP') await handleRevokeVicepresidency(confirmAction.userId);
+                }}
+            />
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
             />
         </div>
     );

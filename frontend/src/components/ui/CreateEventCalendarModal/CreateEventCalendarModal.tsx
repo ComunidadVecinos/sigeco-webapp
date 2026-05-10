@@ -1,3 +1,4 @@
+//Modal para crear o editar un evento personal del calendario con título y rango horario
 import React, {useState, useEffect} from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../dialog";
 import { Button } from "../button";
@@ -27,6 +28,7 @@ const CreateEventCalendarModal: React.FC<CreateEventCalendarModalProps> = ({isOp
         endTime: '11:00',
     });
 
+    //Rellena el formulario con los datos del evento si se esta editando o lo resetea si es nuevo
     useEffect(() => {
         if(isOpen){
             if(editingEvent){
@@ -41,7 +43,9 @@ const CreateEventCalendarModal: React.FC<CreateEventCalendarModalProps> = ({isOp
         }
     }, [isOpen, editingEvent]);
 
+    //Usa la fecha del evento en edición o la seleccionada en el calendario
     const effectiveDate = editingEvent?.date ? new Date(`${editingEvent.date}T00:00:00`) : selectedDate;
+    //Valida que el título no este vacío y que la hora de inicio anterior a la de fin
     const isValid = !!formData.title.trim() && formData.startTime < formData.endTime;
 
     const handleSave = () => {

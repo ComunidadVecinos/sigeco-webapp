@@ -1,3 +1,4 @@
+//Servicios de votaciones: listado, creación, emisión de voto y cierre
 import api from './api';
 
 //Listar votaciones

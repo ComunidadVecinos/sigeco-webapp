@@ -6,13 +6,10 @@ const storageService = require('../../lib/storage/storage');
 const membersService = require('../members/members.service');
 const membersRepository = require('../members/members.repository');
 
-/**
- * Servicio del módulo documents. Orquesta:
- * - permisos de lectura y escritura
- * - reglas de negocio sobre nombres, carpetas y cuota
- * - mapeo del modelo interno al contrato HTTP
- * - coordinación entre base de datos y filesystem
- */
+// Servicio de documents: resuelve permisos, cuota y reglas del árbol documental privado de la comunidad.
+// Flujo cubierto: usuario autenticado -> acceso comunitario -> repositorio y storage privado.
+// Expone casos de uso para navegación, carpetas, documentos, contenido binario y movimiento lógico.
+// Lo consumen los controladores HTTP del módulo.
 
 // --- Helpers de salida y utilidades pequeñas ---
 function validationDetail(field, message, location = 'body') {
@@ -68,7 +65,6 @@ function folderRef(folder) {
   if (!folder) {
     return null;
   }
-
   return {
     id: folder.id,
     name: folder.name,
@@ -110,7 +106,6 @@ async function breadcrumbs(communityId, currentFolder, documentsRepository) {
     if (!cursor.parentId) { break; }
     cursor = await documentsRepository.findFolderById({ communityId, folderId: cursor.parentId });
   }
-
   return items;
 }
 
@@ -132,7 +127,6 @@ function folderTree(folders) {
   // Paso 2: enlazar cada carpeta con su padre o dejarla como raíz.
   for (const folder of folders) {
     const node = nodeById.get(folder.id);
-
     if (folder.parentId && nodeById.has(folder.parentId)) {
       nodeById.get(folder.parentId).children.push(node);
       continue;
@@ -159,7 +153,6 @@ function collectFolderIds(rootFolderId, folders) {
   while (pendingIds.length > 0) {
     const currentId = pendingIds.pop();
     allIds.push(currentId);
-
     const children = childrenByParentId.get(currentId) || [];
     for (const child of children) {
       pendingIds.push(child.id);
@@ -241,7 +234,7 @@ async function getParentFolder(communityId, parentId, documentsRepository) {
     return null;
   }
 
-  // Si se informa `parentId`, debe apuntar a una carpeta existente y activa.
+  // Si se informa parentId, debe apuntar a una carpeta existente y activa.
   const folder = await getFolderOrFail(communityId, parentId, documentsRepository);
   ensureFolderIsActive(folder, 'La carpeta seleccionada ya no está disponible');
   return folder;
@@ -286,12 +279,14 @@ async function listDocuments(context, communityId, input, documentsRepository) {
   };
 }
 
+// --- Documentos: GET de árbol ---
 async function getFolderTree(context, communityId, documentsRepository) {
   await requireReadAccess(context.userId, communityId);
   const folders = await documentsRepository.findAllFolders(communityId);
   return { folders: folderTree(folders) };
 }
 
+// --- Carpetas: POST/PATCH/DELETE ---
 async function createFolder(context, communityId, input, documentsRepository) {
   await requireWriteAccess(context.userId, communityId);
   await getParentFolder(communityId, input.parentId, documentsRepository);
@@ -330,6 +325,7 @@ async function renameFolder(context, communityId, folderId, input, documentsRepo
   return { folder: folderView(updatedFolder) };
 }
 
+// --- Documentos: POST/PATCH/DELETE ---
 async function createDocument(context, communityId, input, documentsRepository) {
   const { community, membership } = await requireWriteAccess(context.userId, communityId);
 
@@ -410,15 +406,17 @@ async function renameDocument(context, communityId, documentId, input, documents
 
   const document = await getDocumentOrFail(communityId, documentId, documentsRepository);
   ensureDocumentIsActive(document, 'El documento ya está eliminado');
-  await ensureDocumentNameAvailable({
-    communityId,
-    folderId: document.folderId,
-    name: input.name,
-    excludeDocumentId: document.id
-  }, documentsRepository);
+  if(input.name !== undefined){
+    await ensureDocumentNameAvailable({
+      communityId,
+      folderId: document.folderId,
+      name: input.name,
+      excludeDocumentId: document.id
+    }, documentsRepository);
+  }
 
   const updatedDocument = await documentsRepository.withTransaction((db) =>
-    documentsRepository.renameDocument(db, { communityId, documentId, name: input.name })
+    documentsRepository.renameDocument(db, { communityId, documentId, name: input.name, description: input.description })
   );
 
   if (!updatedDocument) {
@@ -452,6 +450,7 @@ async function deleteDocument(context, communityId, documentId, documentsReposit
   return { deleted: true, documentId };
 }
 
+// --- Carpetas: DELETE recursivo ---
 async function deleteFolder(context, communityId, folderId, documentsRepository) {
   await requireWriteAccess(context.userId, communityId);
 
@@ -491,16 +490,15 @@ async function deleteFolder(context, communityId, folderId, documentsRepository)
   return { deleted: true, folderId, deletedDocuments: documents.length };
 }
 
+// --- Documentos: GET de contenido ---
 async function getDocumentContent(context, communityId, documentId, options, documentsRepository) {
   await requireReadAccess(context.userId, communityId);
   const document = await getDocumentOrFail(communityId, documentId, documentsRepository);
-
   if (document.deletedAt) {
     throw new NotFoundError('Documento no encontrado');
   }
 
   let stream;
-
   try {
     // El archivo se sirve desde storage privado, nunca como recurso público estático.
     stream = await storageService.createStoredFileReadStream(document.storagePath);
@@ -521,6 +519,86 @@ async function getDocumentContent(context, communityId, documentId, options, doc
   };
 }
 
+// --- Documentos: PATCH de movimiento lógico ---
+async function moveItem(context, communityId, input, documentsRepository) {
+  await requireWriteAccess(context.userId, communityId);
+
+  const { itemId, itemType, targetFolderId } = input;
+
+  // La carpeta destino debe existir salvo que se mueva a raíz (`targetFolderId = null`).
+  if (targetFolderId) {
+    const targetFolder = await getFolderOrFail(communityId, targetFolderId, documentsRepository);
+    ensureFolderIsActive(targetFolder, 'La carpeta destino ya no está disponible');
+  }
+
+  if (itemType === 'folder') {
+    const folder = await getFolderOrFail(communityId, itemId, documentsRepository);
+    ensureFolderIsActive(folder, 'La carpeta ya está eliminada');
+
+    // No se puede mover una carpeta dentro de sí misma.
+    if (itemId === targetFolderId) {
+      throw new ConflictError('No se puede mover una carpeta dentro de sí misma');
+    }
+
+    // Tampoco se puede mover a uno de sus descendientes, porque cerraría un ciclo en el árbol.
+    if (targetFolderId) {
+      const allFolders = await documentsRepository.findAllFolders(communityId);
+      const descendantIds = collectFolderIds(itemId, allFolders);
+      if (descendantIds.includes(targetFolderId)) {
+        throw new ConflictError('No se puede mover una carpeta dentro de uno de sus descendientes');
+      }
+    }
+
+    // El movimiento es solo lógico: se reubica la carpeta cambiando su `parentId` si el nombre sigue siendo válido en destino.
+    await ensureFolderNameAvailable({
+      communityId,
+      parentId: targetFolderId,
+      name: folder.name,
+      excludeFolderId: folder.id
+    }, documentsRepository);
+
+    const movedFolder = await documentsRepository.withTransaction((db) =>
+      documentsRepository.moveFolder(db, {
+        communityId,
+        folderId: itemId,
+        newParentId: targetFolderId
+      })
+    );
+
+    if (!movedFolder) {
+      throw new ConflictError('No se ha podido mover la carpeta');
+    }
+
+    return { moved: true, item: folderView(movedFolder) };
+  }
+
+  // Para documentos, solo cambia `folderId`; el PDF sigue almacenado en la misma ruta privada estable por `documentId`.
+  const document = await getDocumentOrFail(communityId, itemId, documentsRepository);
+  ensureDocumentIsActive(document, 'El documento ya está eliminado');
+
+  // También aquí el nombre debe seguir siendo único dentro de la carpeta destino.
+  await ensureDocumentNameAvailable({
+    communityId,
+    folderId: targetFolderId,
+    name: document.name,
+    excludeDocumentId: document.id
+  }, documentsRepository);
+
+  const movedDocument = await documentsRepository.withTransaction((db) =>
+    documentsRepository.moveDocument(db, {
+      communityId,
+      documentId: itemId,
+      newFolderId: targetFolderId
+    })
+  );
+
+  if (!movedDocument) {
+    throw new ConflictError('No se ha podido mover el documento');
+  }
+
+  return { moved: true, item: documentView(movedDocument, communityId) };
+}
+
 module.exports = {
   listDocuments,
   getFolderTree,
@@ -530,5 +608,6 @@ module.exports = {
   createDocument,
   renameDocument,
   deleteDocument,
-  getDocumentContent
+  getDocumentContent,
+  moveItem
 };

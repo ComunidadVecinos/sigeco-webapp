@@ -1,17 +1,20 @@
-// Controlador HTTP del modulo auth.
+// Capa HTTP de auth: convierte registro, login y logout en respuestas y cookies de sesión.
+// Flujo cubierto: request validada -> service -> cookie de sesión y JSON HTTP.
+// Expone controladores de registro, login, logout y gestión de contraseña.
+// Lo consumen las rutas del módulo con asyncHandler.
 const authService = require('./auth.service');
 const sessionService = require('../../lib/session');
 
-// La lógica de credenciales, sesiones e integraciones vive en el service.
-function setSessionCookie(res, sid) {
+// La autenticación real viaja en la cookie HttpOnly sid; el body solo devuelve contexto y metadatos de sesión.
+function setAuthCookie(res, sid) {
   res.cookie('sid', sid, { ...sessionService.getCookieConfig(), maxAge: sessionService.getSessionTtlMs() });
 }
 
-function clearSessionCookie(res) {
+function clearAuthCookie(res) {
   res.cookie('sid', '', { ...sessionService.getCookieConfig(), maxAge: 0 });
 }
 
-// Registro no crea sesión automáticamente: obliga a pasar por login.
+// --- Autenticación: POST de registro y login ---
 async function register(req, res) {
   const result = await authService.registerUser(req.body);
   return res.status(201).json(result);
@@ -19,26 +22,26 @@ async function register(req, res) {
 
 async function login(req, res) {
   const result = await authService.loginUser(req.body);
-  // La sesión viaja en cookie HttpOnly
-  setSessionCookie(res, result.sid);
+  setAuthCookie(res, result.sid);
   return res.status(201).json({ user: result.user, context: result.context, session: result.session });
 }
 
-// Logout limpia siempre la cookie de cliente tras invalidar la sesión persistida.
-//   --> El identificador en cookie por sí solo no conserva autoridad si la BD ya la invalido.
+// --- Sesión actual: DELETE de logout ---
+// Logout invalida la sesión persistida y limpia la cookie local del cliente.
 async function logout(req, res) {
   const result = await authService.logoutSession(req.session.id);
-  clearSessionCookie(res);
+  clearAuthCookie(res);
   return res.status(200).json(result);
 }
 
-// Cambio de contraseña requiere sesión autenticada y usa req.session.id para conservar la sesión actual (el resto se invalida).
+// --- Contraseña: POST de cambio y reseteo ---
+// El cambio de contraseña conserva la sesión actual y expulsa el resto.
 async function changePassword(req, res) {
-  const result = await authService.changePassword( req.user.id, req.session.id, req.body.currentPassword, req.body.newPassword );
+  const result = await authService.changePassword(req.user.id, req.session.id, req.body.currentPassword, req.body.newPassword);
   return res.status(200).json(result);
 }
 
-// Reset trabaja sobre email genérico, sin comprobar ni dominio ni existencia de la cuenta.
+// El reseteo responde de forma genérica para no filtrar existencia de cuentas.
 async function resetPassword(req, res) {
   const result = await authService.resetPassword(req.body.email);
   return res.status(200).json(result);

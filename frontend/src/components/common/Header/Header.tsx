@@ -1,4 +1,4 @@
-//La barra de navegacion con el logo y el boton de acceso
+//La barra de navegacion con el logo, buscador, selector de comunidad, menú de perfil y sidebar
 
 import React, { useState } from 'react';
 import logo from '../../../assets/images/2.png';
@@ -56,6 +56,7 @@ const Header: React.FC<HeaderProps> = ({ showCommunutySwitcher: _showCommunutySw
         )
         : navLinks;
 
+    //Cambia la comunidad activa y redirige si el usuario pierde permisos de admin
     const handleSelectCommunity = async (id: string) => {
         if (id === activeCommunityId) {
             setCommunitiesDropdownOpen(false);

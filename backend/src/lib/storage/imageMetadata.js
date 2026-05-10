@@ -1,13 +1,6 @@
+// Inspección binaria mínima para imágenes subidas por usuarios.
+// Sirve para no confiar solo en el MIME declarado y obtener la extensión final con la que se guardará el archivo.
 const { FileTypeUnsupportedError } = require('../errors');
-
-/**
- * Inspección binaria mínima para imágenes subidas por usuarios.
- * - No confiar solo en el MIME declarado por el cliente.
- * - Detectar de forma simple si el buffer parece realmente un JPG o un PNG.
- * - Solo se admiten `image/jpeg` y `image/png`.
- * - Solo devolvemos la metadata necesaria para persistir el archivo con una extensión coherente (`jpg` o `png`).
- */
-
 const ALLOWED_IMAGE_SIGNATURES = { 'image/jpeg': { extension: 'jpg' }, 'image/png': { extension: 'png' } };
 
 function detectImageMimeType(buffer) {
@@ -41,7 +34,7 @@ function getImageExtension(mimeType) {
   return ALLOWED_IMAGE_SIGNATURES[mimeType]?.extension || null;
 }
 
-// Extrae metadata mínima necesaria para persistir una imagen validada (solo necesitamos la extensión final).
+// Extrae la metadata mínima que necesita storage para persistir la imagen.
 function inspectImageBuffer(buffer) {
   const mimeType = detectImageMimeType(buffer);
 

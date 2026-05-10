@@ -1,6 +1,6 @@
 # API Documentation
 
-This directory contains the maintained HTTP contract for the SIGECO backend.
+This directory contains the current HTTP contract for the SIGECO backend.
 
 Base API path: `/api`
 
@@ -45,12 +45,4 @@ These modules are mounted under `/api/communities/:communityId/...` and inherit 
 | `GET /api/health` | Lightweight health endpoint for deployment and diagnostics |
 | `/uploads/*` | Public static asset surface used by files already exposed by the API |
 
-`/uploads/*` is not a functional module. It is the public URL space used for stored images and similar assets referenced by JSON responses.
-
----
-
-## Maintenance scope
-
-- Every file in this directory documents current routes mounted from `backend/src/app.js` and the corresponding module route files.
-- Success payloads are documented per module page.
-- Cross-cutting rules for authentication, validation, dates, pagination, errors and uploads are centralized in [conventions.md](./conventions.md).
+`/uploads/*` is only the public URL space for assets already exposed by API payloads.

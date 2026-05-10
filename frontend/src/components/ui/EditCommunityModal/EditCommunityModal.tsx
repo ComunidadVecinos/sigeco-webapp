@@ -1,3 +1,4 @@
+//Modal de administración para editar nombre y dirección de la comunidad
 import React, {useState, useEffect} from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '../input';
@@ -30,6 +31,7 @@ const EditCommunityModal: React.FC<EditCommunityModalProps> = ({isOpen, onClose,
     const [success, setSuccess] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+    //Rellena el formulario con los datos actuales de la comunidad al abrir
     useEffect(() => {
         if(currentData){
             setFormData({
@@ -49,11 +51,13 @@ const EditCommunityModal: React.FC<EditCommunityModalProps> = ({isOpen, onClose,
         setSuccess('');
     }, [currentData, isOpen]);
 
+    //Actualiza el campo modificado y limpia su error asociado
     const handleChange = (campo: string, valor: string) => {
         setFormData({...formData, [campo]: valor});
         setFieldErrors((prev) => ({ ...prev, [campo]: '' }));
     };
 
+    //Envía los cambios al backend y mapea los errores de la API a los campos del formulario
     const handleSubmit = async () => {
         setError('');
         setSuccess('');
@@ -89,7 +93,7 @@ const EditCommunityModal: React.FC<EditCommunityModalProps> = ({isOpen, onClose,
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className='max-w-2xl'>
                 <DialogHeader>
-                    <DialogTitle>Editar informacion de la comunidad</DialogTitle>
+                    <DialogTitle>Editar información de la comunidad</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-4">

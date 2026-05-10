@@ -1,15 +1,22 @@
-// Servicio del módulo calendar.
-// Mantiene el almacenamiento interno por día de negocio, pero expone el
-// contrato público únicamente con instantes UTC ISO.
+// Servicio de calendar: aplica permisos y reglas temporales sobre el calendario de la comunidad.
+// Flujo cubierto: usuario autenticado -> permisos/reglas temporales -> repositorio.
+// Expone casos de uso para consulta mensual y CRUD de eventos personales.
+// Lo consumen los controladores HTTP del módulo.
 const { ConflictError, NotFoundError, ValidationError } = require('../../lib/errors');
 const { buildBusinessDateOnly, buildBusinessDateTime, formatBusinessTime } = require('../calendar/calendar.datetime');
 const membersRepository = require('../members/members.repository');
 const membersService = require('../members/members.service');
 
+// --- Helpers comunes ---
 function buildValidationDetail(field, message) {
   return [{ field, location: 'body', message }];
 }
 
+function buildValidationError(field, detailMessage, message) {
+  throw new ValidationError(buildValidationDetail(field, detailMessage), { message });
+}
+
+// --- Calendario comunitario: mapeo de salida ---
 function mapCalendarEvent(event) {
   const startsAt = buildBusinessDateTime(event.eventDate, event.startTime);
   const endsAt = buildBusinessDateTime(event.eventDate, event.endTime);
@@ -23,26 +30,21 @@ function mapCalendarEvent(event) {
   };
 }
 
-function buildValidationMessage(field, message, errorMessage) {
-  throw new ValidationError(buildValidationDetail(field, message), {
-    message: errorMessage
-  });
-}
-
+// --- Eventos personales: reglas temporales ---
+// Internamente se guarda día de negocio + horas, pero el contrato público usa instantes UTC ISO.
 function buildStoredPersonalEventFields(startsAt, endsAt) {
   const eventDate = buildBusinessDateOnly(startsAt);
   const endDate = buildBusinessDateOnly(endsAt);
 
   if (eventDate.getTime() !== endDate.getTime()) {
-    buildValidationMessage(
+    buildValidationError(
       'endsAt',
       'Los eventos personales deben empezar y terminar el mismo día de negocio',
       'El evento personal no puede cruzar de día en el calendario comunitario'
     );
   }
-
   if (endsAt <= startsAt) {
-    buildValidationMessage(
+    buildValidationError(
       'startsAt',
       'La fecha y hora de inicio deben ser anteriores a la fecha y hora de fin',
       'El rango temporal del evento personal no es válido'
@@ -52,6 +54,7 @@ function buildStoredPersonalEventFields(startsAt, endsAt) {
   return { eventDate, startTime: formatBusinessTime(startsAt), endTime: formatBusinessTime(endsAt) };
 }
 
+// Query de mes natural para el endpoint de lectura del calendario.
 function buildMonthRange(month) {
   const [year, monthNumber] = month.split('-').map(Number);
   return {
@@ -60,10 +63,12 @@ function buildMonthRange(month) {
   };
 }
 
+// --- Helpers de acceso ---
 async function requireCalendarMembershipAccess(userId, communityId) {
   return membersService.requireCommunityMembershipAccess(userId, communityId, membersRepository);
 }
 
+// --- Calendario comunitario: GET ---
 async function getCalendarMonthEvents(context, communityId, input, repository) {
   const { membership } = await requireCalendarMembershipAccess(context.userId, communityId);
   const { startDate, endDate } = buildMonthRange(input.month);
@@ -73,10 +78,10 @@ async function getCalendarMonthEvents(context, communityId, input, repository) {
     startDate,
     endDate
   });
-
   return { month: input.month, content: events.map(mapCalendarEvent) };
 }
 
+// --- Eventos personales: POST ---
 async function createPersonalEvent(context, communityId, input, repository) {
   const { membership } = await requireCalendarMembershipAccess(context.userId, communityId);
   const storedFields = buildStoredPersonalEventFields(input.startsAt, input.endsAt);
@@ -87,10 +92,10 @@ async function createPersonalEvent(context, communityId, input, repository) {
     title: input.title,
     ...storedFields
   });
-
   return mapCalendarEvent(event);
 }
 
+// --- Eventos personales: PATCH ---
 async function updatePersonalEvent(context, communityId, eventId, input, repository) {
   const { membership } = await requireCalendarMembershipAccess(context.userId, communityId);
   const existingEvent = await repository.findOwnedPersonalEventById({
@@ -108,7 +113,6 @@ async function updatePersonalEvent(context, communityId, eventId, input, reposit
   const nextStartsAt = input.startsAt || existingStartsAt;
   const nextEndsAt = input.endsAt || existingEndsAt;
   const storedFields = buildStoredPersonalEventFields(nextStartsAt, nextEndsAt);
-
   const updatedEvent = await repository.updateOwnedPersonalEvent({
     communityId,
     ownerMembershipId: membership.id,
@@ -119,22 +123,17 @@ async function updatePersonalEvent(context, communityId, eventId, input, reposit
   if (!updatedEvent) {
     throw new ConflictError('No se ha podido actualizar el evento personal');
   }
-
   return mapCalendarEvent(updatedEvent);
 }
 
+// --- Eventos personales: DELETE ---
 async function deletePersonalEvent(context, communityId, eventId, repository) {
   const { membership } = await requireCalendarMembershipAccess(context.userId, communityId);
-  const deleted = await repository.softDeleteOwnedPersonalEvent({
-    communityId,
-    ownerMembershipId: membership.id,
-    eventId
-  });
+  const deleted = await repository.softDeleteOwnedPersonalEvent({ communityId, ownerMembershipId: membership.id, eventId });
 
   if (!deleted) {
     throw new NotFoundError('Evento personal no encontrado');
   }
-
   return { deleted: true, eventId };
 }
 

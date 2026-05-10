@@ -2,31 +2,26 @@
 
 > API index: [docs/api/README.md](./README.md)
 
-Community votings (`COMMUNITY_VOTING`) with single-choice ballot submission.
+Community votings with single-choice ballots.
 
 Base path: `/api/communities/:communityId/voting`
 
----
+## Access rules
 
-## Key rules
+- All endpoints require an authenticated session
+- Suspended members can list votings and vote
+- Only active administrators can create, close, or delete votings
+- API timestamps are returned as UTC ISO instants
 
-- All endpoints require session
-- Suspended members can list and vote
-- Only active admins can create, close or delete votings
-- All fields with time travel as **UTC ISO**
-- `endsAt` replaces the old `endDate` + `endTime`
-
----
-
-## Voting item
+## Voting item shape
 
 ```json
 {
   "id": "uuid",
-  "title": "Renovación de la piscina",
-  "description": "Selecciona una propuesta",
+  "title": "Pool renovation",
+  "description": "Select one proposal",
   "creator": {
-    "alias": "Verónica Vicepresidenta"
+    "alias": "Vice President"
   },
   "createdAt": "2026-03-30T18:00:00.000Z",
   "startsAt": "2026-03-30T18:00:00.000Z",
@@ -38,14 +33,12 @@ Base path: `/api/communities/:communityId/voting`
   "options": [
     {
       "id": "uuid",
-      "title": "Opción A",
+      "title": "Option A",
       "votes": 9
     }
   ]
 }
 ```
-
----
 
 ## Endpoints
 
@@ -54,56 +47,42 @@ Base path: `/api/communities/:communityId/voting`
 | `POST` | `/api/communities/:communityId/voting` | Create a voting |
 | `GET` | `/api/communities/:communityId/voting` | List votings |
 | `POST` | `/api/communities/:communityId/voting/:votingId/vote` | Submit one vote |
-| `POST` | `/api/communities/:communityId/voting/:votingId/close` | Close a voting manually |
-| `DELETE` | `/api/communities/:communityId/voting/:votingId` | Soft-delete a voting |
+| `POST` | `/api/communities/:communityId/voting/:votingId/close` | Close one voting |
+| `DELETE` | `/api/communities/:communityId/voting/:votingId` | Delete one voting |
 
----
-
-## 1. Create voting
-
-`POST /api/communities/:communityId/voting`
+## Create request
 
 ```json
 {
-  "title": "Renovación de la piscina",
-  "description": "Selecciona una propuesta",
+  "title": "Pool renovation",
+  "description": "Select one proposal",
   "endsAt": "2026-04-10T18:00:00.000Z",
   "options": [
-    { "title": "Opción A" },
-    { "title": "Opción B" }
+    { "title": "Option A" },
+    { "title": "Option B" }
   ]
 }
 ```
 
-Validation:
+Rules:
 
-- `title`: required, max `160`
-- `description`: optional, max `2000`
-- `endsAt`: required UTC ISO instant
-- `options`: min `2`, max `5`
-- `options[].title`: required, max `160`
+- `title` is required and limited to `160` characters
+- `description` is optional and limited to `2000` characters
+- `endsAt` is required and must be a valid future ISO instant
+- `options` must contain between `2` and `5` items
+- each option title is required and limited to `160` characters
 
-Business rules:
-
-- `endsAt` must be later than current backend time
-- `endsAt` must be at least one hour after creation
-- backend interprets the reminder day in `Europe/Madrid`, but the API still uses UTC
-
----
-
-## 2. List votings
+## List query
 
 `GET /api/communities/:communityId/voting`
 
-Query params:
-
 | Param | Required | Rules |
 |---|---|---|
-| `page` | No | Integer, min `1`, default `1` |
-| `pageSize` | No | Integer, min `1`, max `100`, default `8` |
+| `page` | No | Integer, default `1` |
+| `pageSize` | No | Integer, default `8`, max `100` |
 | `status` | No | `open` or `closed` |
 
-Success:
+Returns:
 
 ```json
 {
@@ -122,11 +101,9 @@ Success:
 }
 ```
 
----
+## Vote and close responses
 
-## 3. Vote
-
-`POST /api/communities/:communityId/voting/:votingId/vote`
+Vote request:
 
 ```json
 {
@@ -134,7 +111,7 @@ Success:
 }
 ```
 
-Success:
+Vote response:
 
 ```json
 {
@@ -145,13 +122,7 @@ Success:
 }
 ```
 
----
-
-## 4. Close voting
-
-`POST /api/communities/:communityId/voting/:votingId/close`
-
-Success:
+Close response:
 
 ```json
 {
@@ -161,13 +132,7 @@ Success:
 }
 ```
 
----
-
-## 5. Delete voting
-
-`DELETE /api/communities/:communityId/voting/:votingId`
-
-Success:
+Delete response:
 
 ```json
 {
@@ -175,12 +140,3 @@ Success:
   "votingId": "uuid"
 }
 ```
-
----
-
-## Calendar projection
-
-- backend builds the automatic reminder using the business timezone `Europe/Madrid`
-- the public API still returns only UTC instants
-- if a voting ends at business `00:00`, the reminder is projected to the previous business day
-

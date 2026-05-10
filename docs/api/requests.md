@@ -10,12 +10,6 @@ Base path:
 
 ---
 
-## Scope
-
-This module manages user-created community requests and the corresponding administrative review flows.
-
----
-
 ## Access rules
 
 | Endpoint group | Required access |
@@ -29,11 +23,7 @@ This module manages user-created community requests and the corresponding admini
 | `POST /api/requests/:requestId/approve` | Active admin in the request community |
 | `POST /api/requests/:requestId/reject` | Active admin in the request community |
 
-Important:
-
-- Ownership checks are enforced on cancel/archive
-- Admin review permissions are resolved against the request's own `communityId`
-- A user can have at most one pending visible request per community
+Ownership checks are enforced on cancel and archive. A user can have at most one pending visible request per community.
 
 ---
 

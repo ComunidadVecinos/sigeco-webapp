@@ -1,12 +1,16 @@
-// Servicio del módulo reservations.
-// Centraliza permisos, validaciones de horarios/reglas y sincronización con calendar.
+// Servicio de reservations: aplica permisos y reglas horarias sobre espacios y reservas.
+// Flujo cubierto: contexto autenticado -> permisos -> reglas de horario/capacidad -> repositorio/calendar/mail.
+// Expone casos de uso para CRUD de espacios, disponibilidad, reservas propias y administración.
+// Lo consumen los controladores HTTP del módulo.
 const { ConflictError, ForbiddenError, NotFoundError, ValidationError } = require('../../lib/errors');
+const mailService = require('../../lib/mail');
 const { addMinutesToInstant, buildBusinessDateOnly, buildBusinessDateTime, formatBusinessDate, formatBusinessTime } = require('../calendar/calendar.datetime');
 const calendarRepository = require('../calendar/calendar.repository');
 const { hasAdministrativeRole } = require('../members/members.access');
 const membersRepository = require('../members/members.repository');
 const membersService = require('../members/members.service');
 
+// Relación entre el contrato público allowedDays y las columnas booleanas guardadas en Prisma.
 const DAYS = [
   { key: 'monday', field: 'mondayEnabled', weekday: 1 },
   { key: 'tuesday', field: 'tuesdayEnabled', weekday: 2 },
@@ -22,24 +26,10 @@ const DAY_FIELD_BY_WEEKDAY = DAYS.reduce((result, day) => {
   return result;
 }, {});
 
-const STRUCTURAL_SPACE_FIELDS = [
-  'occupancyMode',
-  'totalCapacity',
-  'maxSeatsPerBooking',
-  'openingTime',
-  'closingTime',
-  'slotMinutes',
-  'maxConsecutiveSlots',
-  'mondayEnabled',
-  'tuesdayEnabled',
-  'wednesdayEnabled',
-  'thursdayEnabled',
-  'fridayEnabled',
-  'saturdayEnabled',
-  'sundayEnabled'
-];
+const DELETED_USER_ALIAS = 'Usuario eliminado';
+const MAX_CALENDAR_TITLE_LENGTH = 160;
 
-// --- Common ---
+// --- Helpers comunes ---
 function buildPagination(page, pageSize, total) {
   return { page, pageSize, total, totalPages: total === 0 ? 0 : Math.ceil(total / pageSize) };
 }
@@ -55,17 +45,20 @@ function throwValidation(field, message, errorMessage = 'Error de validación', 
   throw new ValidationError([{ field, location, message }], { message: errorMessage });
 }
 
+// Convierte HH:mm a minutos para comparar horarios y calcular franjas.
 function parseTimeToMinutes(time) {
   const [hours, minutes] = time.split(':').map(Number);
   return (hours * 60) + minutes;
 }
 
+// Convierte minutos desde medianoche a HH:mm para responder slots y finales de reserva.
 function formatTimeFromMinutes(totalMinutes) {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
+// Rango [inicio, fin) de un mes para el calendario de un espacio.
 function buildMonthRange(month) {
   const [year, monthNumber] = month.split('-').map(Number);
   return {
@@ -74,6 +67,7 @@ function buildMonthRange(month) {
   };
 }
 
+// Fechas absolutas usadas para reglas de antelación y capacidad de cancelación.
 function buildBookingRange(bookingDate, startTime, endTime) {
   return {
     startsAt: buildBusinessDateTime(bookingDate, startTime),
@@ -81,14 +75,18 @@ function buildBookingRange(bookingDate, startTime, endTime) {
   };
 }
 
+// Referencia pública de una membresía; oculta alias reales de cuentas eliminadas.
 function mapMembershipRef(membership) {
   if (!membership) {
     return null;
   }
+  if (membership.deletedAt && membership.endReason === 'USER_ACCOUNT_DELETED') {
+    return { membershipId: membership.id, alias: DELETED_USER_ALIAS, role: membership.role };
+  }
   return { membershipId: membership.id, alias: membership.alias || null, role: membership.role };
 }
 
-// --- Spaces ---
+// --- Espacios: configuración y días permitidos ---
 function readAllowedDays(source) {
   return DAYS.reduce((allowedDays, day) => {
     allowedDays[day.key] = Boolean(source[day.field]);
@@ -128,34 +126,32 @@ function resolveMaxSeatsPerBooking(existingSpace, input, occupancyMode) {
   return existingSpace ? existingSpace.maxSeatsPerBooking : null;
 }
 
+// Une datos actuales con el body validado; así creación y edición pasan por la misma validación final.
 function buildSpaceData(existingSpace, input) {
-  const currentSpace = existingSpace || {};
-  const allowedDays = buildAllowedDays(currentSpace, input.allowedDays);
-  const occupancyMode = input.occupancyMode ?? currentSpace.occupancyMode;
+  const current = existingSpace || {};
+  const allowedDays = buildAllowedDays(current, input.allowedDays);
+  const occupancyMode = input.occupancyMode ?? current.occupancyMode;
 
   return {
-    name: input.name ?? currentSpace.name,
-    description: input.description !== undefined ? (input.description || null) : (currentSpace.description || null),
-    colorHex: input.colorHex ?? currentSpace.colorHex,
-    isActive: input.isActive ?? currentSpace.isActive,
-    totalCapacity: input.totalCapacity ?? currentSpace.totalCapacity,
+    name: input.name ?? current.name,
+    description: input.description !== undefined ? (input.description || null) : (current.description || null),
+    colorHex: input.colorHex ?? current.colorHex,
+    isActive: input.isActive ?? current.isActive,
+    totalCapacity: input.totalCapacity ?? current.totalCapacity,
     occupancyMode,
     maxSeatsPerBooking: resolveMaxSeatsPerBooking(existingSpace, input, occupancyMode),
-    openingTime: input.openingTime ?? currentSpace.openingTime,
-    closingTime: input.closingTime ?? currentSpace.closingTime,
-    slotMinutes: input.slotMinutes ?? currentSpace.slotMinutes,
+    openingTime: input.openingTime ?? current.openingTime,
+    closingTime: input.closingTime ?? current.closingTime,
+    slotMinutes: input.slotMinutes ?? current.slotMinutes,
     ...storeAllowedDays(allowedDays),
-    maxConsecutiveSlots: input.maxConsecutiveSlots ?? currentSpace.maxConsecutiveSlots,
-    minAdvanceMinutes: input.minAdvanceMinutes ?? currentSpace.minAdvanceMinutes,
-    maxAdvanceDays: input.maxAdvanceDays ?? currentSpace.maxAdvanceDays,
-    cancellationNoticeMinutes: input.cancellationNoticeMinutes ?? currentSpace.cancellationNoticeMinutes
+    maxConsecutiveSlots: input.maxConsecutiveSlots ?? current.maxConsecutiveSlots,
+    minAdvanceMinutes: input.minAdvanceMinutes ?? current.minAdvanceMinutes,
+    maxAdvanceDays: input.maxAdvanceDays ?? current.maxAdvanceDays,
+    cancellationNoticeMinutes: input.cancellationNoticeMinutes ?? current.cancellationNoticeMinutes
   };
 }
 
-function isStructuralSpaceChange(existingSpace, nextSpace) {
-  return STRUCTURAL_SPACE_FIELDS.some((field) => existingSpace[field] !== nextSpace[field]);
-}
-
+// Valida la configuración completa del espacio, tanto en creación como tras aplicar un patch.
 function assertValidSpaceConfiguration(spaceData) {
   const openingMinutes = parseTimeToMinutes(spaceData.openingTime);
   const closingMinutes = parseTimeToMinutes(spaceData.closingTime);
@@ -182,6 +178,7 @@ function assertValidSpaceConfiguration(spaceData) {
   }
 }
 
+// --- Espacios: disponibilidad y mapeo ---
 function buildDailySlots(space) {
   const openingMinutes = parseTimeToMinutes(space.openingTime);
   const closingMinutes = parseTimeToMinutes(space.closingTime);
@@ -196,6 +193,7 @@ function buildDailySlots(space) {
   return slots;
 }
 
+// Acumula ocupación por franja; en modo EXCLUSIVE una reserva bloquea toda la capacidad.
 function buildUsedSeatsBySlot(space, bookings) {
   const usedSeatsBySlot = new Map();
 
@@ -253,7 +251,8 @@ function mapSpaceRef(space) {
   };
 }
 
-// --- Bookings ---
+// --- Reservas: reglas de creación y capacidad ---
+// Convierte la petición del usuario en una reserva candidata con índices de franja y fechas absolutas.
 function buildBookingCandidate(space, input) {
   const openingMinutes = parseTimeToMinutes(space.openingTime);
   const closingMinutes = parseTimeToMinutes(space.closingTime);
@@ -306,16 +305,18 @@ function assertRequestedSeats(space, requestedSeats) {
 }
 
 function assertBookingAdvanceRules(space, bookingCandidate, now = new Date()) {
-  const minimumAllowedStartsAt = addMinutesToInstant(now, space.minAdvanceMinutes);
-  if (bookingCandidate.startsAt < minimumAllowedStartsAt) {
+  const minStartsAt = addMinutesToInstant(now, space.minAdvanceMinutes);
+  if (bookingCandidate.startsAt < minStartsAt) {
     throw new ConflictError('La reserva debe hacerse con la antelación mínima configurada');
   }
-  const maximumAllowedStartsAt = addMinutesToInstant(now, space.maxAdvanceDays * 24 * 60);
-  if (bookingCandidate.startsAt > maximumAllowedStartsAt) {
+
+  const maxStartsAt = addMinutesToInstant(now, space.maxAdvanceDays * 24 * 60);
+  if (bookingCandidate.startsAt > maxStartsAt) {
     throw new ConflictError('La reserva supera la antelación máxima permitida');
   }
 }
 
+// Revisa solapamientos y aforo sin tocar base de datos; el servicio decide antes de crear.
 function assertBookingConflicts(space, bookingCandidate, requestedSeats, existingBookings) {
   if (space.occupancyMode === 'EXCLUSIVE') {
     const conflict = existingBookings.find((booking) => overlaps(bookingCandidate, booking));
@@ -347,6 +348,7 @@ function assertSpaceCanReceiveBooking(space, input, now = new Date()) {
   return bookingCandidate;
 }
 
+// --- Reservas: reglas de lectura y cancelación ---
 function canOwnerCancelBooking(booking, now = new Date()) {
   if (booking.status !== 'ACTIVE') {
     return false;
@@ -369,6 +371,7 @@ function canActorCancelBooking(actorMembership, booking, now = new Date()) {
   return canOwnerCancelBooking(booking, now);
 }
 
+// --- Reservas: mapeo de salida ---
 function buildBookingCalendarItem(booking) {
   return {
     bookingId: booking.id,
@@ -404,7 +407,285 @@ function mapBooking(booking, actorMembership, now = new Date()) {
   };
 }
 
-// --- Access ---
+// --- Correos del módulo ---
+function formatBookingDateForMail(bookingDate) {
+  return new Intl.DateTimeFormat('es-ES', { dateStyle: 'long', timeZone: 'UTC' }).format(bookingDate);
+}
+
+function formatParticipants(requestedSeats) {
+  return `${requestedSeats} ${requestedSeats === 1 ? 'persona' : 'personas'}`;
+}
+
+function trimCalendarTitle(title) {
+  if (title.length <= MAX_CALENDAR_TITLE_LENGTH) {
+    return title;
+  }
+  return `${title.slice(0, MAX_CALENDAR_TITLE_LENGTH - 3).trimEnd()}...`;
+}
+
+function buildReservationCalendarTitle(booking) {
+  return trimCalendarTitle(`Reserva: ${booking.space.name} · ${formatParticipants(booking.requestedSeats)}`);
+}
+
+// Los correos son auxiliares: si fallan, se registra el problema pero no se rompe la reserva.
+async function notifyBookingCreated({ booking, membership }) {
+  const targetEmail = membership.user?.email;
+
+  if (!targetEmail) {
+    return;
+  }
+
+  const greeting = membership.alias || 'usuario';
+  const communityName = membership.community?.name || 'tu comunidad';
+  const text = [
+    `Hola ${greeting},`,
+    '',
+    `Tu reserva en la comunidad "${communityName}" se ha confirmado correctamente.`,
+    '',
+    `Espacio reservado: ${booking.space.name}`,
+    `Número de plazas reservadas: ${formatParticipants(booking.requestedSeats)}`,
+    `Fecha: ${formatBookingDateForMail(booking.bookingDate)}`,
+    `Hora: ${booking.startTime} - ${booking.endTime}`,
+    '',
+    'Puedes consultar o cancelar la reserva desde SIGECO.'
+  ].join('\n');
+
+  try {
+    await mailService.sendMail({ to: targetEmail, subject: `SIGECO - Reserva confirmada en ${booking.space.name}`, text });
+  }
+  catch (error) {
+    console.warn('No se ha podido enviar el correo de confirmación de reserva', { bookingId: booking.id, communityId: booking.communityId, error });
+  }
+}
+
+function bookingDateLabel(booking) {
+  return formatBookingDateForMail(booking.bookingDate);
+}
+
+// Avisa al propietario cuando la administración cancela manualmente su reserva.
+async function notifyBookingCancelledByAdmin({ booking, actorMembership, reason }) {
+  const targetEmail = booking.ownerMembership?.user?.email;
+
+  if (!targetEmail) {
+    return;
+  }
+
+  const greeting = booking.ownerMembership?.alias || 'usuario';
+  const communityName = actorMembership.community?.name || 'tu comunidad';
+  const reasonLines = reason ? [`Motivo indicado: ${reason}`, ''] : [];
+  const text = [
+    `Hola ${greeting},`,
+    '',
+    `La administración de la comunidad "${communityName}" ha cancelado tu reserva.`,
+    '',
+    `Espacio reservado: ${booking.space.name}`,
+    `Número de plazas reservadas: ${formatParticipants(booking.requestedSeats)}`,
+    `Fecha: ${bookingDateLabel(booking)}`,
+    `Hora: ${booking.startTime} - ${booking.endTime}`,
+    '',
+    ...reasonLines,
+    'Puedes consultar tus reservas desde el portal SIGECO.'
+  ].join('\n');
+
+  try {
+    await mailService.sendMail({ to: targetEmail, subject: `SIGECO - Reserva cancelada en ${booking.space.name}`, text });
+  }
+  catch (error) {
+    console.warn('No se ha podido enviar el correo de cancelación administrativa de reserva', { bookingId: booking.id, communityId: booking.communityId, error });
+  }
+}
+
+// Avisa una a una las reservas canceladas por cambios de reglas; cada envío falla de forma aislada.
+async function notifyBookingsCancelledBySpaceUpdate({ bookings, space, communityName }) {
+  for (const booking of bookings) {
+    const targetEmail = booking.ownerMembership?.user?.email;
+
+    if (!targetEmail) {
+      continue;
+    }
+
+    const greeting = booking.ownerMembership?.alias || 'usuario';
+    const text = [
+      `Hola ${greeting},`,
+      '',
+      `Tu reserva del espacio "${space.name}" en la comunidad "${communityName}" ha sido cancelada porque se han actualizado las reglas del espacio.`,
+      '',
+      `Fecha: ${bookingDateLabel(booking)}`,
+      `Hora: ${booking.startTime} - ${booking.endTime}`,
+      '',
+      'Puedes consultar la disponibilidad y realizar una nueva reserva desde SIGECO.'
+    ].join('\n');
+
+    try {
+      await mailService.sendMail({ to: targetEmail, subject: `SIGECO - Reserva cancelada en ${space.name}`, text });
+    } 
+    catch (error) {
+      console.warn('No se ha podido enviar el correo de cancelación por cambio de espacio', { bookingId: booking.id, communityId: booking.communityId, error });
+    }
+  }
+}
+
+// Aviso comunitario tras deshabilitar un espacio; los fallos de correo no cambian el resultado HTTP.
+async function notifySpaceDisabledToCommunity({ communityId, space, cancelledBookingCount, reservationsRepository }) {
+  try {
+    const members = await reservationsRepository.findCommunityReservationMailMembers(communityId);
+    const communityName = members[0]?.community?.name || 'tu comunidad';
+    const cancellationLine = cancelledBookingCount > 0
+      ? 'Por este motivo, las reservas pendientes asociadas a este espacio han sido canceladas.'
+      : 'Actualmente no constaban reservas pendientes asociadas a este espacio.';
+
+    for (const member of members) {
+      const targetEmail = member.user?.email;
+
+      if (!targetEmail) {
+        continue;
+      }
+
+      const greeting = member.alias || 'usuario';
+      const text = [
+        `Hola ${greeting},`,
+        '',
+        `El espacio "${space.name}" de la comunidad "${communityName}" se ha deshabilitado temporalmente.`,
+        '',
+        cancellationLine,
+        '',
+        'Puedes consultar SIGECO para más información.'
+      ].join('\n');
+
+      try {
+        await mailService.sendMail({ to: targetEmail, subject: `SIGECO - Espacio deshabilitado en ${communityName}`, text });
+      } 
+      catch (error) {
+        console.warn('No se ha podido enviar un correo de espacio deshabilitado', { communityId, memberId: member.id, spaceId: space.id, error });
+      }
+    }
+  } 
+  catch (error) {
+    console.warn('No se han podido preparar los correos de espacio deshabilitado', { communityId, spaceId: space.id, error });
+  }
+}
+
+// --- Impacto de cambios en espacios ---
+// Recalcula una reserva existente contra la nueva configuración del espacio.
+function normalizeBookingForSpace(space, booking) {
+  const openingMinutes = parseTimeToMinutes(space.openingTime);
+  const closingMinutes = parseTimeToMinutes(space.closingTime);
+  const startMinutes = parseTimeToMinutes(booking.startTime);
+  const endMinutes = parseTimeToMinutes(booking.endTime);
+  const durationMinutes = endMinutes - startMinutes;
+
+  if (startMinutes < openingMinutes || startMinutes >= closingMinutes || endMinutes > closingMinutes || durationMinutes <= 0) {
+    return null;
+  }
+  if ((startMinutes - openingMinutes) % space.slotMinutes !== 0 || durationMinutes % space.slotMinutes !== 0) {
+    return null;
+  }
+
+  const slotCount = durationMinutes / space.slotMinutes;
+  if (slotCount > space.maxConsecutiveSlots) {
+    return null;
+  }
+  return {
+    ...booking,
+    startSlotIndex: (startMinutes - openingMinutes) / space.slotMinutes,
+    slotCount
+  };
+}
+
+function isBookingOverCapacity(space, booking) {
+  if (booking.requestedSeats > space.totalCapacity) {
+    return true;
+  }
+  return space.occupancyMode === 'SHARED' && space.maxSeatsPerBooking && booking.requestedSeats > space.maxSeatsPerBooking;
+}
+
+function groupBookingsByDate(bookings) {
+  return bookings.reduce((groups, booking) => {
+    const key = formatBusinessDate(booking.bookingDate);
+    const group = groups.get(key) || [];
+    group.push(booking);
+    groups.set(key, group);
+    return groups;
+  }, new Map());
+}
+
+// Decide qué reservas sobreviven al nuevo aforo y cuáles deben cancelarse.
+function findCapacityAffectedBookingIds(space, bookings) {
+  const affectedIds = new Set();
+
+  for (const group of groupBookingsByDate(bookings).values()) {
+    const keptBookings = [];
+
+    for (const booking of group) {
+      if (space.occupancyMode === 'EXCLUSIVE') {
+        if (keptBookings.some((keptBooking) => overlaps(booking, keptBooking))) {
+          affectedIds.add(booking.id);
+          continue;
+        }
+        keptBookings.push(booking);
+        continue;
+      }
+
+      const usedSeatsBySlot = buildUsedSeatsBySlot(space, keptBookings);
+      let exceedsCapacity = false;
+      for (let slotIndex = booking.startSlotIndex; slotIndex < booking.startSlotIndex + booking.slotCount; slotIndex += 1) {
+        if ((usedSeatsBySlot.get(slotIndex) || 0) + booking.requestedSeats > space.totalCapacity) {
+          exceedsCapacity = true;
+          break;
+        }
+      }
+
+      if (exceedsCapacity) { affectedIds.add(booking.id); } 
+      else { keptBookings.push(booking); }
+    }
+  }
+  return affectedIds;
+}
+
+// Impacto de una actualización de espacio: reservas canceladas y reservas que solo cambian de índice.
+function calculateSpaceUpdateImpact(existingSpace, nextSpace, bookings) {
+  const affectedIds = new Set();
+  const normalizedBookings = [];
+
+  for (const booking of bookings) {
+    if (existingSpace.slotMinutes !== nextSpace.slotMinutes || !isAllowedDateForSpace(nextSpace, booking.bookingDate)) {
+      affectedIds.add(booking.id);
+      continue;
+    }
+
+    const normalizedBooking = normalizeBookingForSpace(nextSpace, booking);
+    if (!normalizedBooking || isBookingOverCapacity(nextSpace, normalizedBooking)) {
+      affectedIds.add(booking.id);
+      continue;
+    }
+    normalizedBookings.push(normalizedBooking);
+  }
+
+  for (const bookingId of findCapacityAffectedBookingIds(nextSpace, normalizedBookings)) {
+    affectedIds.add(bookingId);
+  }
+
+  const bookingById = new Map(bookings.map((booking) => [booking.id, booking]));
+  const slotUpdates = normalizedBookings
+    .filter((booking) => !affectedIds.has(booking.id))
+    .filter((booking) => {
+      const originalBooking = bookingById.get(booking.id);
+      return booking.startSlotIndex !== originalBooking?.startSlotIndex || booking.slotCount !== originalBooking?.slotCount;
+    })
+    .map((booking) => ({
+      bookingId: booking.id,
+      communityId: booking.communityId,
+      startSlotIndex: booking.startSlotIndex,
+      slotCount: booking.slotCount
+    }));
+
+  return {
+    affectedBookings: bookings.filter((booking) => affectedIds.has(booking.id)),
+    slotUpdates
+  };
+}
+
+// --- Permisos y existencia ---
 async function requireReservationsAccess(userId, communityId) {
   return membersService.requireOperationalCommunityAccess(userId, communityId, membersRepository);
 }
@@ -436,11 +717,11 @@ function assertCanReadInactiveSpaces(membership, status) {
   throw new ForbiddenError('Solo la administración puede consultar espacios inactivos');
 }
 
-function assertCanReadBooking(actorMembership, booking) {
+function assertCanReadBooking(actorMembership, booking, forbiddenMessage = 'No tienes permisos para consultar esta reserva') {
   if (booking.ownerMembershipId === actorMembership.id || hasAdministrativeRole(actorMembership)) {
     return;
   }
-  throw new ForbiddenError('No tienes permisos para consultar esta reserva');
+  throw new ForbiddenError(forbiddenMessage);
 }
 
 function assertCanCancelBooking(actorMembership, booking, now = new Date()) {
@@ -458,37 +739,10 @@ function assertCanCancelBooking(actorMembership, booking, now = new Date()) {
   }
 }
 
-async function assertStructuralChangesAllowed(existingSpace, nextSpace, reservationsRepository) {
-  if (!isStructuralSpaceChange(existingSpace, nextSpace)) {
-    return;
-  }
-  const now = new Date();
-  const futureBookings = await reservationsRepository.findFutureActiveBookingsForSpace({
-    communityId: existingSpace.communityId,
-    spaceId: existingSpace.id,
-    nowDate: buildBusinessDateOnly(now),
-    nowTime: formatBusinessTime(now)
-  });
-  if (futureBookings.length > 0) {
-    throw new ConflictError('No se puede cambiar la configuración estructural del espacio mientras existan reservas futuras activas');
-  }
-}
-
-// --- Public spaces ---
-async function createSpace(context, communityId, input, reservationsRepository) {
-  await requireReservationsAdminAccess(context.userId, communityId);
-  const spaceData = buildSpaceData(null, input);
-  assertValidSpaceConfiguration(spaceData);
-  const space = await reservationsRepository.withTransaction((tx) =>
-    reservationsRepository.createSpace(tx, { communityId, ...spaceData })
-  );
-  return { space: mapSpace(space) };
-}
-
+// --- Espacios: GET de consulta ---
 async function getSpaceList(context, communityId, input, reservationsRepository) {
   const { membership } = await requireReservationsAccess(context.userId, communityId);
   assertCanReadInactiveSpaces(membership, input.status);
-
   const pageResult = await reservationsRepository.findSpacePage({
     communityId,
     search: input.search || undefined,
@@ -505,53 +759,6 @@ async function getSpaceDetail(context, communityId, spaceId, reservationsReposit
   return { space: mapSpace(space) };
 }
 
-async function updateSpace(context, communityId, spaceId, input, reservationsRepository) {
-  await requireReservationsAdminAccess(context.userId, communityId);
-
-  const existingSpace = await requireSpace(communityId, spaceId, reservationsRepository);
-  const nextSpace = buildSpaceData(existingSpace, input);
-
-  assertValidSpaceConfiguration(nextSpace);
-  await assertStructuralChangesAllowed(existingSpace, nextSpace, reservationsRepository);
-
-  const updatedSpace = await reservationsRepository.withTransaction((tx) =>
-    reservationsRepository.updateSpace(tx, { communityId, spaceId, data: nextSpace })
-  );
-
-  if (!updatedSpace) {
-    throw new ConflictError('No se ha podido actualizar el espacio');
-  }
-  return { space: mapSpace(updatedSpace) };
-}
-
-async function updateSpaceStatus(context, communityId, spaceId, input, reservationsRepository) {
-  await requireReservationsAdminAccess(context.userId, communityId);
-  await requireSpace(communityId, spaceId, reservationsRepository);
-
-  const updatedSpace = await reservationsRepository.withTransaction((tx) =>
-    reservationsRepository.updateSpace(tx, { communityId, spaceId, data: { isActive: input.isActive } })
-  );
-
-  if (!updatedSpace) {
-    throw new ConflictError('No se ha podido actualizar el estado del espacio');
-  }
-  return { space: mapSpace(updatedSpace) };
-}
-
-async function deleteSpace(context, communityId, spaceId, reservationsRepository) {
-  await requireReservationsAdminAccess(context.userId, communityId);
-
-  const space = await requireSpace(communityId, spaceId, reservationsRepository);
-  const deleted = await reservationsRepository.withTransaction((tx) =>
-    reservationsRepository.softDeleteSpace(tx, { communityId, spaceId, deletedAt: new Date() })
-  );
-
-  if (!deleted) {
-    throw new ConflictError('No se ha podido eliminar el espacio');
-  }
-  return { deleted: true, spaceId: space.id };
-}
-
 async function getSpaceAvailability(context, communityId, spaceId, input, reservationsRepository) {
   await requireReservationsAccess(context.userId, communityId);
 
@@ -566,6 +773,7 @@ async function getSpaceAvailability(context, communityId, spaceId, input, reserv
   const allowedDay = isAllowedDateForSpace(space, input.date);
   const usedSeatsBySlot = buildUsedSeatsBySlot(space, bookings);
 
+  // Cada slot se calcula desde la configuración del espacio y la ocupación real del día.
   return {
     space: mapSpace(space),
     bookingRules: buildBookingRules(space),
@@ -594,7 +802,177 @@ async function getSpaceCalendar(context, communityId, spaceId, input, reservatio
   return { month: input.month, items: bookings.map(buildBookingCalendarItem) };
 }
 
-// --- Public bookings ---
+// --- Espacios: POST de creación ---
+async function createSpace(context, communityId, input, reservationsRepository) {
+  await requireReservationsAdminAccess(context.userId, communityId);
+  const spaceData = buildSpaceData(null, input);
+
+  assertValidSpaceConfiguration(spaceData);
+
+  const space = await reservationsRepository.withTransaction((tx) =>
+    reservationsRepository.createSpace(tx, { communityId, ...spaceData })
+  );
+  return { space: mapSpace(space) };
+}
+
+// --- Espacios: PATCH de edición ---
+async function updateSpace(context, communityId, spaceId, input, reservationsRepository) {
+  const { membership } = await requireReservationsAdminAccess(context.userId, communityId);
+  const existingSpace = await requireSpace(communityId, spaceId, reservationsRepository);
+  const nextSpace = buildSpaceData(existingSpace, input);
+
+  assertValidSpaceConfiguration(nextSpace);
+
+  const now = new Date();
+  const futureBookings = await reservationsRepository.findFutureActiveBookingsForSpace({
+    communityId,
+    spaceId,
+    nowDate: buildBusinessDateOnly(now),
+    nowTime: formatBusinessTime(now)
+  });
+  const { affectedBookings, slotUpdates } = calculateSpaceUpdateImpact(existingSpace, nextSpace, futureBookings);
+  const affectedBookingIds = affectedBookings.map((booking) => booking.id);
+
+  // La actualización del espacio y el ajuste/cancelación de reservas viajan juntos para no desincronizar calendar.
+  const updatedSpace = await reservationsRepository.withTransaction(async (tx) => {
+    const updated = await reservationsRepository.updateSpace(tx, { communityId, spaceId, data: nextSpace });
+
+    if (!updated) {
+      return null;
+    }
+
+    await reservationsRepository.updateBookingSlotPositions(tx, slotUpdates);
+    await reservationsRepository.cancelActiveBookingsByIds(tx, {
+      communityId,
+      bookingIds: affectedBookingIds,
+      cancelledAt: now,
+      cancelledByMembershipId: membership.id,
+      cancellationReason: 'Reglas del espacio actualizadas'
+    });
+    await calendarRepository.softDeleteReservationEventsBySourceEntityIds(tx, affectedBookingIds, now);
+    return updated;
+  });
+
+  if (!updatedSpace) {
+    throw new ConflictError('No se ha podido actualizar el espacio');
+  }
+  await notifyBookingsCancelledBySpaceUpdate({
+    bookings: affectedBookings,
+    space: updatedSpace,
+    communityName: membership.community?.name || 'tu comunidad'
+  });
+  return { space: mapSpace(updatedSpace) };
+}
+
+// Cambia solo el estado activo/inactivo. Al deshabilitar, cancela reservas futuras activas.
+async function updateSpaceStatus(context, communityId, spaceId, input, reservationsRepository) {
+  const { membership } = await requireReservationsAdminAccess(context.userId, communityId);
+  const existingSpace = await requireSpace(communityId, spaceId, reservationsRepository);
+  const disabledAt = new Date();
+  const shouldCancelBookings = existingSpace.isActive && input.isActive === false;
+  const bookingsToCancel = shouldCancelBookings
+    ? await reservationsRepository.findFutureActiveBookingsForSpace({
+        communityId,
+        spaceId,
+        nowDate: buildBusinessDateOnly(disabledAt),
+        nowTime: formatBusinessTime(disabledAt)
+      })
+    : [];
+  const bookingIdsToCancel = bookingsToCancel.map((booking) => booking.id);
+
+  // Deshabilitar un espacio cancela futuras reservas activas y borra sus eventos en la misma transacción.
+  const updatedSpace = await reservationsRepository.withTransaction(async (tx) => {
+    const updated = await reservationsRepository.updateSpace(tx, { communityId, spaceId, data: { isActive: input.isActive } });
+
+    if (!updated) {
+      return null;
+    }
+
+    if (shouldCancelBookings) {
+      await reservationsRepository.cancelActiveBookingsByIds(tx, {
+        communityId,
+        bookingIds: bookingIdsToCancel,
+        cancelledAt: disabledAt,
+        cancelledByMembershipId: membership.id,
+        cancellationReason: 'Espacio deshabilitado temporalmente'
+      });
+      await calendarRepository.softDeleteReservationEventsBySourceEntityIds(tx, bookingIdsToCancel, disabledAt);
+    }
+    return updated;
+  });
+
+  if (!updatedSpace) {
+    throw new ConflictError('No se ha podido actualizar el estado del espacio');
+  }
+  if (shouldCancelBookings) {
+    await notifySpaceDisabledToCommunity({
+      communityId,
+      space: updatedSpace,
+      cancelledBookingCount: bookingIdsToCancel.length,
+      reservationsRepository
+    });
+  }
+  return { space: mapSpace(updatedSpace) };
+}
+
+// --- Espacios: DELETE lógico ---
+async function deleteSpace(context, communityId, spaceId, reservationsRepository) {
+  const { membership } = await requireReservationsAdminAccess(context.userId, communityId);
+  const space = await requireSpace(communityId, spaceId, reservationsRepository);
+  const deletedAt = new Date();
+
+  // El borrado lógico también limpia reservas activas y sus eventos asociados.
+  const deleted = await reservationsRepository.withTransaction(async (tx) => {
+    const deletedSpace = await reservationsRepository.softDeleteSpace(tx, { communityId, spaceId, deletedAt });
+
+    if (!deletedSpace) {
+      return false;
+    }
+
+    const cancelledBookingIds = await reservationsRepository.cancelActiveBookingsBySpaceId(tx, {
+      communityId,
+      spaceId,
+      cancelledAt: deletedAt,
+      cancelledByMembershipId: membership.id,
+      cancellationReason: 'Espacio común eliminado'
+    });
+
+    await calendarRepository.softDeleteReservationEventsBySourceEntityIds(tx, cancelledBookingIds, deletedAt);
+    return true;
+  });
+
+  if (!deleted) {
+    throw new ConflictError('No se ha podido eliminar el espacio');
+  }
+  return { deleted: true, spaceId: space.id };
+}
+
+// --- Reservas propias: GET de consulta ---
+async function getMyBookings(context, communityId, input, reservationsRepository) {
+  const { membership } = await requireReservationsAccess(context.userId, communityId);
+  const now = new Date();
+
+  const pageResult = await reservationsRepository.findBookingPageForMembership({
+    communityId,
+    ownerMembershipId: membership.id,
+    spaceId: input.spaceId || undefined,
+    scope: input.scope,
+    page: input.page,
+    pageSize: input.pageSize,
+    nowDate: buildBusinessDateOnly(now),
+    nowTime: formatBusinessTime(now)
+  });
+  return buildPageResult(input, pageResult, (booking) => mapBooking(booking, membership, now));
+}
+
+async function getBookingDetail(context, communityId, bookingId, reservationsRepository) {
+  const { membership } = await requireReservationsAccess(context.userId, communityId);
+  const booking = await requireBooking(communityId, bookingId, reservationsRepository);
+  assertCanReadBooking(membership, booking);
+  return { booking: mapBooking(booking, membership) };
+}
+
+// --- Reservas propias: POST de creación/cancelación ---
 async function createBooking(context, communityId, input, reservationsRepository) {
   const { membership } = await requireReservationsAccess(context.userId, communityId);
   const space = await requireSpace(communityId, input.spaceId, reservationsRepository);
@@ -620,6 +998,7 @@ async function createBooking(context, communityId, input, reservationsRepository
 
   assertBookingConflicts(space, bookingCandidate, input.requestedSeats, sameDayBookings);
 
+  // Crear reserva y evento propio de calendar es una sola operación lógica.
   const createdBooking = await reservationsRepository.withTransaction(async (tx) => {
     const booking = await reservationsRepository.createBooking(tx, {
       communityId,
@@ -637,7 +1016,7 @@ async function createBooking(context, communityId, input, reservationsRepository
       communityId,
       ownerMembershipId: membership.id,
       bookingId: booking.id,
-      title: `Reserva: ${booking.space.name}`,
+      title: buildReservationCalendarTitle(booking),
       eventDate: booking.bookingDate,
       startTime: booking.startTime,
       endTime: booking.endTime
@@ -645,41 +1024,20 @@ async function createBooking(context, communityId, input, reservationsRepository
     return booking;
   });
 
+  await notifyBookingCreated({ booking: createdBooking, membership });
   return { booking: mapBooking(createdBooking, membership) };
-}
-
-async function getMyBookings(context, communityId, input, reservationsRepository) {
-  const { membership } = await requireReservationsAccess(context.userId, communityId);
-  const now = new Date();
-
-  const pageResult = await reservationsRepository.findBookingPageForMembership({
-    communityId,
-    ownerMembershipId: membership.id,
-    spaceId: input.spaceId || undefined,
-    scope: input.scope,
-    page: input.page,
-    pageSize: input.pageSize,
-    nowDate: buildBusinessDateOnly(now),
-    nowTime: formatBusinessTime(now)
-  });
-  return buildPageResult(input, pageResult, (booking) => mapBooking(booking, membership, now));
-}
-
-async function getBookingDetail(context, communityId, bookingId, reservationsRepository) {
-  const { membership } = await requireReservationsAccess(context.userId, communityId);
-  const booking = await requireBooking(communityId, bookingId, reservationsRepository);
-  assertCanReadBooking(membership, booking);
-  return { booking: mapBooking(booking, membership) };
 }
 
 async function cancelBooking(context, communityId, bookingId, input, reservationsRepository) {
   const { membership } = await requireReservationsAccess(context.userId, communityId);
   const booking = await requireBooking(communityId, bookingId, reservationsRepository);
 
-  assertCanReadBooking(membership, booking);
+  assertCanReadBooking(membership, booking, 'No tienes permisos para cancelar esta reserva');
   assertCanCancelBooking(membership, booking);
 
   const cancelledAt = new Date();
+
+  // Cancelar una reserva también borra su evento propio del calendario.
   const cancelledBooking = await reservationsRepository.withTransaction(async (tx) => {
     const updatedBooking = await reservationsRepository.cancelBooking(tx, {
       communityId,
@@ -702,9 +1060,14 @@ async function cancelBooking(context, communityId, bookingId, input, reservation
     return updatedBooking;
   });
 
+  if (hasAdministrativeRole(membership) && booking.ownerMembershipId !== membership.id) {
+    await notifyBookingCancelledByAdmin({ booking: cancelledBooking, actorMembership: membership, reason: input.reason });
+  }
+
   return { booking: mapBooking(cancelledBooking, membership, cancelledAt) };
 }
 
+// --- Administración de reservas: GET de consulta ---
 async function getAdminBookings(context, communityId, input, reservationsRepository) {
   const { membership } = await requireReservationsAdminAccess(context.userId, communityId);
   const pageResult = await reservationsRepository.findBookingPageAdmin({
@@ -720,17 +1083,17 @@ async function getAdminBookings(context, communityId, input, reservationsReposit
 }
 
 module.exports = {
-  createSpace,
   getSpaceList,
   getSpaceDetail,
+  getSpaceAvailability,
+  getSpaceCalendar,
+  createSpace,
   updateSpace,
   updateSpaceStatus,
   deleteSpace,
-  getSpaceAvailability,
-  getSpaceCalendar,
-  createBooking,
   getMyBookings,
   getBookingDetail,
+  createBooking,
   cancelBooking,
   getAdminBookings
 };

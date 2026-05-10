@@ -2,7 +2,7 @@
 
 > API index: [docs/api/README.md](./README.md)
 
-This page defines the shared documentation rules for the SIGECO backend API.
+This page defines the shared rules used by the SIGECO backend API.
 
 ---
 
@@ -72,8 +72,6 @@ All HTTP errors are normalized to the same structure:
 }
 ```
 
-Notes:
-
 - `details` is optional
 - `details` is typically present on validation failures
 - `location` usually identifies `body`, `query` or `params`
@@ -115,8 +113,6 @@ The API uses more than one temporal format depending on the module contract.
 | Business month | `2026-04` | Month calendar views |
 | Time-only | `18:30` | Reservation slot boundaries |
 
-Shared documentation rule:
-
 - `createdAt`, `updatedAt`, `editedAt`, `startsAt`, `endsAt`, `closedAt`, `cancelledAt` and similar timestamp fields are documented as UTC ISO instants whenever they are present in the public contract
 - Some modules evaluate day-based business rules in `Europe/Madrid` while still exposing UTC instants in their public payloads
 - Reservations use `YYYY-MM-DD` and `YYYY-MM` for business-day and business-month filters
@@ -155,11 +151,3 @@ Some modules add extra top-level properties such as `summary`, `community`, `sto
 - Image assets are usually exposed under `/uploads/...`
 - Community documents are downloaded or streamed through `/api/communities/:communityId/documents/files/:documentId/content`
 - Upload constraints such as allowed MIME types, binary signature checks, file size limits and quota checks are documented by each module
-
----
-
-## 9. Documentation scope
-
-- Module pages document concrete endpoint contracts, access rules and resource payloads
-- This file documents only shared conventions
-- The source of truth for route coverage is the application router and the corresponding module route files

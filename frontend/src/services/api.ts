@@ -1,8 +1,10 @@
+//Configuración de Axios: instancia de base, interceptores y manejo de sesión expirada
 import axios from 'axios';
 
 const API_URL = '';
 export const SESSION_EXPIRED_EVENT = 'sigeco:session-expired';
 
+//Rutas de autenticación pública para no disparar el evento de sesión expirada
 function isPublicAuthRequest(method?: string, url?: string) {
     const normalizedMethod = (method || '').toLowerCase();
     const normalizedUrl = url || '';
@@ -20,6 +22,7 @@ const api = axios.create({
     withCredentials: true
 });
 
+//Elimina Content-Type en peticiones con FormData para que el navegador genere el boundary
 api.interceptors.request.use((config) => {
     if (config.data instanceof FormData) {
         if (config.headers && typeof config.headers.delete === 'function') {
@@ -34,6 +37,7 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+//Si la API devuelve 401 en una ruta protegida se emite el evento global de sesión expirada
 api.interceptors.response.use(
     (response) => response,
     (error) => {

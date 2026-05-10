@@ -1,5 +1,7 @@
-// Utilidades temporales compartidas por los módulos que proyectan eventos en el calendario comunitario.
-// Los pares fecha + hora siempre se interpretan en la zona de negocio Europe/Madrid y los instantes reales se guardan en UTC.
+// Utilidades horarias del calendario: convierten fechas de negocio y UTC para todo el backend.
+// Flujo cubierto: instantes UTC <-> día/hora de negocio en Europe/Madrid.
+// Expone helpers de composición, formato y desplazamiento temporal reutilizados por calendar, reservations, news y voting.
+// Lo consumen calendar.service.js, calendar.reminder.js y otros módulos que proyectan eventos.
 const {
   padTimeSegment,
   buildBusinessDateTime,

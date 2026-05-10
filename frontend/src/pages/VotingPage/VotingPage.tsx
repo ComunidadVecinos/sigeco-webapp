@@ -1,3 +1,4 @@
+//Página de votaciones de la comunidad: listado paginado con filtro de estado, resumen (total/abiertas/cerradas), creación (admin), emisión de voto, cierre y eliminación
 import React, {useEffect, useState} from 'react';
 import Header from '@/components/common/Header/Header';
 import Sidebar from '@/components/ui/Sidebar/Sidebar';
@@ -12,7 +13,10 @@ import { businessFormToUtcIso } from '@/lib/businessDateTime';
 import { getApiErrorMessage } from '@/lib/formErrors';
 import { useNavigate } from 'react-router-dom';
 import './VotingPage.css';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
+//Estructura de una votación: opciones, estado y resumen de contadores
 interface VotingOption {
     id: string;
     title: string;
@@ -47,7 +51,7 @@ const VotingPage: React.FC = () => {
 
     const activeCommunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
     const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
-
+    //Estado de la vista: sidebar, lisatdo de votaciones, resuemn, paginación, filtro de estado y modales
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [votingList, setVotingList] = useState<Voting[]>([]);
     const [summary, setSummary] = useState<VotingSummary>({total: 0, open: 0, closed: 0});
@@ -57,13 +61,19 @@ const VotingPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [closeModalData, setCloseModalData] = useState<{id: string; title: string} | null>(null);
+    //Feedback global y confirmación de eliminación
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'deletingVoting' | null; votingId: string; title: string; message: string;}>({isOpen: false, type: null, votingId: '', title: '', message: ''});
 
+    //Redirige al perfil si el usuario no tiene comunidad activa
     useEffect(() => {
         if(!authLoading && user && !communityId){
             navigate('auth/me', {replace: true});
         }
     }, [authLoading, communityId, navigate, user]);
 
+    //Carga las votaciones paginadas con filtro de estado opcional y actualiza el resumen
     const loadVotings = async (pageNum: number, append: boolean = false) => {
         if(!communityId) return;
         setLoading(true);
@@ -90,11 +100,13 @@ const VotingPage: React.FC = () => {
         }
     };
 
+    //Recarga las votaciones desde la página 1 cuando cambia el filtro o la comunidad
     useEffect(() => {
         setPage(1);
         loadVotings(1, false);
     }, [communityId, statusFilter]);
 
+    //Carga la siguiente página de votaciones y las añade al listado existente
     const handleLoadMore = () => {
         const nextPage = page + 1;
         setPage(nextPage);
@@ -106,13 +118,13 @@ const VotingPage: React.FC = () => {
         if(!communityId) return;
         try{
             const endsAt = businessFormToUtcIso(data.endsAtDate, data.endsAtTime);
-            if(!endsAt) {alert('Fecha y hora de cierres no válidas'); return;}
+            if(!endsAt) {setFeedback({isOpen: true, type: 'error', message: 'Fecha y hora de cierre no válidas'}); return;}
             await createVoting(communityId, {title: data.title, description: data.description || undefined, endsAt, options: data.options.map(o => ({title: o}))});
             setCreateModalOpen(false);
             setPage(1);
             loadVotings(1, false);
         } catch (err: any) {
-            alert(getApiErrorMessage(err, 'Error al crear la votación'));
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al crear la votación')});
         }
     };
 
@@ -124,7 +136,7 @@ const VotingPage: React.FC = () => {
             setPage(1);
             loadVotings(1, false);
         } catch (err: any){
-            alert(getApiErrorMessage(err, 'Error al emitir el voto'));
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al emitir el voto')});
         }
     };
 
@@ -137,19 +149,19 @@ const VotingPage: React.FC = () => {
             setPage(1);
             loadVotings(1, false);
         } catch (err: any){
-            alert(getApiErrorMessage(err, 'Error al cerrar la votación'));
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al cerrar la votación')});
         }
     };
 
     //Eliminar votacion
     const handleDeleteVoting = async (votingId: string) => {
         if(!communityId) return;
-        if(!window.confirm('¿Estás seguro de que quieres eliminar esta votación?')) return;
         try{
             await deleteVoting(communityId, votingId);
-            setVotingList(prev => prev.filter(v => v.id !== votingId));
+            setPage(1);
+            loadVotings(1, false);
         } catch (err: any){
-            alert(getApiErrorMessage(err, 'Error al eliminar la votación'));
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al eliminar la votación')});
         }
     };
 
@@ -170,6 +182,7 @@ const VotingPage: React.FC = () => {
             <main className='max-w-[700px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0'>
                 <h1 className='text-[28px] font-bold mb-7 text-center'>Votaciones</h1>
 
+                {/*Barra de acciones: botón de crear votación (solo admin) y filtro de estado*/}
                 <div className='flex justify-between items-center mb-4'>
                     {isAdmin ? (
                         <Button onClick={() => setCreateModalOpen(true)} size="sm" className='flex items-center gap-2'>
@@ -184,6 +197,7 @@ const VotingPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/*Tarjetas de resumen: total, abiertas y cerradas*/}
                 <div className='grid grid-cols-3 gap-3 mb-6'>
                     <div className='bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center'>
                         <Vote className='h-5 w-5 mx-auto text-blue-500 mb-1' />
@@ -202,6 +216,7 @@ const VotingPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/*Listado de votaciones con VotingCard*/}
                 {
                     <div className='flex flex-col gap-5 mt-7'>
                         {loading && votingList.length === 0 ? (
@@ -234,13 +249,14 @@ const VotingPage: React.FC = () => {
                                     isAdmin={isAdmin}
                                     onVote={handleVote}
                                     onClose={(id) => setCloseModalData({id, title: voting.title})}
-                                    onDelete={handleDeleteVoting}
+                                    onDelete={(id) => setConfirmAction({isOpen: true, type: 'deletingVoting', votingId: id, title: 'Eliminar Votación', message: '¿Estás seguro de que quieres eliminar esta votación?'})}
                                 />
                             ))
                         )}
                     </div>
                 }
 
+                {/*Paginación y mensaje de fin de lista*/}
                 {hasMore && (
                     <div className='text-center py-6'>
                         <Button variant="outline" onClick={handleLoadMore} disabled={loading}>
@@ -253,6 +269,7 @@ const VotingPage: React.FC = () => {
                 )}
             </main>
 
+            {/*Modales: crear votación, confirmar cierre, feedback y confirmación de eliminación*/}
             <CreateVotingModal
                 isOpen={createModalOpen}
                 onClose={() => setCreateModalOpen(false)}
@@ -267,6 +284,23 @@ const VotingPage: React.FC = () => {
                     votingTitle={closeModalData.title}
                 />
             )}
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                onConfirm={async () => {
+                    if(confirmAction.type === 'deletingVoting') await handleDeleteVoting(confirmAction.votingId);
+                }}
+            />
         </div>
     );
 };

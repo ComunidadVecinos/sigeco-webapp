@@ -1,3 +1,4 @@
+//Modal para crear una nueva votación: título, descripción, opciones dinámicas y fechas de cierre
 import React, {useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '../dialog';
 import {Button} from '../button';
@@ -18,29 +19,35 @@ const CreateVotingModal: React.FC<CreateVotingModalProps> = ({isOpen, onClose, o
     const [endsAtTime, setEndsAtTime] = useState('');
     const [options, setOptions] = useState<string[]>(['','']);
 
+    //Actualiza el texto de una opción por su índice
     const updateOption = (index: number, value: string) => {
         const next = [...options];
         next[index] = value;
         setOptions(next);
     };
 
+    //Añade una opción vacía (máximo 5)
     const addOption = () => {
         if(options.length < 5) setOptions([...options, '']);
     };
 
+    //Elimina una opción (mínimo 2)
     const removeOption = (index: number) => {
         if(options.length > 2) setOptions(options.filter((_, i) => i !== index));
     };
 
+    //Solo cuenta opciones con texto; mínimo 2, fecha y para ser válida
     const validOptions = options.filter(o => o.trim());
     const isValid = title.trim() && endsAtDate && endsAtTime && validOptions.length >= 2;
 
+    //Guarda la votación
     const handleSave = () => {
         if(!isValid) return;
         onSave({title, description, endsAtDate, endsAtTime, options: validOptions});
         handleClose();
     };
 
+    //Resetea todos los campos al cerrar el modal
     const handleClose = () => {
         setTitle('');
         setDescription('');

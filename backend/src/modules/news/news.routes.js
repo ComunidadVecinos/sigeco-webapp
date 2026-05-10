@@ -1,7 +1,9 @@
 const express = require('express');
 
-// Rutas HTTP del módulo news.
-// Se monta como subrecurso de comunidad para reutilizar communityId.
+// Router de news: reúne creación, listado y mantenimiento de noticias del tablón comunitario.
+// Flujo cubierto: sesión -> subida opcional de imagen -> normalización/validación -> controlador.
+// Expone el router de Express para crear, listar, editar y borrar noticias.
+// Lo consume el router de comunidades como subrecurso con communityId.
 const asyncHandler = require('../../lib/http/asyncHandler');
 const { createImageUpload } = require('../../lib/storage/avatarUpload');
 const validate = require('../../lib/validation/validate');
@@ -21,6 +23,7 @@ const {
 const router = express.Router({ mergeParams: true });
 const uploadNewsImage = createImageUpload('image');
 
+// --- Noticias comunitarias: POST de creación ---
 router.post(
   '/',
   requireSession,
@@ -29,9 +32,24 @@ router.post(
   validate({ params: communityIdParamSchema, body: createNewsSchema }),
   asyncHandler(newsController.createNews)
 );
-router.get('/', requireSession, validate({ params: communityIdParamSchema, query: listNewsQuerySchema }), asyncHandler(newsController.getNewsList));
-router.get('/:newsId', requireSession, validate({ params: newsParamsSchema }), asyncHandler(newsController.getNewsDetail));
-router.delete('/:newsId/image', requireSession, validate({ params: newsParamsSchema }), asyncHandler(newsController.deleteNewsImage));
+
+// --- Noticias comunitarias: GET de consulta ---
+router.get(
+  '/', 
+  requireSession, 
+  validate({ params: communityIdParamSchema, query: listNewsQuerySchema }), 
+  asyncHandler(newsController.getNewsList)
+);
+
+router.get(
+  '/:newsId', 
+  requireSession, 
+  validate({ params: newsParamsSchema }), 
+  asyncHandler(newsController.getNewsDetail)
+);
+
+// --- Noticias comunitarias: PATCH de edición ---
+// La imagen se trata como parte del mismo formulario de edición.
 router.patch(
   '/:newsId',
   requireSession,
@@ -41,6 +59,20 @@ router.patch(
   ensureUpdateNewsHasChanges,
   asyncHandler(newsController.updateNews)
 );
-router.delete('/:newsId', requireSession, validate({ params: newsParamsSchema }), asyncHandler(newsController.deleteNews));
+
+// --- Noticias comunitarias: DELETE de imagen y borrado lógico ---
+router.delete(
+  '/:newsId/image', 
+  requireSession, 
+  validate({ params: newsParamsSchema }), 
+  asyncHandler(newsController.deleteNewsImage)
+);
+
+router.delete(
+  '/:newsId', 
+  requireSession, 
+  validate({ params: newsParamsSchema }), 
+  asyncHandler(newsController.deleteNews)
+);
 
 module.exports = router;

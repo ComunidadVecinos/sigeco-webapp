@@ -1,6 +1,11 @@
-// Acceso a datos del módulo voting.
+// Repositorio de voting: persiste votaciones, opciones, votos y limpiezas relacionadas.
+// Flujo cubierto: servicio -> queries/transacciones Prisma -> entidades listas para mapear o validar.
+// Expone lecturas de votaciones, conteos, votos, cierres, borrado lógico y limpieza transversal.
+// Lo consume voting.service.js y, para limpieza de cuenta, users.repository.js.
 const prisma = require('../../lib/prisma');
 
+// --- Selects compartidos ---
+// Datos mínimos para listar votaciones sin cargar todavía opciones ni votos agregados.
 const votingListSelect = {
   id: true,
   title: true,
@@ -10,10 +15,11 @@ const votingListSelect = {
   closedAt: true,
   createdAt: true,
   createdByMembership: {
-    select: { id: true, alias: true, role: true }
+    select: { id: true, alias: true, role: true, deletedAt: true, endReason: true }
   }
 };
 
+// Detalle completo necesario para validar opciones, votar y mapear la votación recién creada.
 const votingDetailSelect = {
   ...votingListSelect,
   createdByMembershipId: true,
@@ -24,52 +30,37 @@ const votingDetailSelect = {
   }
 };
 
+// --- Helpers comunes ---
+// Este repositorio opera solo sobre COMMUNITY_VOTING; FORUM_POLL se gestiona desde su propio módulo.
 function buildVotingBaseWhere(communityId) {
-  // Este repositorio opera solo sobre COMMUNITY_VOTING; FORUM_POLL reutiliza Poll desde su propio módulo.
   return { communityId, kind: 'COMMUNITY_VOTING', deletedAt: null };
 }
 
+// Una votación comunitaria abierta sigue sin cerrar manualmente y con fecha fin todavía futura.
 function buildOpenVotingWhere(now = new Date()) {
-  // Una votación comunitaria abierta siempre debe tener fecha fin futura (campo nullable para )
   return { closedAt: null, endsAt: { gt: now } };
 }
 
 function buildVotingListWhere({ communityId, status, now = new Date() }) {
   const baseWhere = buildVotingBaseWhere(communityId);
-
   if (status === 'open') {
     return { ...baseWhere, ...buildOpenVotingWhere(now) };
   }
-
   if (status === 'closed') {
     return { ...baseWhere, OR: [{ closedAt: { not: null } }, { endsAt: { lte: now } }] };
   }
-
   return baseWhere;
+}
+
+function buildPageArgs(page, pageSize) {
+  return { skip: (page - 1) * pageSize, take: pageSize };
 }
 
 async function withTransaction(callback) {
   return prisma.$transaction(callback);
 }
 
-async function createVoting(db, input) {
-  return db.poll.create({
-    data: {
-      communityId: input.communityId,
-      kind: 'COMMUNITY_VOTING',
-      title: input.title,
-      description: input.description || null,
-      startsAt: input.startsAt,
-      endsAt: input.endsAt,
-      createdByMembershipId: input.createdByMembershipId,
-      options: {
-        create: input.options.map((option, index) => ({ title: option.title, sortOrder: index }))
-      }
-    },
-    select: votingDetailSelect
-  });
-}
-
+// --- Votaciones comunitarias: GET ---
 async function findCommunityVotingById({ communityId, votingId }) {
   return prisma.poll.findFirst({
     where: { id: votingId, ...buildVotingBaseWhere(communityId) },
@@ -79,8 +70,7 @@ async function findCommunityVotingById({ communityId, votingId }) {
 
 async function findVotingPage({ communityId, status, page, pageSize, now = new Date() }) {
   const where = buildVotingListWhere({ communityId, status, now });
-  const skip = (page - 1) * pageSize;
-
+  const { skip, take } = buildPageArgs(page, pageSize);
   const [total, items] = await prisma.$transaction([
     prisma.poll.count({ where }),
     prisma.poll.findMany({
@@ -88,10 +78,9 @@ async function findVotingPage({ communityId, status, page, pageSize, now = new D
       select: votingListSelect,
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       skip,
-      take: pageSize
+      take
     })
   ]);
-
   return { total, items };
 }
 
@@ -101,7 +90,6 @@ async function findVotingSummaryCounts({ communityId, now = new Date() }) {
     prisma.poll.count({ where: baseWhere }),
     prisma.poll.count({ where: { ...baseWhere, ...buildOpenVotingWhere(now) } })
   ]);
-
   return { total, open, closed: total - open };
 }
 
@@ -109,7 +97,6 @@ async function findVotingOptionsByPollIds(pollIds) {
   if (!pollIds || pollIds.length === 0) {
     return [];
   }
-
   return prisma.pollOption.findMany({
     where: { pollId: { in: pollIds } },
     select: { id: true, pollId: true, title: true, sortOrder: true },
@@ -121,7 +108,6 @@ async function findVoteCountsByPollIds(pollIds) {
   if (!pollIds || pollIds.length === 0) {
     return [];
   }
-
   return prisma.pollVote.groupBy({
     by: ['pollId', 'optionId'],
     where: { pollId: { in: pollIds } },
@@ -133,7 +119,6 @@ async function findMembershipVotesByPollIds({ membershipId, pollIds }) {
   if (!pollIds || pollIds.length === 0) {
     return [];
   }
-
   return prisma.pollVote.findMany({
     where: { membershipId, pollId: { in: pollIds } },
     select: { pollId: true, optionId: true }
@@ -141,8 +126,35 @@ async function findMembershipVotesByPollIds({ membershipId, pollIds }) {
 }
 
 async function countPossibleVoters(communityId) {
-  return prisma.membership.count({
-    where: { communityId, deletedAt: null, endedAt: null }
+  return prisma.membership.count({ where: { communityId, deletedAt: null, endedAt: null } });
+}
+
+async function findVotingNotificationMembers(communityId) {
+  return prisma.membership.findMany({
+    where: { communityId, deletedAt: null, endedAt: null },
+    select: {
+      id: true,
+      alias: true,
+      user: { select: { email: true } }
+    },
+    orderBy: [{ joinedAt: 'asc' }, { id: 'asc' }]
+  });
+}
+
+// --- Votaciones comunitarias: POST ---
+async function createVoting(db, input) {
+  return db.poll.create({
+    data: {
+      communityId: input.communityId,
+      kind: 'COMMUNITY_VOTING',
+      title: input.title,
+      description: input.description || null,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      createdByMembershipId: input.createdByMembershipId,
+      options: { create: input.options.map((option, index) => ({ title: option.title, sortOrder: index })) }
+    },
+    select: votingDetailSelect
   });
 }
 
@@ -154,21 +166,20 @@ async function insertVote(db, input) {
 }
 
 async function closeVoting(db, { communityId, votingId, closedByMembershipId, closedAt }) {
-  const updateResult = await db.poll.updateMany({
+  const updated = await db.poll.updateMany({
     where: { id: votingId, ...buildVotingBaseWhere(communityId), closedAt: null, endsAt: { gt: closedAt } },
     data: { closedAt, closedByMembershipId }
   });
-
-  if (updateResult.count !== 1) {
+  if (updated.count !== 1) {
     return null;
   }
-
   return db.poll.findFirst({
     where: { id: votingId, ...buildVotingBaseWhere(communityId) },
     select: { id: true, closedAt: true, closedByMembershipId: true }
   });
 }
 
+// --- Votaciones comunitarias: DELETE lógico ---
 async function softDeleteVoting(db, { communityId, votingId, deletedAt }) {
   return db.poll.updateMany({
     where: { id: votingId, ...buildVotingBaseWhere(communityId) },
@@ -176,6 +187,7 @@ async function softDeleteVoting(db, { communityId, votingId, deletedAt }) {
   });
 }
 
+// --- Limpieza transversal ---
 async function deleteVotesOfMembershipsInOpenPolls(db, membershipIds, now = new Date()) {
   if (!membershipIds || membershipIds.length === 0) {
     return { count: 0 };
@@ -190,10 +202,7 @@ async function deleteVotesOfMembershipsInOpenPolls(db, membershipIds, now = new 
           deletedAt: null,
           closedAt: null,
           startsAt: { lte: now },
-          OR: [
-            { kind: 'COMMUNITY_VOTING', endsAt: { gt: now } },
-            { kind: 'FORUM_POLL', OR: [{ endsAt: null }, { endsAt: { gt: now } }] }
-          ]
+          OR: [{ kind: 'COMMUNITY_VOTING', endsAt: { gt: now } }, { kind: 'FORUM_POLL', OR: [{ endsAt: null }, { endsAt: { gt: now } }] }]
         }
       }
     }
@@ -210,6 +219,7 @@ module.exports = {
   findVoteCountsByPollIds,
   findMembershipVotesByPollIds,
   countPossibleVoters,
+  findVotingNotificationMembers,
   insertVote,
   closeVoting,
   softDeleteVoting,

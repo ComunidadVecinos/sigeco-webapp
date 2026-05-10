@@ -1,8 +1,11 @@
+//Modal para gestionar el código de acceso de la comunidad: visualizar, regenerar y copiar al portapapeles
 import React, {useState, useEffect} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '../dialog';
 import { Button } from '../button';
 import { regenerateAccessCode } from '@/services/adminService';
 import { Copy, RefreshCw, Check, Eye, EyeOff } from 'lucide-react';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+
 
 interface GenerateCodeModalProps {
     isOpen: boolean;
@@ -19,6 +22,10 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
     const [copied, setCopied] = useState(false);
     const [visible, setVisible] = useState(false);
 
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+
+    //Carga el código actual al abrir el modal
     useEffect(() => {
         if(isOpen) {
             setAccessCode(currentAccessCode || null);
@@ -27,6 +34,7 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
         }
     }, [isOpen, currentAccessCode]);
 
+    //Oculat el código cada vez que se abre el modal
     useEffect(() => {
         if(isOpen) {
             setVisible(false);
@@ -34,6 +42,7 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
     }, [isOpen]);
    
 
+    //Regenera el código de acceso en el backend y lo muestra autómaticamente
     const generate = async () => {
         if(!communityId) return;
         setLoading(true);
@@ -54,6 +63,7 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
         }
     };
 
+    //Copia el código al portapapeles del navegador
     const handleCopy = async () => {
         if(!accessCode) return;
         try{
@@ -61,10 +71,11 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            alert('No se pudo copiar al portapapeles.');
+            setFeedback({isOpen: true, type: 'error', message: 'No se pudo copiar al portapapeles.'});
         }
     };
 
+    //Oculta el código con asteriscos cuando esta oculto
     const maskedCode = accessCode ? accessCode.replace(/./g, '*') : null;
 
     return (
@@ -111,6 +122,14 @@ const GenerateCodeModal: React.FC<GenerateCodeModalProps> = ({isOpen, onClose, c
                     <Button variant="outline" size="sm" onClick={onClose}>Cerrar</Button>
                 </DialogFooter>
             </DialogContent>
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+            
         </Dialog>
     );
 };

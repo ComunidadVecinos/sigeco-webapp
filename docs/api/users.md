@@ -8,12 +8,6 @@ Base path: `/api/users`
 
 ---
 
-## Scope
-
-This module exposes self-service operations for the authenticated user profile.
-
----
-
 ## Access rules
 
 All endpoints in this module require a valid authenticated session cookie.
@@ -75,8 +69,6 @@ All endpoints in this module require a valid authenticated session cookie.
 }
 ```
 
-Notes:
-
 - `profileImageUrl` is a public URL or `null`
 - `activeCommunityId` is the community selected in the current access context or `null`
 - `communities[].membershipId` identifies the user's own membership row in that community
@@ -132,12 +124,6 @@ No request body.
 
 Response shape: see [Profile response](#profile-response).
 
-### Behavior notes
-
-- `profileImageUrl` is derived from the stored avatar file and may be `null`
-- `communities[].address` uses the property's formatted address when available, otherwise the property label, otherwise `null`
-- `communities[].suspensionActive` is computed from `suspendedAt` and `suspendedUntil`
-
 ### Expected errors
 
 | Status | Code | Notes |
@@ -153,10 +139,7 @@ Response shape: see [Profile response](#profile-response).
 
 Updates the authenticated user's basic profile data.
 
-Important:
-
-- Even though the method is `PATCH`, backend expects the full editable profile payload
-- `phone` is optional, but `firstName`, `lastName` and `email` are required
+The endpoint expects the full editable profile payload. `phone` is optional; `firstName`, `lastName` and `email` are required.
 
 ### Request
 
@@ -225,12 +208,7 @@ Cookie: sid=<session_cookie>
 |---|---|
 | `communityId` | Required, valid UUID |
 
-### Behavior notes
-
-- Backend updates both the current session and `lastActiveMembershipId` on the user
-- The target community must exist and the user must still belong to it
-- Suspended memberships can still be selected as active context, as long as the membership is not deleted or ended
-- The response returns the recalculated `actorType`
+The target community must exist and still belong to the user. Suspended memberships can still be selected as active context.
 
 ### Success
 
@@ -364,6 +342,7 @@ Cookie: sid=<session_cookie>
 
 ### Behavior notes
 
+- Users who are president of one or more active communities cannot delete their account until they transfer those presidencies
 - On success, backend invalidates all active sessions of the user
 - The current response clears the `sid` cookie
 - Memberships are ended and soft-deleted
@@ -398,6 +377,7 @@ Cookie: sid=<session_cookie>
 |---|---|---|
 | `401` | `UNAUTHORIZED` | Missing, invalid or expired session |
 | `409` | `CONFLICT` | Account could not be deleted in its current state |
+| `409` | `ACCOUNT_DELETION_BLOCKED_BY_PRESIDENCY` | User is president of one or more active communities |
 | `422` | `VALIDATION_ERROR` | Invalid body |
 | `422` | `ACCOUNT_DELETION_EMAIL_MISMATCH` | `email` does not match the authenticated user |
 | `422` | `CONFIRMATION_TEXT_MISMATCH` | `confirmationText` is not exactly `ELIMINAR MI CUENTA` |
@@ -420,6 +400,7 @@ Cookie: sid=<session_cookie>
 | User tries to delete an avatar but none exists | `409` | `CONFLICT` |
 | Invalid account deletion confirmation text | `422` | `CONFIRMATION_TEXT_MISMATCH` |
 | Email mismatch during account deletion | `422` | `ACCOUNT_DELETION_EMAIL_MISMATCH` |
+| User tries to delete their account while still holding a presidency | `409` | `ACCOUNT_DELETION_BLOCKED_BY_PRESIDENCY` |
 
 Standard error shape:
 
@@ -438,4 +419,3 @@ Standard error shape:
   }
 }
 ```
-

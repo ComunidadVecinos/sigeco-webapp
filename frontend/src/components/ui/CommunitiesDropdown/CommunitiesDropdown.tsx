@@ -1,3 +1,4 @@
+//Menú desplegable para cambiar de comunidad
 import React from 'react';
 import {Check} from 'lucide-react';
 
@@ -24,6 +25,7 @@ const CommunitiesDropdown: React.FC<CommunitiesDropdownProps> = ({isOpen, onClos
                 <div className="px-4 py-2 border-b border-gray-100">
                     <span className="text-gray-500 text-sm ml-3">Mis comunidades</span>
                 </div>
+                {/*lista de comunidades*/}
                 {communities.map((community) => (
                     <button key={community.communityId} className={`flex items-center justify-between w-full px-4 py-3 bg-transparent border-none border-b border-gray-100 text-gray-500 text-left cursor-pointer transition-colors hover:bg-gray-50 last:border-b-0 ${community.communityId === activeCommunityId ? 'bg-blue-50' : ''}`} onClick={() => {onSelectCommunity(community.communityId); onClose();}}>
                         <span className="font-medium">{community.name}</span>

@@ -1,9 +1,11 @@
+//Tarjeta de incidencia: muestra estado, imagen, fechas y acciones según rol
 import React from 'react';
 import {Button} from '@/components/ui/button';
 import {Pencil, Trash2, ArrowRightLeft} from 'lucide-react';
 import { formatUtcIsoInBusinessZone } from '@/lib/businessDateTime';
 import { IncidentStatus } from '@/services/incidentService';
 
+//Configuración visual de cada estado de incidencia (color y etiqueta)
 const statusConfig: Record<IncidentStatus, {label: string; bg: string; text: string}> = {
     pending: {label: 'Pendiente', bg: 'bg-yellow-100', text: 'text-yellow-700'},
     inProgress: {label: 'En proceso', bg: 'bg-blue-100', text: 'text-blue-700'},
@@ -31,6 +33,7 @@ interface IncidentCardProps {
 const IncidentCard: React.FC<IncidentCardProps> = ({title, description, status, imageUrl, authorAlias, createdAt, editedAt, isAdmin, isOwner, onEdit, onDelete, onChangeStatus}) => {
     
     const st = statusConfig[status];
+    //Solo el propietario puede editar y solo si la incidencia esta en estado pendiente
     const isPending = status === 'pending';
     const formatteDate = createdAt ? formatUtcIsoInBusinessZone(createdAt, "d 'de' MMMM 'de' yyyy, HH:mm") : '';
     const formatteEditedAt = editedAt ? formatUtcIsoInBusinessZone(editedAt, "d 'de' MMMM 'de' yyyy, HH:mm") : null;
@@ -58,6 +61,7 @@ const IncidentCard: React.FC<IncidentCardProps> = ({title, description, status, 
                 </div>
 
                 <div className='flex gap-1'>
+                    {/*Acciones: cambiar estado (admin), editar(propietario), eliminar (admin o propietario)*/}
                     {isAdmin && (
                         <Button variant="ghost" size="icon" onClick={onChangeStatus} className='h-8 w-8 text-gray-500 hover_text-purple-600' title="Cambiar estado">
                             <ArrowRightLeft className='h-4 w-4'/>

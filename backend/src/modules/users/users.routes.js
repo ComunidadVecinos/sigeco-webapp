@@ -1,6 +1,9 @@
 const express = require('express');
 
-// Rutas HTTP del módulo users.
+// Router de users: agrupa los endpoints del usuario autenticado y sus cambios más habituales.
+// Flujo cubierto: sesión -> validación de body -> controlador.
+// Expone el router de Express para perfil, comunidad activa, avatar y baja de cuenta.
+// Lo consume app.js al montar el módulo users.
 const asyncHandler = require('../../lib/http/asyncHandler');
 const { uploadAvatar } = require('../../lib/storage/avatarUpload');
 const validate = require('../../lib/validation/validate');
@@ -10,12 +13,49 @@ const { updateMyProfileSchema, deleteMyAccountSchema, validateChangeActiveCommun
 
 const router = express.Router();
 
-// Users expone solo operaciones sobre el usuario autenticado (/me).
-router.get('/me', requireSession, asyncHandler(usersController.getMyProfile));
-router.patch('/me', requireSession, validate({ body: updateMyProfileSchema }), asyncHandler(usersController.updateMyProfile));
-router.put('/me/active-community', requireSession, validateChangeActiveCommunity, asyncHandler(usersController.changeMyActiveCommunity));
-router.put('/me/avatar', requireSession, uploadAvatar, asyncHandler(usersController.updateMyAvatar));
-router.delete('/me/avatar', requireSession, asyncHandler(usersController.deleteMyAvatar));
-router.delete('/me', requireSession, validate({ body: deleteMyAccountSchema }), asyncHandler(usersController.deleteMyAccount));
+// --- Perfil propio: GET de consulta ---
+router.get(
+  '/me', 
+  requireSession, 
+  asyncHandler(usersController.getMyProfile)
+);
+
+// --- Perfil propio: PATCH de edición ---
+router.patch(
+  '/me', 
+  requireSession, 
+  validate({ body: updateMyProfileSchema }), 
+  asyncHandler(usersController.updateMyProfile)
+);
+
+// --- Contexto del usuario: PUT de cambio explícito ---
+router.put(
+  '/me/active-community', 
+  requireSession, 
+  validateChangeActiveCommunity, 
+  asyncHandler(usersController.changeMyActiveCommunity)
+);
+
+// --- Avatar propio: PUT de subida/reemplazo ---
+router.put(
+  '/me/avatar', 
+  requireSession, 
+  uploadAvatar, 
+  asyncHandler(usersController.updateMyAvatar)
+);
+
+// --- Avatar y cuenta: DELETE de eliminación ---
+router.delete(
+  '/me/avatar', 
+  requireSession, 
+  asyncHandler(usersController.deleteMyAvatar)
+);
+
+router.delete(
+  '/me', 
+  requireSession, 
+  validate({ body: deleteMyAccountSchema }), 
+  asyncHandler(usersController.deleteMyAccount)
+);
 
 module.exports = router;

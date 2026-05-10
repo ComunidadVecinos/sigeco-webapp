@@ -1,3 +1,4 @@
+//Calendario de la comunidad: Vista mensual con eventos de noticias, reservas, votaciones y personales (CRUD para personales)
 import React, {useEffect, useState} from 'react';
 import Header from '@/components/common/Header/Header';
 import Sidebar from '@/components/ui/Sidebar/Sidebar';
@@ -10,39 +11,45 @@ import {es} from 'date-fns/locale';
 import CreateEventCalendarModal from '@/components/ui/CreateEventCalendarModal/CreateEventCalendarModal';
 import { type CalendarEventDto, getCalendarEvents, createPersonalEvent, deletePersonalEvent, updatePersonalEvent } from '@/services/calendarService';
 import { useNavigate } from 'react-router-dom';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
 
 const CalendarPage: React.FC = () => {
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const communityId = user?.activeCommunityId;
-
+    //Estado de la vista: sidebar, fecha seleccionada, mes visible, listado de eventos y carga
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [visibleMonth, setVisibleMonth] = useState<Date>(startOfMonth(new Date()));
     const [events, setEvents] = useState<CalendarEventDto[]>([]);
     const [loading, setLoading] = useState(false);
-    const [featureUnavailable, setFeatureUnavailable] = useState(false);
+    //Modal de crear/editar evento personal y evento de edición
     const [isEventModalOpen, setIsEventModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<CalendarEventDto | null>(null);
-
+    //Feedback global y confirmación de eliminación
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'deleteEvent' | null; eventId: string; title: string; message: string;}>({isOpen: false, type: null, eventId: '', title: '', message: ''});
+    
+    //Redirige al perfil si el usuario no tiene comunidad activa
     useEffect(() => {
         if (!authLoading && user && !communityId) {
             navigate('/auth/me', { replace: true });
         }
     }, [authLoading, communityId, navigate, user]);
 
+    //Carga los eventos del mes visible desde la API
     const loadEvents = async () => {
         if(!communityId) return;
         setLoading(true);
         try{
-            setFeatureUnavailable(false);
             const res : any = await getCalendarEvents(communityId, {
                 month: format(visibleMonth, 'yyyy-MM')
             });
             setEvents(res.data.content || []);
         } catch(error: any){
             if(error?.response?.status === 404){
-                setFeatureUnavailable(true);
                 setEvents([]);
             }
             console.error('Error cargando eventos', error);
@@ -51,62 +58,71 @@ const CalendarPage: React.FC = () => {
         }
     };
 
+    //Recarga los eventos cuando cambia la comunidad o el mes visible
     useEffect(() => {loadEvents(); }, [communityId, visibleMonth]);
 
+    //Filtra los eventos que coinciden con la fecha seleccionada en el calendario
     const selectedDateEvents = events.filter((event) => {
         if(!date) return false;
         return isSameDay(new Date(`${event.date}T00:00:00`), date);
     });
 
+    //Crea un evento personal y lo añade al listado local
     const handleCreateEvent = async (newEventData: any) => {
-        if(!communityId || featureUnavailable) return;
+        if(!communityId) return;
         try{
             const res: any = await createPersonalEvent(communityId, newEventData);
             setEvents((currentEvents) => [...currentEvents, res.data]);
             setIsEventModalOpen(false);
         } catch(err: any){
-            alert(err.response?.data?.error?.message || 'Error al guardar el evento');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al guardar el evento.'});
         }
     };
 
+    //Actualiza un evento personal existente en la API y en el listado
     const handleEditEvent = async (eventData: any) => {
-        if(!communityId || !editingEvent || featureUnavailable) return;
+        if(!communityId || !editingEvent) return;
         try{
             const res: any = await updatePersonalEvent(communityId, editingEvent.id, eventData);
             setEvents((currentEvents) => currentEvents.map((event) => event.id === editingEvent.id ? res.data : event));
             setEditingEvent(null);
             setIsEventModalOpen(false);
         } catch(err: any){
-            alert(err.response?.data?.error?.message || 'Error al editar');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al editar el evento.'});
         }
     };
 
+    //Abre el modal en modo edición con los datos del evento seleccionado
     const handleOpenEdit = (event: CalendarEventDto) => {
         setEditingEvent(event);
         setIsEventModalOpen(true);
     };
 
+    //Elimina un evento personal y lo quita del listado local
     const handleDeleteEvent = async (eventId: string) => {
-        if(!communityId || !confirm('¿Eliminar este evento?') || featureUnavailable) return;
+        if(!communityId) return;
         try{
             await deletePersonalEvent(communityId, eventId);
             setEvents((currentEvents) => currentEvents.filter((event) => event.id !== eventId));
         } catch(err: any) {
-            alert(err.response?.data?.error?.message || 'Error al eliminar');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar el evento.'});
         }
     };
 
+    //Opciones de navegación rápida de años y nombres de meses en español
     const currentYear = new Date().getFullYear();
     const yearOptions = Array.from({length: 11}, (_, i) => currentYear - 5 + i);
     const monthNames = [
         'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
     ];
 
+    //Cambia el mes visible manteniendo el año actual
     const handleMonthSelect = (monthIndex: number) => {
         const newDate = new Date(visibleMonth.getFullYear(), monthIndex, 1);
         setVisibleMonth(newDate);
     };
 
+    //Cambia el año visible manteniendo el mes actual
     const handleYearSelect = (year: number) => {
         const newDate = new Date(year, visibleMonth.getMonth(), 1);
         setVisibleMonth(newDate);
@@ -128,17 +144,11 @@ const CalendarPage: React.FC = () => {
             <main className='max-w-[1000px] mx-auto pt-[250px] md:pt-[200px] px-4 md:px-0 pb-12'>
                 <div className='flex justify-between items-center mb-6'>
                     <h1 className='text-[28px] font-bold text-gray-900'>Mi Calendario</h1>
-                    <Button size="sm" className='flex items-center gap-2' onClick={() => setIsEventModalOpen(true)} disabled={featureUnavailable}>
+                    <Button size="sm" className='flex items-center gap-2' onClick={() => setIsEventModalOpen(true)}>
                         <Plus className='h-4 w-4' />Evento Personal
                     </Button>
                 </div>
-
-                {featureUnavailable && (
-                    <div className='bg-white p-6 rounded-2xl border border-amber-200 text-amber-800 mb-6'>
-                        El backend actual no expone todavía el módulo de calendario. La pantalla queda visible, pero sus datos y acciones no están disponibles en esta arquitectura.
-                    </div>
-                )}
-
+                {/*Leyenda de colores: rojo = Noticias, azul = Reservas, amarillo = Votaciones, verde = Personales*/}
                 <div className="flex gap-4 mb-6 text-sm font-medium text-gray-600 border-b border-gray-200 pb-4">
                     <div className="flex items-center gap-1.5"><div className='w-2.5 h-2.5 rounded-full bg-red-500'></div>Noticias</div>
                     <div className="flex items-center gap-1.5"><div className='w-2.5 h-2.5 rounded-full bg-blue-500'></div>Reservas</div>
@@ -146,6 +156,7 @@ const CalendarPage: React.FC = () => {
                     <div className="flex items-center gap-1.5"><div className='w-2.5 h-2.5 rounded-full bg-green-500'></div>Personales</div>
                 </div>
 
+                {/*Layout de dos columnas: calendario con selectores de mes/año a la izquierda y lista de eventos del día a la derecha*/}
                 <div className='flex flex-col md:flex-row gap-8'>
                     <div className='bg-white p-4 rounded-2xl shadow-sm border border-gray-200 md:w-[350] h-fit'>
                         <div className='flex gap-2 mb-3 justify-center'>
@@ -168,6 +179,7 @@ const CalendarPage: React.FC = () => {
                                 ))}
                             </select>
                         </div>
+                        {/*Panel izquierdo: calendario con la leyenda de colores y colores identificativos en el día para saber si hay un evento o no y de que tipo*/}
                         <Calendar
                             mode='single'
                             selected={date}
@@ -181,6 +193,7 @@ const CalendarPage: React.FC = () => {
                                 day_selected: 'bg-blue-600 text-white hover:bg-blue-600 hover:text-white rounded-md',
                                 day_today: 'bg-blue-50 text-blue-600 font-bold',
                             }}
+                            /*BayButton personalizado: muestra puntos de color según los tipos de evento del día*/
                             components={{
                                 DayButton: ({day, modifiers, ...props}) => {
                                     const dayEvents = events.filter((event) => isSameDay(new Date(`${event.date}T00:00:00`), day.date));
@@ -210,6 +223,7 @@ const CalendarPage: React.FC = () => {
                     </div>
 
                     <div className="flex-1">
+                        {/*Panel derecho: eventos del día seleccionado con acciones de editar y eliminar para personales*/}
                         <h2 className='text-xl font-bold mb-4 text-gray-900'>
                             Agenda del {date ? format(date, "d 'de' MMMM", {locale: es}) : 'día'}
                         </h2>
@@ -225,7 +239,7 @@ const CalendarPage: React.FC = () => {
                                                 <button onClick={() => handleOpenEdit(event)} className='text-gray-300 hover:text-blue-500' title='Editar'>
                                                     <Pencil className='w-4 h-4' />
                                                 </button>
-                                                <button onClick={() => handleDeleteEvent(event.id)} className='text-gray-300 hover:text-red-500' title='Eliminar'>
+                                                <button onClick={() => setConfirmAction({isOpen: true, type: 'deleteEvent', eventId: event.id, title: 'Eliminar Evento', message: '¿Estás seguro de que quieres eliminar este evento personal?'})} className='text-gray-300 hover:text-red-500' title='Eliminar'>
                                                     <Trash2 className='w-4 h-4' />
                                                 </button>
                                             </div>
@@ -253,6 +267,7 @@ const CalendarPage: React.FC = () => {
                 </div>
             </main>
 
+            {/*Modales: crear/editar evento personal, confirmación de eliminación y feedback*/}
             <CreateEventCalendarModal
                 isOpen={isEventModalOpen}
                 onClose={() => {setIsEventModalOpen(false); setEditingEvent(null);}}
@@ -260,6 +275,26 @@ const CalendarPage: React.FC = () => {
                 selectedDate={date}
                 editingEvent={editingEvent}
             />
+
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                isDestructive={true}
+                onConfirm={async () => {
+                    if(confirmAction.type === 'deleteEvent') await handleDeleteEvent(confirmAction.eventId);
+                }}
+            />
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
         </div>
     );
 };

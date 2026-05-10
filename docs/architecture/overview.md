@@ -1,110 +1,102 @@
 # Application Architecture
 
-## 1. Overview
+SIGECO is a Docker Compose application composed of a React frontend, an Express backend, a PostgreSQL database, and an nginx reverse proxy. The stack is designed for local development, academic review, and functional testing through a single public entry point.
 
-SIGECO is a local Docker Compose application with a React frontend, an Express backend, a PostgreSQL database, and an nginx reverse proxy in front of both.
+## System Overview
 
-The stack is designed for local development and demo use. Docker Compose starts the main services, applies database migrations and seed data, and exposes the app through a single entry point on port `80`.
+The application is organised into five runtime services:
 
----
+- `frontend`: builds and serves the React application on the internal Docker network
+- `backend`: exposes the HTTP API, serves uploaded assets, and applies business rules
+- `db`: PostgreSQL 15 database used by all backend modules through Prisma
+- `mailpit`: local SMTP sink and inbox UI for development email flows
+- `nginx`: reverse proxy and public entry point for web traffic
 
-## 2. Main Components
+In addition, the stack includes a one-shot `db_init` service. It waits for PostgreSQL, applies Prisma migrations, and runs the seed before the backend becomes available.
 
-- `frontend`
-  Builds the React app and serves the generated static files on port `3000` inside Docker.
+## Request Flow
 
-- `backend`
-  Runs the Express API on port `4000`, serves uploaded files under `/uploads`, and connects to PostgreSQL through Prisma.
+nginx is the only public HTTP entry point in the default setup.
 
-- `db`
-  PostgreSQL 15 database used by the backend for users, communities, memberships, requests, sessions, and related data.
+- `http://localhost/` routes to the frontend
+- `http://localhost/api/` routes to the backend API
+- `http://localhost/uploads/` routes to backend-managed uploaded files
+- `http://localhost/mail/` routes to the MailPit web interface
 
-- `db_init`
-  One-shot setup container that waits for PostgreSQL, then runs Prisma migrations and seed data before the backend starts.
+The browser never connects directly to the backend container in the default workflow. All web traffic passes through nginx.
 
-- `nginx`
-  Public entry point of the stack. It routes `/` to the frontend and `/api` plus `/uploads` to the backend.
+## Backend Structure
 
-- `mailpit`
-  Local SMTP test service used for email flows such as password reset. It also exposes a small web UI to inspect sent emails.
+The backend follows a layered structure:
 
----
+- routes define the HTTP surface
+- controllers map requests to use cases
+- services apply business rules and orchestration
+- repositories execute Prisma queries
+- shared logic lives under `src/lib`
 
-## 3. How Things Connect
+The current API surface covers authentication, users, communities, help, requests, members, calendar, reservations, voting, forum, news, incidents, and documents.
 
-- Docker Compose creates a shared internal network for all services.
-- `nginx` is the only service exposed as the main web entry point on `http://localhost`.
-- `frontend` and `backend` communicate through nginx rather than through a browser-visible direct backend port.
-- `backend` connects to `db` using `DATABASE_URL`.
-- `backend` sends local email through `mailpit` on SMTP port `1025`.
-- `db_init` must complete successfully before `backend` starts.
+The backend also serves a health endpoint at `/api/health` and publishes runtime files from `storage/uploads` under `/uploads`.
 
-Main request flow:
+## Persistence and Storage
 
-- Browser -> `nginx` -> `frontend`
-- Browser -> `nginx` -> `backend` -> `db`
-- Backend -> `mailpit` for development email delivery
+The database schema is defined in `backend/prisma/schema.prisma` and accessed exclusively through Prisma Client.
 
----
+Two persistence layers are used at runtime:
 
-## 4. Access Points
+- PostgreSQL for relational data
+- filesystem storage for uploaded files and seeded binary assets
 
-- Frontend
-  `http://localhost`
+The main Docker volumes are:
 
-- API
-  `http://localhost/api`
+- `db_data` for PostgreSQL data
+- `backend_storage` for uploaded files and seeded runtime assets
+- `backend_node_modules` for backend dependencies inside Docker
 
-- Health endpoint
-  `http://localhost/api/health`
+On startup, the backend runs a small bootstrap step that copies seeded assets into runtime storage when required.
 
-- Uploaded files
-  `http://localhost/uploads/...`
+## Deployment Model in Local Development
 
-- MailPit UI
-  `http://localhost:8025`
+The local environment is coordinated through `docker-compose.yml`:
 
-- PostgreSQL from host
-  `localhost:5432`
+- `db` exposes PostgreSQL on `localhost:5432`
+- `db_init` runs `npm run db:deploy` and `npm run db:seed`
+- `backend` waits for `db_init` to complete successfully
+- `frontend` and `backend` expose only internal container ports
+- `nginx` publishes port `80` to the host
 
-- Prisma Studio
-  Not started automatically. It can be launched manually when needed.
+Health checks are defined for the database, backend, frontend, and nginx to make startup order and local diagnostics more predictable.
 
----
+## External Integrations
 
-## 5. Storage & Persistence
+The architecture intentionally keeps integrations minimal:
 
-- PostgreSQL data is persisted in the Docker volume `db_data`.
-- Backend uploaded files are stored in the Docker volume `backend_storage`.
-- The backend source is bind-mounted into the container for local development.
-- Seeded avatar assets are copied into runtime storage on startup if they are missing.
+- email is delivered to MailPit in local environments
+- uploaded files are stored locally rather than in external object storage
+- authentication is session-based and relies on HTTP cookies
 
----
+These choices keep the runtime simple while preserving the same application boundaries used by the backend code.
 
-## 6. Architecture Diagram
+## Architecture Diagram
 
 ```mermaid
 flowchart LR
   Browser[Browser]
   Nginx[nginx]
-  Frontend[Frontend: React static build]
-  Backend[Backend: Express + Prisma]
+  Frontend[Frontend]
+  Backend[Backend]
   DB[(PostgreSQL)]
   MailPit[MailPit]
-  DBInit[db_init: migrations + seed]
+  DBInit[db_init]
+  Storage[(Runtime storage)]
 
   Browser --> Nginx
   Nginx --> Frontend
   Nginx --> Backend
+  Nginx --> MailPit
   Backend --> DB
+  Backend --> Storage
   Backend --> MailPit
   DBInit --> DB
 ```
-
----
-
-## 7. Notes
-
-- The backend currently exposes these implemented API areas: `auth`, `users`, `help`, `communities`, and `requests`.
-- Session auth is cookie-based, so frontend requests must include credentials.
-- nginx also forwards `/uploads` to the backend so public file URLs stay on the same host as the app.

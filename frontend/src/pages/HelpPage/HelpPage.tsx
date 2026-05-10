@@ -1,3 +1,4 @@
+//Página de ayuda: secciones generales (solo lectura) y secciones de la comunidad (CRUD y reordenación, solo admins)
 import React, { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, HelpCircle, BookOpen } from 'lucide-react';
 import Header from '@/components/common/Header/Header';
@@ -5,21 +6,31 @@ import { useAuth } from '@/context/authContext';
 import { getGeneralHelp, getCommunityHelp, deleteHelpSection, reorderHelpSections } from '@/services/helpServices';
 import { Button } from '@/components/ui/button';
 import HelpSectionModal from '@/components/ui/HelpSectionModal/HelpSectionModal';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
+
 
 const HelpPage: React.FC = () => {
     const { user } = useAuth();
     const communityId = user?.activeCommunityId;
 
+    //Ver si la comunidad esta activa y identificar que el usuario es admin
     const activeCommunity: any = user?.communities?.find((community: any) => community.communityId === communityId);
     const isAdmin = activeCommunity?.role === 'PRESIDENT' || activeCommunity?.role === 'VICE_PRESIDENT';
-
+    //Secciones de ayuda general y de la comunidad
     const [generalHelp, setGeneralHelp] = useState<any[]>([]);
     const [communitySections, setCommunitySections] = useState<any[]>([]);
+    //Modal de crear/editar sección y modo reordenación con copia temporal
     const [sectionModalOpen, setSectionModalOpen] = useState(false);
     const [editingSection, setEditingSection] = useState<any>(null);
     const [reordering, setReordering] = useState(false);
     const [tempSections, setTempSections] = useState<any[]>([]);
+    //Feedback global y confirmación de eliminación
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
+    const [confirmAction, setConfirmAction] = useState<{isOpen: boolean; type: 'delete' | null; idToDelete: string; title: string; message: string;}>({isOpen: false, type: null, idToDelete: '', title: '', message: ''});
 
+    //Carga las secciones de ayuda: generales siempre y de comunidad si el usuario tiene una activa
     const loadHelp = async () => {
         try {
             const res = communityId ? await getCommunityHelp(communityId) : await getGeneralHelp();
@@ -31,22 +42,24 @@ const HelpPage: React.FC = () => {
         }
     };
 
+    //Recarga las secciones caundo cambia la comunidad activa
     useEffect(() => {
         loadHelp();
     }, [communityId]);
 
+    //Elimina una sección de ayuda de la comunidad
     const handleDelete = async (sectionId: string) => {
-        if (!confirm('¿Eliminar esta sección de ayuda?')) return;
 
         try {
             await deleteHelpSection(communityId!, sectionId);
             loadHelp();
         } 
         catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al eliminar la sección');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar la sección.'});
         }
     };
 
+    //Intercambia la posición de una sección con la adyacente (arriba/abajo) 
     const moveSection = (index: number, direction: 'up' | 'down') => {
         const newSections = [...tempSections];
         const swapIndex = direction === 'up' ? index - 1 : index + 1;
@@ -57,6 +70,7 @@ const HelpPage: React.FC = () => {
         setTempSections(newSections);
     };
 
+    //Envía el nuevo ornde de secciones a la API y actualiza el estado
     const handleConfirmarReorder = async () => {
         try {
             const sectionIds = tempSections.map((section: any) => section.id);
@@ -64,10 +78,11 @@ const HelpPage: React.FC = () => {
             setCommunitySections(tempSections);
             setReordering(false);
         } catch (err: any) {
-            alert(err.response?.data?.error?.message || 'Error al reordenar');
+            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al reordenar.'});
         }
     };
 
+    //Inicia el modo reordenación clonando las secciones actuales en un array temporal
     const startReordering = () => {
         setTempSections([...communitySections]);
         setReordering(true);
@@ -84,6 +99,7 @@ const HelpPage: React.FC = () => {
                 <h2 className="text-3xl font-bold text-gray-900">Ayuda</h2>
                 <p className="text-gray-500 mt-4 mb-10">Consulta información útil sobre SIGECO y tu comunidad.</p>
 
+                {/*Sección 1: Ayuda general - secciones estáticas del sistema*/}
                 <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-6 mb-5">
                     <div className="flex items-center gap-2 mb-4">
                         <HelpCircle className="h-5 w-5 text-blue-600" />
@@ -104,6 +120,7 @@ const HelpPage: React.FC = () => {
                     )}
                 </div>
 
+                {/*Sección 2: Ayuda de la comunidad - secciones editavles con reordenación*/}
                 {communityId && (
                     <div className="border border-gray-200 rounded-2xl bg-white shadow-sm p-6 mb-5">
                         <div className="flex justify-between items-center mb-4">
@@ -169,7 +186,7 @@ const HelpPage: React.FC = () => {
                                                         variant="ghost"
                                                         size="sm"
                                                         className="text-red-500"
-                                                        onClick={() => handleDelete(section.id)}
+                                                        onClick={() => setConfirmAction({ isOpen: true, type: 'delete', idToDelete: section.id, title: 'Eliminar Sección', message: '¿Estás seguro de eliminar esta sección de ayuda?' })}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
@@ -204,6 +221,7 @@ const HelpPage: React.FC = () => {
                 )}
             </main>
 
+            {/*Modales: crear/editar sección, feedback y confirmación de eliminación*/}
             <HelpSectionModal
                 isOpen={sectionModalOpen}
                 onClose={() => {
@@ -213,6 +231,25 @@ const HelpPage: React.FC = () => {
                 communityId={communityId!}
                 section={editingSection}
                 onSuccess={loadHelp}
+            />
+
+             <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
+            <ConfirmModal
+                isOpen={confirmAction.isOpen}
+                onClose={() => setConfirmAction({...confirmAction, isOpen: false})}
+                title={confirmAction.title}
+                message={confirmAction.message}
+                isDestructive={true}
+                confirmText='Sí, eliminar'
+                onConfirm={async () => {
+                    if(confirmAction.type === 'delete') await handleDelete(confirmAction.idToDelete);
+                }}
             />
         </div>
     );

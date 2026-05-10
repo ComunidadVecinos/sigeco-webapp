@@ -1,5 +1,5 @@
-
-// Punto de entrada único para los contratos de error (facilita imports desde middlewares, servicios y adaptadores).
+// Punto de entrada único para el sistema de errores del backend.
+// Simplifica imports desde servicios, middlewares y utilidades sin cambiar el contrato público.
 
 module.exports = {
   AccountDeletionFailedError: require('./AccountDeletionFailedError'),

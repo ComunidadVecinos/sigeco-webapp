@@ -1,3 +1,4 @@
+//Modal para seleccionar el número de plazas a reservar en un espacio compartido
 import React, {useState} from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../dialog';
 import { Button } from '../button';
@@ -16,6 +17,7 @@ interface SeatsModalProps {
 const SeatsModal: React.FC<SeatsModalProps> = ({isOpen, onClose, onConfirm, maxSeats, totalCapacity}) => {
     const [seats, setSeats] = useState(1);
 
+    //Cofirma la reserva con el número de plazas seleccionado y resetea el campo
     const handleConfirm = () => {
         if(seats >= 1 && seats <= maxSeats) {
             onConfirm(seats);
@@ -23,6 +25,7 @@ const SeatsModal: React.FC<SeatsModalProps> = ({isOpen, onClose, onConfirm, maxS
         }
     };
 
+    //Resetea el modal a los valores iniciales una vez se cierra
     const handleClose = () => {
         setSeats(1);
         onClose();

@@ -51,6 +51,12 @@ services:
     depends_on:
       db_init:
         condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4000/api/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     networks:
       - sigeco_network
     volumes:
@@ -62,8 +68,8 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     container_name: app_mailpit
-    ports:
-      - "8025:8025"
+    environment:
+      MP_WEBROOT: /mail/
     networks:
       - sigeco_network
     restart: unless-stopped
@@ -71,6 +77,12 @@ services:
   frontend:
     build: ./frontend
     container_name: app_frontend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     networks:
       - sigeco_network
     restart: unless-stopped
@@ -81,8 +93,18 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - frontend
-      - backend
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     networks:
       - sigeco_network
     restart: unless-stopped

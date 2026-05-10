@@ -1,473 +1,427 @@
 # Database
 
-This project uses a single PostgreSQL database managed through Prisma. Most backend modules follow the same pattern: controllers call services, services apply business rules, and repositories execute Prisma queries against the database.
+SIGECO uses a single PostgreSQL database accessed through Prisma. The schema under [`backend/prisma/schema.prisma`](../../backend/prisma/schema.prisma) is the source of truth for persistence, while Prisma Client is the only database access layer used by the backend.
 
-At the moment, the schema already covers users, communities, memberships, requests, help content, sessions, avatars, and the document storage tree used by future modules.
+## Overview
 
----
+- Database engine: PostgreSQL
+- ORM and client: Prisma (`prisma` and `@prisma/client`)
+- Runtime model: one datasource, one application database, one Prisma schema
+- Binary files: stored on disk under `storage/`; the database stores metadata and logical references only
 
-## 1. Overview
+In the local Docker setup, the `db` service provides PostgreSQL and `db_init` applies migrations and seed data before the backend starts serving requests.
 
-- Database: PostgreSQL
-- ORM: Prisma (`prisma` and `@prisma/client`)
-- Architecture: one database, one Prisma datasource
-- Default schema in local setup: `public`
-- File binaries are stored on disk under `storage/uploads/...`; the database stores metadata and storage paths
+## Functional Domains
 
----
+The current schema covers the following backend domains:
 
-## 2. Tooling & Configuration
+- Identity and access: users, sessions, user avatars, active membership context
+- Communities: communities, community avatars, memberships, properties
+- Request flows: join requests and profile update requests
+- Shared content: help sections, document folders and community documents
+- Scheduling: calendar events, reservation spaces and bookings
+- Participation: polls, poll options, votes, forum posts, comments and likes
+- Community activity: news and incidents
 
-### Runtime and local setup
+## Persistence Conventions
 
-| Item | Value |
+Several conventions are used consistently across the schema:
+
+- Soft deletion: many domain tables expose `deleted_at` instead of hard-deleting rows immediately
+- Session lifecycle: sessions remain auditable through `expires_at` and `invalidated_at`
+- Community context: users and sessions can both point to an active membership
+- Storage integration: avatars, document files and images store `storage_path`, `mime_type` and size metadata
+- Calendar projections: automatic events keep a reference to their source entity through `source_entity_id` and `source_occurrence_key`
+
+These rules are part of the application contract and are relied upon by multiple backend modules.
+
+## Tooling
+
+The backend exposes the following Prisma scripts:
+
+| Script | Purpose |
 |---|---|
-| Database container | `postgres:15-alpine` |
-| Main connection variable | `DATABASE_URL` |
-| Postgres bootstrap variables | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` |
-| Prisma client bootstrap | `new PrismaClient()` shared as a singleton |
+| `npm run db:migrate` | Create and apply a development migration |
+| `npm run db:deploy` | Apply existing migrations |
+| `npm run db:seed` | Load demo data |
+| `npm run db:reset` | Recreate the database from migrations |
+| `npm run prisma:generate` | Regenerate Prisma Client |
+| `npm run prisma:studio` | Open Prisma Studio |
 
-Local example:
+Migration files live under [`backend/prisma/migrations`](../../backend/prisma/migrations), and the seed entry point is [`backend/prisma/seed.js`](../../backend/prisma/seed.js).
 
-```env
-DATABASE_URL=postgresql://postgres:postgres@db:5432/appdb?schema=public
-```
+## Entity-Relationship Model
 
-### Prisma commands
-
-| Script | Command | Purpose |
-|---|---|---|
-| `db:push` | `prisma db push` | Push schema changes without a migration |
-| `db:migrate` | `prisma migrate dev` | Create and apply development migrations |
-| `db:deploy` | `prisma migrate deploy` | Apply existing migrations |
-| `db:seed` | `prisma db seed` | Load demo data |
-| `db:reset` | `prisma migrate reset --force && prisma db seed` | Recreate and reseed the database |
-| `prisma:generate` | `prisma generate` | Regenerate the Prisma client |
-| `prisma:studio` | `prisma studio` | Open Prisma Studio |
-
-### Docker flow
-
-- `db` runs PostgreSQL
-- `db_init` applies migrations and seed data
-- `backend` waits for `db_init` to finish successfully before starting
-
-Current migration folders:
-
-- `20260321_initial_schema`
-- `20260323_remove_membership_is_suspended`
-
----
-
-## 3. Data Model
-
-### Enums
-
-| Enum | Values |
-|---|---|
-| `MembershipRole` | `MEMBER`, `VICE_PRESIDENT`, `PRESIDENT` |
-| `CommunityRequestType` | `JOIN`, `UPDATE_INFO` |
-| `CommunityRequestStatus` | `PENDING`, `APPROVED`, `REJECTED`, `CANCELLED` |
-
-### `users`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `first_name` | `text` | Required |
-| `last_name` | `text` | Required |
-| `email` | `varchar(320)` | Required, unique |
-| `phone` | `varchar(20)` | Nullable, unique |
-| `password_hash` | `text` | Required |
-| `password_changed_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `last_active_membership_id` | `uuid` | Nullable FK -> `memberships.id` |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `updated_at` | `timestamp(3)` | Required |
-| `deleted_at` | `timestamp(3)` | Nullable soft-delete marker |
-
-Main relationships:
-
-- one user can have many sessions
-- one user can have many memberships
-- one user can have many community requests
-- one user can have one avatar
-- one user can point to one last active membership
-
-### `sessions`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `user_id` | `uuid` | Required FK -> `users.id` |
-| `active_membership_id` | `uuid` | Nullable FK -> `memberships.id` |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `expires_at` | `timestamp(3)` | Required |
-| `invalidated_at` | `timestamp(3)` | Nullable invalidation marker |
-
-### `communities`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `name` | `varchar(160)` | Required |
-| `cif` | `varchar(20)` | Required, unique |
-| `country` | `varchar(100)` | Required |
-| `province` | `varchar(120)` | Required |
-| `municipality` | `varchar(120)` | Required |
-| `street_type` | `varchar(50)` | Required |
-| `street_name` | `varchar(255)` | Required |
-| `postal_code` | `varchar(10)` | Required |
-| `street_number_km` | `varchar(30)` | Required |
-| `access_code` | `varchar(20)` | Required, unique |
-| `storage_quota_bytes` | `bigint` | Required, default `5368709120` |
-| `storage_used_bytes` | `bigint` | Required, default `0` |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `updated_at` | `timestamp(3)` | Required |
-| `deleted_at` | `timestamp(3)` | Nullable soft-delete marker |
-
-Main relationships:
-
-- one community can have many memberships
-- one community can have many requests
-- one community can have many help sections
-- one community can have many folders and documents
-- one community can have one avatar
-
-### `user_avatars`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `user_id` | `uuid` | Required, unique FK -> `users.id` |
-| `storage_path` | `text` | Required, unique |
-| `mime_type` | `varchar(100)` | Required |
-| `size_bytes` | `integer` | Required |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `updated_at` | `timestamp(3)` | Required |
-
-### `community_avatars`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `community_id` | `uuid` | Required, unique FK -> `communities.id` |
-| `storage_path` | `text` | Required, unique |
-| `mime_type` | `varchar(100)` | Required |
-| `size_bytes` | `integer` | Required |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `updated_at` | `timestamp(3)` | Required |
-
-### `memberships`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `user_id` | `uuid` | Required FK -> `users.id` |
-| `community_id` | `uuid` | Required FK -> `communities.id` |
-| `role` | `MembershipRole` | Required, default `MEMBER` |
-| `alias` | `varchar(120)` | Required |
-| `suspended_at` | `timestamp(3)` | Nullable |
-| `suspended_until` | `timestamp(3)` | Nullable |
-| `suspension_reason` | `text` | Nullable |
-| `joined_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `ended_at` | `timestamp(3)` | Nullable |
-| `end_reason` | `text` | Nullable |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `updated_at` | `timestamp(3)` | Required |
-| `deleted_at` | `timestamp(3)` | Nullable soft-delete marker |
-
-Important constraints:
-
-- unique per user and community: (`user_id`, `community_id`)
-- a membership can be referenced by sessions as active context
-- a membership can be referenced by users as last active community
-
-### `properties`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `membership_id` | `uuid` | Required, unique FK -> `memberships.id` |
-| `label` | `varchar(120)` | Required |
-| `country` | `varchar(100)` | Required |
-| `province` | `varchar(120)` | Required |
-| `municipality` | `varchar(120)` | Required |
-| `street_type` | `varchar(50)` | Required |
-| `street_name` | `varchar(255)` | Required |
-| `postal_code` | `varchar(20)` | Required |
-| `street_number_km` | `varchar(30)` | Required |
-| `block` | `varchar(30)` | Nullable |
-| `floor` | `varchar(30)` | Nullable |
-| `door` | `varchar(30)` | Nullable |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `updated_at` | `timestamp(3)` | Required |
-| `deleted_at` | `timestamp(3)` | Nullable soft-delete marker |
-
-### `community_requests`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `community_id` | `uuid` | Required FK -> `communities.id` |
-| `user_id` | `uuid` | Required FK -> `users.id` |
-| `type` | `CommunityRequestType` | Required |
-| `status` | `CommunityRequestStatus` | Required, default `PENDING` |
-| `request_comment` | `text` | Nullable |
-| `resolution_message` | `text` | Nullable |
-| `resolved_by_membership_id` | `uuid` | Nullable FK -> `memberships.id` |
-| `resolved_at` | `timestamp(3)` | Nullable |
-| `cancelled_at` | `timestamp(3)` | Nullable |
-| `archived_at` | `timestamp(3)` | Nullable |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `updated_at` | `timestamp(3)` | Required |
-
-### `community_request_details`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `community_request_id` | `uuid` | Required, unique FK -> `community_requests.id` |
-| `proposed_alias` | `varchar(120)` | Nullable |
-| `label` | `varchar(120)` | Required |
-| `country` | `varchar(100)` | Required |
-| `province` | `varchar(120)` | Required |
-| `municipality` | `varchar(120)` | Required |
-| `street_type` | `varchar(50)` | Required |
-| `street_name` | `varchar(255)` | Required |
-| `postal_code` | `varchar(20)` | Required |
-| `street_number_km` | `varchar(30)` | Required |
-| `block` | `varchar(30)` | Nullable |
-| `floor` | `varchar(30)` | Nullable |
-| `door` | `varchar(30)` | Nullable |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `updated_at` | `timestamp(3)` | Required |
-
-### `community_help_sections`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `community_id` | `uuid` | Required FK -> `communities.id` |
-| `title` | `varchar(160)` | Required |
-| `description` | `text` | Required |
-| `sort_order` | `integer` | Required, default `0` |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `updated_at` | `timestamp(3)` | Required |
-| `deleted_at` | `timestamp(3)` | Nullable soft-delete marker |
-
-### `community_folders`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `community_id` | `uuid` | Required FK -> `communities.id` |
-| `parent_id` | `uuid` | Nullable self-FK -> `community_folders.id` |
-| `name` | `varchar(255)` | Required |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `updated_at` | `timestamp(3)` | Required |
-| `deleted_at` | `timestamp(3)` | Nullable soft-delete marker |
-
-Important note:
-
-- active sibling name conflicts are enforced by the backend service layer
-
-### `community_documents`
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary key |
-| `community_id` | `uuid` | Required FK -> `communities.id` |
-| `folder_id` | `uuid` | Nullable FK -> `community_folders.id` |
-| `uploaded_by_membership_id` | `uuid` | Nullable FK -> `memberships.id` |
-| `name` | `varchar(255)` | Required display name |
-| `description` | `text` | Nullable |
-| `original_filename` | `varchar(255)` | Required uploaded filename |
-| `storage_path` | `text` | Required, unique |
-| `mime_type` | `varchar(100)` | Required |
-| `extension` | `varchar(20)` | Nullable |
-| `size_bytes` | `bigint` | Required |
-| `created_at` | `timestamp(3)` | Required, default `CURRENT_TIMESTAMP` |
-| `updated_at` | `timestamp(3)` | Required |
-| `deleted_at` | `timestamp(3)` | Nullable soft-delete marker |
-
----
-
-## 4. Relationships
-
-The core of the schema is the `memberships` table.
-
-- `users` and `communities` are linked through `memberships`
-- each `membership` has one `property`
-- `sessions` belong to `users` and can optionally point to the active `membership`
-- `community_requests` belong to both a `user` and a `community`
-- `community_request_details` extends a request with property-style information
-- `community_help_sections` belong to a community
-- `community_folders` build a self-referencing tree inside a community
-- `community_documents` belong to a community and may optionally belong to a folder and reference the membership that uploaded them
-- `user_avatars` and `community_avatars` are one-to-one metadata tables
-
-Cardinality summary:
-
-- `User` 1:N `Session`
-- `User` 1:N `Membership`
-- `Community` 1:N `Membership`
-- `User` N:N `Community` through `Membership`
-- `Membership` 1:1 `Property`
-- `User` 1:1 `UserAvatar`
-- `Community` 1:1 `CommunityAvatar`
-- `Community` 1:N `CommunityRequest`
-- `User` 1:N `CommunityRequest`
-- `CommunityRequest` 1:1 `CommunityRequestDetails`
-- `Community` 1:N `CommunityHelpSection`
-- `Community` 1:N `CommunityFolder`
-- `CommunityFolder` 1:N `CommunityFolder`
-- `CommunityFolder` 1:N `CommunityDocument`
-- `Community` 1:N `CommunityDocument`
-
----
-
-## 5. ER Diagram
+The diagram below was generated from the current Prisma schema using `prisma-markdown`. It reflects the model as defined in `backend/prisma/schema.prisma`.
 
 ```mermaid
 erDiagram
-  USER ||--o{ SESSION : owns
-  USER ||--o{ MEMBERSHIP : has
-  USER ||--o| USER_AVATAR : has
-  USER ||--o{ COMMUNITY_REQUEST : submits
-  MEMBERSHIP ||--o{ USER : last_active_for
-  MEMBERSHIP ||--o{ SESSION : active_for
-
-  COMMUNITY ||--o{ MEMBERSHIP : has
-  COMMUNITY ||--o| COMMUNITY_AVATAR : has
-  COMMUNITY ||--o{ COMMUNITY_FOLDER : contains
-  COMMUNITY ||--o{ COMMUNITY_DOCUMENT : stores
-  COMMUNITY ||--o{ COMMUNITY_REQUEST : receives
-  COMMUNITY ||--o{ COMMUNITY_HELP_SECTION : has
-
-  MEMBERSHIP ||--o| PROPERTY : owns
-  MEMBERSHIP ||--o{ COMMUNITY_DOCUMENT : uploads
-  MEMBERSHIP ||--o{ COMMUNITY_REQUEST : resolves
-
-  COMMUNITY_FOLDER ||--o{ COMMUNITY_FOLDER : parent_of
-  COMMUNITY_FOLDER ||--o{ COMMUNITY_DOCUMENT : contains
-
-  COMMUNITY_REQUEST ||--o| COMMUNITY_REQUEST_DETAILS : has
+"users" {
+  String id PK
+  String first_name
+  String last_name
+  String email UK
+  String phone UK "nullable"
+  String password_hash
+  DateTime password_changed_at
+  String last_active_membership_id FK "nullable"
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"user_avatars" {
+  String id PK
+  String user_id FK,UK
+  String storage_path UK
+  String mime_type
+  Int size_bytes
+  DateTime created_at
+  DateTime updated_at
+}
+"sessions" {
+  String id PK
+  String user_id FK
+  String active_membership_id FK "nullable"
+  DateTime created_at
+  DateTime expires_at
+  DateTime invalidated_at "nullable"
+}
+"communities" {
+  String id PK
+  String name
+  String cif UK
+  String country
+  String province
+  String municipality
+  String street_type
+  String street_name
+  String postal_code
+  String street_number_km
+  String access_code UK
+  BigInt storage_quota_bytes
+  BigInt storage_used_bytes
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"community_avatars" {
+  String id PK
+  String community_id FK,UK
+  String storage_path UK
+  String mime_type
+  Int size_bytes
+  DateTime created_at
+  DateTime updated_at
+}
+"memberships" {
+  String id PK
+  String user_id FK
+  String community_id FK
+  MembershipRole role
+  String alias
+  DateTime suspended_at "nullable"
+  DateTime suspended_until "nullable"
+  String suspension_reason "nullable"
+  DateTime joined_at
+  DateTime ended_at "nullable"
+  String end_reason "nullable"
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"properties" {
+  String id PK
+  String membership_id FK,UK
+  String label
+  String country
+  String province
+  String municipality
+  String street_type
+  String street_name
+  String postal_code
+  String street_number_km
+  String block "nullable"
+  String floor "nullable"
+  String door "nullable"
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"community_requests" {
+  String id PK
+  String community_id FK
+  String user_id FK
+  CommunityRequestType type
+  CommunityRequestStatus status
+  String request_comment "nullable"
+  String resolution_message "nullable"
+  String resolved_by_membership_id FK "nullable"
+  DateTime resolved_at "nullable"
+  DateTime cancelled_at "nullable"
+  DateTime archived_at "nullable"
+  DateTime created_at
+  DateTime updated_at
+}
+"community_request_details" {
+  String id PK
+  String community_request_id FK,UK
+  String proposed_alias "nullable"
+  String label
+  String country
+  String province
+  String municipality
+  String street_type
+  String street_name
+  String postal_code
+  String street_number_km
+  String block "nullable"
+  String floor "nullable"
+  String door "nullable"
+  DateTime created_at
+  DateTime updated_at
+}
+"community_help_sections" {
+  String id PK
+  String community_id FK
+  String title
+  String description
+  Int sort_order
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"community_folders" {
+  String id PK
+  String community_id FK
+  String parent_id FK "nullable"
+  String name
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"community_documents" {
+  String id PK
+  String community_id FK
+  String folder_id FK "nullable"
+  String uploaded_by_membership_id FK "nullable"
+  String name
+  String description "nullable"
+  String original_filename
+  String storage_path UK
+  String mime_type
+  String extension "nullable"
+  BigInt size_bytes
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"calendar_events" {
+  String id PK
+  String community_id FK
+  String owner_membership_id FK "nullable"
+  CalendarEventType type
+  String source_entity_id "nullable"
+  String source_occurrence_key "nullable"
+  String title
+  DateTime event_date
+  String start_time
+  String end_time
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"reservation_spaces" {
+  String id PK
+  String community_id FK
+  String name
+  String description "nullable"
+  String color_hex
+  Boolean is_active
+  Int total_capacity
+  ReservationSpaceOccupancyMode occupancy_mode
+  Int max_seats_per_booking "nullable"
+  Boolean monday_enabled
+  Boolean tuesday_enabled
+  Boolean wednesday_enabled
+  Boolean thursday_enabled
+  Boolean friday_enabled
+  Boolean saturday_enabled
+  Boolean sunday_enabled
+  String opening_time
+  String closing_time
+  Int slot_minutes
+  Int max_consecutive_slots
+  Int min_advance_minutes
+  Int max_advance_days
+  Int cancellation_notice_minutes
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"reservation_bookings" {
+  String id PK
+  String community_id FK
+  String space_id FK
+  String owner_membership_id FK
+  ReservationBookingStatus status
+  DateTime booking_date
+  Int start_slot_index
+  Int slot_count
+  String start_time
+  String end_time
+  Int requested_seats
+  DateTime cancelled_at "nullable"
+  String cancelled_by_membership_id FK "nullable"
+  String cancellation_reason "nullable"
+  DateTime created_at
+  DateTime updated_at
+}
+"polls" {
+  String id PK
+  String community_id FK
+  PollKind kind
+  String title
+  String description "nullable"
+  DateTime starts_at
+  DateTime ends_at "nullable"
+  String created_by_membership_id FK
+  DateTime closed_at "nullable"
+  String closed_by_membership_id FK "nullable"
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"poll_options" {
+  String id PK
+  String poll_id FK
+  String title
+  Int sort_order
+  DateTime created_at
+}
+"poll_votes" {
+  String id PK
+  String poll_id FK
+  String option_id FK
+  String membership_id FK
+  DateTime created_at
+}
+"forum_posts" {
+  String id PK
+  String community_id FK
+  String author_membership_id FK "nullable"
+  String poll_id FK,UK "nullable"
+  String title
+  String description
+  ForumCategory category
+  Boolean pinned
+  DateTime edited_at "nullable"
+  Boolean is_deleted
+  DateTime last_activity_at
+  DateTime created_at
+  DateTime updated_at
+}
+"forum_comments" {
+  String id PK
+  String post_id FK
+  String author_membership_id FK "nullable"
+  String content
+  DateTime edited_at "nullable"
+  Boolean is_deleted
+  DateTime created_at
+  DateTime updated_at
+}
+"forum_post_likes" {
+  String id PK
+  String post_id FK
+  String membership_id FK
+  DateTime created_at
+}
+"forum_comment_likes" {
+  String id PK
+  String comment_id FK
+  String membership_id FK
+  DateTime created_at
+}
+"community_news" {
+  String id PK
+  String community_id FK
+  String author_membership_id FK "nullable"
+  String title
+  String description
+  String image_storage_path "nullable"
+  String image_mime_type "nullable"
+  Int image_size_bytes "nullable"
+  DateTime event_starts_at "nullable"
+  DateTime event_ends_at "nullable"
+  DateTime edited_at "nullable"
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"community_incidents" {
+  String id PK
+  String community_id FK
+  String author_membership_id FK "nullable"
+  String title
+  String description
+  CommunityIncidentStatus status
+  String image_storage_path "nullable"
+  String image_mime_type "nullable"
+  Int image_size_bytes "nullable"
+  DateTime edited_at "nullable"
+  DateTime created_at
+  DateTime updated_at
+  DateTime deleted_at "nullable"
+}
+"_MembershipToUser" {
+  String A FK
+  String B FK
+}
+"users" }o--o| "memberships" : lastActiveMembership
+"user_avatars" |o--|| "users" : user
+"sessions" }o--|| "users" : user
+"sessions" }o--o| "memberships" : activeMembership
+"community_avatars" |o--|| "communities" : community
+"memberships" }o--|| "users" : user
+"memberships" }o--|| "communities" : community
+"properties" |o--|| "memberships" : membership
+"community_requests" }o--|| "communities" : community
+"community_requests" }o--|| "users" : user
+"community_requests" }o--o| "memberships" : resolvedByMembership
+"community_request_details" |o--|| "community_requests" : communityRequest
+"community_help_sections" }o--|| "communities" : community
+"community_folders" }o--|| "communities" : community
+"community_folders" }o--o| "community_folders" : parent
+"community_documents" }o--|| "communities" : community
+"community_documents" }o--o| "community_folders" : folder
+"community_documents" }o--o| "memberships" : uploadedByMembership
+"calendar_events" }o--|| "communities" : community
+"calendar_events" }o--o| "memberships" : ownerMembership
+"reservation_spaces" }o--|| "communities" : community
+"reservation_bookings" }o--|| "communities" : community
+"reservation_bookings" }o--|| "reservation_spaces" : space
+"reservation_bookings" }o--|| "memberships" : ownerMembership
+"reservation_bookings" }o--o| "memberships" : cancelledByMembership
+"polls" }o--|| "communities" : community
+"polls" }o--|| "memberships" : createdByMembership
+"polls" }o--o| "memberships" : closedByMembership
+"poll_options" }o--|| "polls" : poll
+"poll_votes" }o--|| "polls" : poll
+"poll_votes" }o--|| "poll_options" : option
+"poll_votes" }o--|| "memberships" : membership
+"forum_posts" }o--|| "communities" : community
+"forum_posts" }o--o| "memberships" : authorMembership
+"forum_posts" |o--o| "polls" : poll
+"forum_comments" }o--|| "forum_posts" : post
+"forum_comments" }o--o| "memberships" : authorMembership
+"forum_post_likes" }o--|| "forum_posts" : post
+"forum_post_likes" }o--|| "memberships" : membership
+"forum_comment_likes" }o--|| "forum_comments" : comment
+"forum_comment_likes" }o--|| "memberships" : membership
+"community_news" }o--|| "communities" : community
+"community_news" }o--o| "memberships" : authorMembership
+"community_incidents" }o--|| "communities" : community
+"community_incidents" }o--o| "memberships" : authorMembership
+"_MembershipToUser" }o--|| "memberships" : Membership
+"_MembershipToUser" }o--|| "users" : User
 ```
-
----
-
-## 6. Seed Data
-
-The local seed loads a small but useful demo dataset.
-
-Shared demo password:
-
-```text
-Sigeco-2026!
-```
-
-### Seeded communities
-
-| Community | Notes |
-|---|---|
-| `Comunidad SIGECO` | Has avatar, members, pending `UPDATE_INFO` request and 3 help sections |
-| `Comunidad SIGECO Norte` | Has members, an approved `JOIN` request and 2 help sections |
-
-### Seeded users
-
-| Email | Name | Main seeded context |
-|---|---|---|
-| `nocommunity@ucm.es` | Sebastián SinComunidad | Registered user with no community, avatar and active session |
-| `member@ucm.es` | Marta Miembro | `MEMBER` in Comunidad SIGECO, property 2A, pending `UPDATE_INFO` request |
-| `vice@ucm.es` | Verónica Vicepresidente | `VICE_PRESIDENT` in Comunidad SIGECO |
-| `president@ucm.es` | Pablo Presidente | `PRESIDENT` in Comunidad SIGECO |
-| `suspended@ucm.es` | Sara Suspendida | Suspended `MEMBER` in Comunidad SIGECO |
-| `double@ucm.es` | Diego Doble | `MEMBER` in Comunidad SIGECO and `PRESIDENT` in Comunidad SIGECO Norte |
-| `access@ucm.es` | Marcos Miembro | `MEMBER` in Comunidad SIGECO Norte after an approved `JOIN` request |
-
-### Why these records matter
-
-- they cover all current auth actor types
-- they are useful for testing multi-community context switching
-- they include both pending and approved community-request flows
-- they include seeded help content and avatar metadata
-
----
-
-## 7. Usage Patterns
-
-### Repository pattern
-
-- repositories import the shared Prisma client from `backend/src/lib/prisma.js`
-- services coordinate business rules and call repositories
-- controllers usually stay thin and do not query Prisma directly
-
-### Transactions
-
-Prisma transactions are used when one action affects several records at once. Current examples include:
-
-- changing the active membership context
-- replacing avatars
-- deleting an account
-- deleting a community
-- approving or rejecting requests
-
-### Soft deletes and lifecycle fields
-
-The schema uses timestamp fields to model lifecycle instead of hard deletes in many places:
-
-- `deleted_at`
-- `ended_at`
-- `invalidated_at`
-- `resolved_at`
-- `cancelled_at`
-- `archived_at`
-
-In practice, repository queries often filter by `deletedAt: null`, `endedAt: null` or `invalidatedAt: null`.
-
-### Files and metadata
-
-- avatars and documents store metadata in PostgreSQL
-- actual files are stored on disk
-- the database keeps `storage_path`, `mime_type` and `size_bytes`
-- backend responses convert stored paths into public URLs such as `/uploads/...`
-
----
-
-## 8. Constraints and Practical Notes
-
-### Main unique constraints
-
-- `users.email`
-- `users.phone`
-- `communities.cif`
-- `communities.access_code`
-- `user_avatars.user_id`
-- `user_avatars.storage_path`
-- `community_avatars.community_id`
-- `community_avatars.storage_path`
-- `memberships (user_id, community_id)`
-- `properties.membership_id`
-- `community_request_details.community_request_id`
-- `community_folders (community_id, parent_id, deleted_at)`
-- `community_documents (community_id, folder_id, deleted_at, created_at)`
-- `community_documents.storage_path`
-
-### Indexing visible in the schema
-
-Indexes exist for the usual lookup and lifecycle fields, including:
-
-- foreign keys
-- `deleted_at`
-- `ended_at`
-- `invalidated_at`
-- `expires_at`
-- request `status`
-- request `type`
-- help-section ordering
-
-### Current model conventions worth knowing
-
-- soft deletion is part of the data model, especially for users, communities, memberships, properties, help sections and documents
-- suspension no longer depends on a boolean column; the current model uses `suspended_at` and `suspended_until`
-- account deletion and community deletion are coordinated state changes, not simple row removals
-- document and folder tables already exist in the schema even though their API module is still pending

@@ -1,9 +1,12 @@
+//Modal para editar el nombre de un documento o carpeta y descripción si es archivo
 import React, {useEffect, useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from '../dialog';
 import { Button } from '../button';
 import { Input } from '../input';
 import { Label } from '../label';
 import { updateDocument } from '@/services/documentService';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+
 
 interface EditDocumentModaProps {
     isOpen: boolean;
@@ -13,23 +16,33 @@ interface EditDocumentModaProps {
     currentName: string;
     type: string;
     onSuccess:() => void;
+    currentDescription?: string;
 }
 
-const EditDocumentModal: React.FC<EditDocumentModaProps> = ({isOpen, onClose, communityId, docId, currentName, type, onSuccess}) => {
+const EditDocumentModal: React.FC<EditDocumentModaProps> = ({isOpen, onClose, communityId, docId, currentName,currentDescription, type, onSuccess}) => {
     const [name, setName] = useState(currentName);
+    const [description, setDescription] = useState(currentDescription || '');
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {setName(currentName); }, [currentName]);
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
 
+    //Sincroniza los campos con los valores actuales 
+    useEffect(() => {setName(currentName); setDescription(currentDescription || ''); }, [currentName, currentDescription]);
+
+    //Envía los cambios al backend
     const handleSave = async () => {
         if(!name.trim()) return;
         setLoading(true);
         try{
-            await updateDocument(communityId, docId, type, { name: name.trim() });
+            const data: any = {name: name.trim()};
+            if(type === 'file') data.description = description.trim() || null;
+            await updateDocument(communityId, docId, type, data);
             onClose();
             onSuccess();
         } catch (err: any){
-            alert(err.response?.data?.error?.message || 'Error al editar');
+            setFeedback({isOpen: true, type: 'error', message: 'Error al editar.'});
+
         } finally {
             setLoading(false);
         }
@@ -44,6 +57,12 @@ const EditDocumentModal: React.FC<EditDocumentModaProps> = ({isOpen, onClose, co
                 <div className="py-4">
                     <Label className='font-bold'>Nuevo nombre</Label>
                     <Input className='mt-2' value={name} onChange={(e) => setName(e.target.value)} />
+                    {type === 'file' && (
+                        <div className="py-2">
+                            <Label className='font-bold'>Nueva descripción</Label>
+                            <textarea className='w-full min-h-[60px] border border-gray-200 rounded-md p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none mt-2' value={description} onChange={(e) => setDescription(e.target.value)} />
+                        </div>
+                    )}
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => {onClose()}}>Cancelar</Button>
@@ -52,6 +71,14 @@ const EditDocumentModal: React.FC<EditDocumentModaProps> = ({isOpen, onClose, co
                     </Button>
                 </DialogFooter>
             </DialogContent>
+
+            <FeedbackModal 
+                isOpen={feedback.isOpen}
+                type={feedback.type}
+                message={feedback.message}
+                onClose={closeFeedback}
+            />
+
         </Dialog>
     );
 };

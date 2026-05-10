@@ -11,12 +11,6 @@ Base paths:
 
 ---
 
-## Scope
-
-This module exposes the top-level help endpoint at `/api/help/sections` and the community-scoped help endpoints mounted under `/api/communities/:communityId/help`.
-
----
-
 ## Access rules
 
 | Endpoint group | Required access |
@@ -29,11 +23,7 @@ This module exposes the top-level help endpoint at `/api/help/sections` and the 
 | `DELETE /api/communities/:communityId/help/sections/:sectionId` | Active admin in that community |
 | `PUT /api/communities/:communityId/help/sections/order` | Active admin in that community |
 
-Important:
-
-- Community membership is enough for reading community help
-- `PRESIDENT` and `VICE_PRESIDENT` can write only if their membership is operational
-- Suspended memberships do not count as administrative access
+Community membership is enough for reading community help. Writing requires operational administrative access.
 
 ---
 
@@ -43,17 +33,11 @@ Important:
 
 ```json
 {
-  "key": "platform-overview",
-  "title": "Cómo usar SIGECO",
+  "key": "getting-started",
+  "title": "Primeros pasos en SIGECO",
   "description": "..."
 }
 ```
-
-Current static general help keys returned by backend:
-
-- `platform-overview`
-- `community-participation`
-- `support-contact`
 
 ### Community help section
 
@@ -74,8 +58,8 @@ All read endpoints return this shape:
 {
   "generalHelp": [
     {
-      "key": "platform-overview",
-      "title": "Cómo usar SIGECO",
+      "key": "getting-started",
+      "title": "Primeros pasos en SIGECO",
       "description": "..."
     }
   ],
@@ -111,7 +95,7 @@ If no community is requested, `communityHelpSections` is an empty array.
 
 `GET /api/help/sections`
 
-Returns global help for the platform. It can also include help for a specific community if `communityId` is sent as query param.
+Returns global help for the platform. If `communityId` is provided, the response also includes community help sections.
 
 ### Request
 
@@ -146,18 +130,38 @@ Without community:
 {
   "generalHelp": [
     {
-      "key": "platform-overview",
-      "title": "Cómo usar SIGECO",
+      "key": "getting-started",
+      "title": "Primeros pasos en SIGECO",
       "description": "..."
     },
     {
-      "key": "community-participation",
-      "title": "Participación en la comunidad",
+      "key": "active-community",
+      "title": "Cambio de comunidad activa",
       "description": "..."
     },
     {
-      "key": "support-contact",
-      "title": "Soporte y seguimiento",
+      "key": "app-navigation",
+      "title": "Navegación por la aplicación",
+      "description": "..."
+    },
+    {
+      "key": "profile-and-requests",
+      "title": "Perfil, datos personales y solicitudes",
+      "description": "..."
+    },
+    {
+      "key": "roles-and-permissions",
+      "title": "Roles y permisos de usuario",
+      "description": "..."
+    },
+    {
+      "key": "community-services",
+      "title": "Servicios comunitarios disponibles",
+      "description": "..."
+    },
+    {
+      "key": "email-and-password-recovery",
+      "title": "Correo y recuperación de contraseña",
       "description": "..."
     }
   ],
@@ -171,8 +175,8 @@ With community:
 {
   "generalHelp": [
     {
-      "key": "platform-overview",
-      "title": "Cómo usar SIGECO",
+      "key": "getting-started",
+      "title": "Primeros pasos en SIGECO",
       "description": "..."
     }
   ],
@@ -218,8 +222,8 @@ Requires:
 {
   "generalHelp": [
     {
-      "key": "platform-overview",
-      "title": "Cómo usar SIGECO",
+      "key": "getting-started",
+      "title": "Primeros pasos en SIGECO",
       "description": "..."
     }
   ],

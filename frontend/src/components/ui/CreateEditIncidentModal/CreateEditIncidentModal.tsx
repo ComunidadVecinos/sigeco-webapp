@@ -1,3 +1,4 @@
+//Modal para crear o editar una incidencia: formulario con título, imagen opcional y descripción
 import React, { useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../dialog';
 import { Button } from '../button';
@@ -28,9 +29,10 @@ const CreateEditIncidentModal: React.FC<CreateEditIncidentModalProps> = ({isOpen
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    //Validar que no este vacio
+    //Validación: título y descripción obligatorios
     const isValid = !!formData.title.trim() && !!formData.description.trim();
 
+    //Lee el archivo seleccionado y genera una vista previa
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if(!file) return;
@@ -41,6 +43,7 @@ const CreateEditIncidentModal: React.FC<CreateEditIncidentModalProps> = ({isOpen
         reader.readAsDataURL(file);
     };
 
+    //Elimina la imagen seleccionada
     const handleRemoveImage = () => {
         setFormData({...formData, imageFile: null, imagePreview: ''});
         if(fileInputRef.current) fileInputRef.current.value = '';

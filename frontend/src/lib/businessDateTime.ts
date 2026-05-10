@@ -1,8 +1,10 @@
+//Utilidades de fecha/hora: convierte entre UTC (API) y zona horaria de negocio (Europe/Madrid)
 import { DateTime } from 'luxon';
 
 // El frontend siempre muestra la hora de negocio en Europe/Madrid, aunque los instantes reales viajen por API en UTC ISO.
 export const BUSINESS_TIME_ZONE = 'Europe/Madrid';
 
+//Parsea una cadena ISO a un instante UTC de Luxon
 function parseUtcInstant(iso: string) {
     return DateTime.fromISO(iso, { setZone: true }).toUTC();
 }
@@ -30,10 +32,7 @@ export function formatUtcIsoInBusinessZone(iso: string | null | undefined, forma
     return parseUtcInstant(iso).setZone(BUSINESS_TIME_ZONE).setLocale('es').toFormat(format);
 }
 
+//Obtiene la clave de fecha (yyyy-MM-dd) en zona de negocio a partir de un ISO UTC
 export function getBusinessDateKeyFromUtcIso(iso: string) {
     return parseUtcInstant(iso).setZone(BUSINESS_TIME_ZONE).toFormat('yyyy-MM-dd');
-}
-
-export function getBusinessMonthKey(date: Date) {
-    return DateTime.fromJSDate(date).setZone(BUSINESS_TIME_ZONE).toFormat('yyyy-MM');
 }

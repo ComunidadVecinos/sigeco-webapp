@@ -1,6 +1,9 @@
 const express = require('express');
 
-// Rutas HTTP del módulo communities.
+// Router de communities: junta la administración de comunidades y el montaje de sus subrecursos.
+// Flujo cubierto: sesión -> validación de params/body -> controlador o subrouter de comunidad.
+// Expone el router de Express para administración de comunidad y montaje de subrecursos funcionales.
+// Lo consume app.js bajo "/api/communities".
 const asyncHandler = require('../../lib/http/asyncHandler');
 const { uploadAvatar } = require('../../lib/storage/avatarUpload');
 const validate = require('../../lib/validation/validate');
@@ -21,7 +24,8 @@ const { createCommunitySchema, communityIdParamSchema, updateCommunitySchema, de
 
 const router = express.Router();
 
-// Forum, help y el resto de módulos se montan como subrecursos de comunidad, compartiendo communityId de la URL y centralizando la navegación bajo este módulo.
+// --- Submódulos comunitarios ---
+// Todos estos módulos comparten communityId en la URL y centralizan la navegación bajo communities.
 router.use('/:communityId/members', membersRoutes);
 router.use('/:communityId/help', helpCommunityRoutes);
 router.use('/:communityId/calendar', calendarRoutes);
@@ -32,15 +36,59 @@ router.use('/:communityId/incidents', incidentsRoutes);
 router.use('/:communityId/documents', documentsRoutes);
 router.use('/:communityId/reservations', reservationsRoutes);
 
-// Orden:
-// - validate sanea entrada antes del controller
-// - requireSession se aplica donde el contrato exige identidad autenticada
-router.get('/:communityId/summary', requireSession, validate({ params: communityIdParamSchema }), asyncHandler(communitiesController.getCommunitySummary));
-router.post('/:communityId/admin/access-code/regenerate', requireSession, validate({ params: communityIdParamSchema }), asyncHandler(communitiesController.regenerateCommunityAccessCode));
-router.patch('/:communityId', requireSession, validate({ params: communityIdParamSchema, body: updateCommunitySchema }), asyncHandler(communitiesController.updateCommunity));
-router.put('/:communityId/avatar', requireSession, validate({ params: communityIdParamSchema }), uploadAvatar, asyncHandler(communitiesController.updateCommunityAvatar));
-router.delete('/:communityId/avatar', requireSession, validate({ params: communityIdParamSchema }), asyncHandler(communitiesController.deleteCommunityAvatar));
-router.delete('/:communityId', requireSession, validate({ params: communityIdParamSchema, body: deleteCommunitySchema }), asyncHandler(communitiesController.deleteCommunity));
-router.post('/', requireSession, validate({ body: createCommunitySchema }), asyncHandler(communitiesController.createCommunity));
+// --- Comunidades: GET de consulta ---
+router.get(
+  '/:communityId/summary', 
+  requireSession, 
+  validate({ params: communityIdParamSchema }), 
+  asyncHandler(communitiesController.getCommunitySummary)
+);
+
+// --- Comunidades: POST de creación y acciones administrativas ---
+router.post(
+  '/:communityId/admin/access-code/regenerate',
+  requireSession,
+  validate({ params: communityIdParamSchema }),
+  asyncHandler(communitiesController.regenerateCommunityAccessCode)
+);
+
+router.post(
+  '/',
+  requireSession,
+  validate({ body: createCommunitySchema }),
+  asyncHandler(communitiesController.createCommunity)
+);
+
+// --- Comunidades: PATCH de edición ---
+router.patch(
+  '/:communityId',
+  requireSession,
+  validate({ params: communityIdParamSchema, body: updateCommunitySchema }),
+  asyncHandler(communitiesController.updateCommunity)
+);
+
+// --- Comunidades: PUT de avatar ---
+router.put(
+  '/:communityId/avatar',
+  requireSession,
+  validate({ params: communityIdParamSchema }),
+  uploadAvatar,
+  asyncHandler(communitiesController.updateCommunityAvatar)
+);
+
+// --- Comunidades: DELETE de avatar y borrado lógico ---
+router.delete(
+  '/:communityId/avatar',
+  requireSession,
+  validate({ params: communityIdParamSchema }),
+  asyncHandler(communitiesController.deleteCommunityAvatar)
+);
+
+router.delete(
+  '/:communityId',
+  requireSession,
+  validate({ params: communityIdParamSchema, body: deleteCommunitySchema }),
+  asyncHandler(communitiesController.deleteCommunity)
+);
 
 module.exports = router;

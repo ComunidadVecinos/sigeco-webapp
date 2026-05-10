@@ -1,3 +1,4 @@
+//Modal para editar la información personal del usuario (nombre, apellidos, teléfono, email)
 import React, {useEffect, useState} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
@@ -29,6 +30,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
     const [error, setError] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+    //Reinicia el formulario con los datos actuales cada vez que se abre el modal
     useEffect(() => {
         if(isOpen){
             setFormData(initialData);
@@ -39,12 +41,14 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
 
     if(!isOpen) return null;
 
+    //Actualiza el campo modificado y limpia los errores asociados
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value});
         setError('');
         setFieldErrors((prev) => ({ ...prev, [e.target.name]: '' }));
     };
 
+    //Valida los campos localmente, envia los cambios al backend y mapea errores de la API a los campos del formulario
     const handleSubmit = async () => {
 
         //Validar nombre
@@ -72,7 +76,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
             }
         }
 
-        //Validar telefono
+        //Validar email
         if(formData.email !== initialData.email){
             if(!formData.email.endsWith('@ucm.es')){
                 setError('El email debe ser @ucm.es');
@@ -89,7 +93,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
             });
             await onSave(formData);
             onClose();
-        } 
+        } //Mapea los errores de la API a los nombres de campo del formulario
         catch(err: any){
             const mappedFieldErrors = getApiFieldErrors(err, {
                 firstName: 'nombre',
@@ -108,6 +112,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
         }
     };
 
+    //Limpia el formulario al cerrar
     const handleClose = () => {
         setError('');
         setFieldErrors({});

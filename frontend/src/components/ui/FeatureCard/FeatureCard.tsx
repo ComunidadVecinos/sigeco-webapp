@@ -1,5 +1,4 @@
 //Tarjeta reutilizable para caracteriticas de la landingPage
-
 import React from 'react';
 
 interface FeatureCardProps {

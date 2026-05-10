@@ -1,3 +1,7 @@
+// Router de incidents: agrupa alta, seguimiento y cierre de incidencias comunitarias.
+// Flujo cubierto: sesión -> validación de params/query/body -> controlador.
+// Expone el router de Express para alta, listado, detalle, edición, borrado y cambio de estado.
+// Lo consume el router de communities como subrecurso con communityId.
 const express = require('express');
 
 const asyncHandler = require('../../lib/http/asyncHandler');
@@ -18,16 +22,25 @@ const {
   ensureUpdateIncidentHasChanges
 } = require('./incidents.validation');
 
-/**
- * Rutas HTTP del módulo incidents.
- * Se monta como subrecurso de comunidad y reutiliza communityId desde la URL padre "/api/communities/:communityId/incidents".
- */
-
 const router = express.Router({ mergeParams: true });
 const uploadIncidentImage = createImageUpload('image');
 
-// POST /api/communities/:communityId/incidents
-// Crea una incidencia con imagen opcional.
+// --- Incidencias: GET de consulta ---
+router.get(
+  '/',
+  requireSession,
+  validate({ params: communityIdParamSchema, query: listIncidentsQuerySchema }),
+  asyncHandler(incidentsController.getIncidentList)
+);
+
+router.get(
+  '/:incidentId',
+  requireSession,
+  validate({ params: incidentParamsSchema }),
+  asyncHandler(incidentsController.getIncidentDetail)
+);
+
+// --- Incidencias: POST de creación y acciones administrativas ---
 router.post(
   '/',
   requireSession,
@@ -37,35 +50,14 @@ router.post(
   asyncHandler(incidentsController.createIncident)
 );
 
-// GET /api/communities/:communityId/incidents
-// Lista incidencias con filtros por estado y paginación.
-router.get(
-  '/',
+router.post(
+  '/:incidentId/status',
   requireSession,
-  validate({ params: communityIdParamSchema, query: listIncidentsQuerySchema }),
-  asyncHandler(incidentsController.getIncidentList)
+  validate({ params: incidentParamsSchema, body: updateIncidentStatusSchema }),
+  asyncHandler(incidentsController.updateIncidentStatus)
 );
 
-// GET /api/communities/:communityId/incidents/:incidentId
-// Devuelve el detalle de una incidencia activa.
-router.get(
-  '/:incidentId',
-  requireSession,
-  validate({ params: incidentParamsSchema }),
-  asyncHandler(incidentsController.getIncidentDetail)
-);
-
-// DELETE /api/communities/:communityId/incidents/:incidentId/image
-// Elimina solo la imagen asociada a una incidencia pendiente.
-router.delete(
-  '/:incidentId/image',
-  requireSession,
-  validate({ params: incidentParamsSchema }),
-  asyncHandler(incidentsController.deleteIncidentImage)
-);
-
-// PATCH /api/communities/:communityId/incidents/:incidentId
-// Permite editar título, descripción y/o imagen mientras la incidencia siga pendiente.
+// --- Incidencias: PATCH de edición ---
 router.patch(
   '/:incidentId',
   requireSession,
@@ -76,22 +68,19 @@ router.patch(
   asyncHandler(incidentsController.updateIncident)
 );
 
-// DELETE /api/communities/:communityId/incidents/:incidentId
-// Hace borrado lógico de la incidencia y limpia la imagen si existe.
+// --- Incidencias: DELETE de imagen y borrado lógico ---
+router.delete(
+  '/:incidentId/image',
+  requireSession,
+  validate({ params: incidentParamsSchema }),
+  asyncHandler(incidentsController.deleteIncidentImage)
+);
+
 router.delete(
   '/:incidentId',
   requireSession,
   validate({ params: incidentParamsSchema }),
   asyncHandler(incidentsController.deleteIncident)
-);
-
-// POST /api/communities/:communityId/incidents/:incidentId/status
-// Cambia el estado respetando las transiciones permitidas.
-router.post(
-  '/:incidentId/status',
-  requireSession,
-  validate({ params: incidentParamsSchema, body: updateIncidentStatusSchema }),
-  asyncHandler(incidentsController.updateIncidentStatus)
 );
 
 module.exports = router;

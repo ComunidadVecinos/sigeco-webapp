@@ -1,23 +1,19 @@
+// Validaciones reutilizables para datos personales.
+// Las usan sobre todo auth y users para mantener el mismo criterio con nombre, correo UCM y teléfono.
 const { z } = require('zod');
 
 const UCM_EMAIL_DOMAIN = '@ucm.es';
 const NAME_REGEX = /^[\p{L}\s'-]+$/u;
 
-/**
- * Helpers de validación reutilizables para datos personales (auth, users).
- */
-
 function normalizePhone(rawPhone) {
   if (!rawPhone) {
     return undefined;
   }
-
   if (!/^[\d\s]+$/.test(rawPhone)) {
     return null;
   }
 
   const compactPhone = rawPhone.replace(/\s/g, '');
-
   if (/^\d{9}$/.test(compactPhone)) {
     return compactPhone;
   }

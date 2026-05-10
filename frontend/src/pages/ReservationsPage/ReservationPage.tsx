@@ -1,3 +1,4 @@
+//Página de reservas de espacios comunes: calendario con slots horario, reserva con plazas (compartido/exclusivo), listado personal y global(admin)
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/common/Header/Header';
 import Sidebar from '@/components/ui/Sidebar/Sidebar';
@@ -12,7 +13,9 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { getSpaces, getAvailability, createBooking, getMyBookings, cancelBooking, getCommunityBookings, type Space, type Slot, type BookingRules, type Booking } from '@/services/reservationService';
+import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 
+//Pestañas de navegación: calendario, mis reservas y todas las reservas (solo admin)
 type Tab = 'calendar' | 'myBookings' | 'allBookings';
 
 const ReservationsPage: React.FC = () => {
@@ -21,11 +24,11 @@ const ReservationsPage: React.FC = () => {
     const communityId = user?.activeCommunityId;
     const activeComunity: any = user?.communities?.find((c: any) => c.communityId === communityId);
     const isAdmin = activeComunity?.role === 'PRESIDENT' || activeComunity?.role === 'VICE_PRESIDENT';
-
+    //Estado general, sidebar y pestaña activa
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<Tab>('calendar');
 
-    // ---- Calendario ---- //
+    // Calendario 
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
     const [spaces, setSpaces] = useState<Space[]>([]);
     const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
@@ -34,25 +37,25 @@ const ReservationsPage: React.FC = () => {
     const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
     const [loadingAvailability, setLoadingAvailability] = useState(false);
     const [availabilityError, setAvailabilityError] = useState('');
-
-    // ---- Modales ---- //
+    //Modales
     const [isSeatsModalOpen, setIsSeatsModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null);
-
-    // ---- Reserva ---- //
+    //Reserva
     const [myBookings, setBookings] = useState<Booking[]>([]);
     const [myBookingsScope, setMyBookingsScope] = useState('upcoming');
     const [myBookingsPage, setMyBookingsPage] = useState(0);
     const [myBookingHasMore, setMyBookingHasMore] = useState(true);
     const [loadingMyBookings, setLoadingMyBookings] = useState(false);
-
-    // ---- Todas las reservas ---- //
+    //Todas las reservas
     const [allBookings, setAllBookings] = useState<Booking[]>([]);
     const [allBookingsPage, setAllBookingPage] = useState(0);
     const [allBookingsHasMore, setAllBookingsHasMore] = useState(true);
     const [loadingAllBookings, setLoadingAllBookings] = useState(false);
     const [allBookingsStatus, setAllBookingsStatus] = useState('active');
+    //Feedback global
+    const [feedback, setFeedback] = useState<{isOpen: boolean, type: 'success' | 'error', message: string}>({isOpen: false, type: 'success', message: ''});
+    const closeFeedback = () => setFeedback(prev => ({...prev, isOpen: false}));
 
     // ---- Redirect si no hay comunidad ---- //
     useEffect(() => {
@@ -106,30 +109,25 @@ const ReservationsPage: React.FC = () => {
         loadAvailability();
     }, [communityId, selectedSpaceId, selectedDate]);
 
-    // ---- Seleccion de slots ---- //
+    // ---- Selección de slots ---- //
     const handleSlotsClick = (slotIndex: number) => {
         const slot = slots.find(s => s.slotIndex === slotIndex);
         if (!slot || !slot.available || !bookingRules) return;
 
         setSelectedSlots(prev => {
-            //Si ya esta seleccionado, deseleccionar desde ese punto
             const idx = prev.indexOf(slotIndex);
             if (idx !== -1) {
                 return prev.slice(0, idx);
             }
 
-            //Si no hay seleccion, empezar una nueva
             if (prev.length === 0) return [slotIndex];
 
-            //Si ya se alcanzo el maximo, no se puede añadir mas
-            if (prev.length >= bookingRules.maxConsecutivesSlots) return prev;
+            if (prev.length >= bookingRules.maxConsecutiveSlots) return prev;
 
-            //Verificar que es consecutivo al ultimo seleccionado
             if (slotIndex === prev[prev.length - 1] + 1) {
                 return [...prev, slotIndex];
             }
 
-            //No es consecutivo, reinicar con ese slot
             return [slotIndex];
         });
     };
@@ -145,6 +143,7 @@ const ReservationsPage: React.FC = () => {
         }
     };
 
+    //Ejecuta la reserva enviando espacio, fecha, hora y slots; si es compartido incluye las plazas solicitadas
     const executeBooking = async (requestedSeats?: number) => {
         if (!communityId || !selectedSpaceId || !selectedDate || selectedSlots.length === 0) return;
 
@@ -170,9 +169,9 @@ const ReservationsPage: React.FC = () => {
             const res = await getAvailability(communityId, selectedSpaceId, dateStr);
             setSlots(res.data.slots || []);
             setBookingRules(res.data.bookingRules || null);
-            alert('¡Reservada creada con éxito!');
+            setFeedback({isOpen: true, type: 'success', message: '¡Reservada creada con éxito!'});
         } catch (err) {
-            alert((err as any).response?.data?.error?.message || 'Error al crear la reserva');
+            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al crear la reserva'});
         }
     };
 
@@ -194,6 +193,7 @@ const ReservationsPage: React.FC = () => {
         }
     };
 
+    //Recarga mis reservas cuando cambia la pestaña, comunidad o filtro de alcance
     useEffect(() => {
         if (activeTab === 'myBookings' && communityId) {
             setMyBookingsPage(0);
@@ -219,6 +219,7 @@ const ReservationsPage: React.FC = () => {
         }
     };
 
+    //Recarga todas las reservas cuando cambia la pestaña, comunidad o filtro de alcance
     useEffect(() => {
         if (activeTab === 'allBookings' && communityId && isAdmin) {
             setAllBookingPage(0);
@@ -232,6 +233,7 @@ const ReservationsPage: React.FC = () => {
         setIsCancelModalOpen(true);
     };
 
+    //Cancela la reserva con motivo opcional y reacrga la pestaña activa
     const handleConfirmCancel = async (reason?: string) => {
         if (!communityId || !cancellingBookingId) return;
 
@@ -248,7 +250,7 @@ const ReservationsPage: React.FC = () => {
                 loadAllBookings(0);
             }
         } catch (err) {
-            alert((err as any).response?.data?.error?.message || 'Error al cancelar la reserva');
+            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al cancelar la reserva'});
         };
     };
 
@@ -267,6 +269,7 @@ const ReservationsPage: React.FC = () => {
         return first && last ? `${first.startTime} - ${last.endTime} (${selectedSlots.length} ${selectedSlots.length === 1 ? 'slot' : 'slots'})` : '';
     })() : '';
 
+    //Configuración de pestañas y opciones de filtro por alcance temporal
     const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
         { key: 'calendar', label: 'Calendario', icon: <CalendarDays className='h-4 w-4' /> },
         { key: 'myBookings', label: 'Mis Reservas', icon: <List className='h-4 w-4' /> },
@@ -303,6 +306,7 @@ const ReservationsPage: React.FC = () => {
                     )}
                 </div>
 
+                {/*Pestañas de navegación: calendario, mis reservas y todas(admin)*/}
                 <div className='flex gap-1 bg-gray-100 p-1 rounded-xl mb-6 w-fit'>
                     {tabs.map(tab => (
                         <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -311,6 +315,7 @@ const ReservationsPage: React.FC = () => {
                     ))}
                 </div>
 
+                {/*Sección calendario: selector de fecha + selector de espacio + grid de slots horarios + confirmación*/}
                 {activeTab === 'calendar' && (
                     <div className='flex flex-col md:flex-row gap-8'>
                         <div className='bg-white p-4 rounded-2xl shadow-sm border border-gray-200 md:w-[350px] h-fit'>
@@ -358,7 +363,7 @@ const ReservationsPage: React.FC = () => {
                                             {bookingRules && (
                                                 <>
                                                     <span>·</span>
-                                                    <span>Máx. {bookingRules.maxConsecutivesSlots} consecutivos</span>
+                                                    <span>Máx. {bookingRules.maxConsecutiveSlots} consecutivos</span>
                                                 </>
                                             )}
                                         </div>
@@ -409,7 +414,7 @@ const ReservationsPage: React.FC = () => {
                                             {selectedSlots.length > 0 && (
                                                 <div className='flex items-center justify-between mt-4 pt-4 border-t border-gray-100'>
                                                     <p className='text-sm text-gray-600'>
-                                                        <span className='font-semibold'>Seleccion:</span> {selectionInfo}
+                                                        <span className='font-semibold'>Selección:</span> {selectionInfo}
                                                     </p>
                                                     <Button size='sm' onClick={handleConfirmBooking}>Confirmar reserva</Button>
                                                 </div>
@@ -426,6 +431,7 @@ const ReservationsPage: React.FC = () => {
                     </div>
                 )}
 
+                {/*Sección mis reservas: filtro de alcance(próximas/pasadas/canceladas/todas) + listado con BookingCard*/}
                 {activeTab === 'myBookings' && (
                     <div>
                         <div className='flex gap-2 mb-5 flex-wrap'>
@@ -454,6 +460,7 @@ const ReservationsPage: React.FC = () => {
                     </div>
                 )}
 
+                {/*Sección todas las reservas: filtro de estado + listado con BookingCard mostrando propietario*/}
                 {activeTab === 'allBookings' && isAdmin && (
                     <div>
                         <div className='flex gap-2 mb-5 flex-wrap'>
@@ -484,7 +491,7 @@ const ReservationsPage: React.FC = () => {
 
             </main>
 
-            {/*MODALES*/}
+            {/*Modales: selección de plazas (espacio compartido), cancelación de reserva con motivo y feedback*/}
             <SeatsModal
                 isOpen={isSeatsModalOpen}
                 onClose={() => setIsSeatsModalOpen(false)}
@@ -498,6 +505,13 @@ const ReservationsPage: React.FC = () => {
                 onClose={() => { setIsCancelModalOpen(false); setCancellingBookingId(null); }}
                 onConfirm={handleConfirmCancel}
             />
+
+            <FeedbackModal 
+                    isOpen={feedback.isOpen}
+                    type={feedback.type}
+                    message={feedback.message}
+                    onClose={closeFeedback}
+                />
         </div>
     );
 };

@@ -1,5 +1,4 @@
-//Pagina de bienvenida donde puedes registrarte o iniciar sesion
-
+//Pagina de bienvenida pública donde puedes registrarte o iniciar sesion
 import React, { useEffect } from "react";
 import {Button} from "@/components/ui/button";
 import imgSD from '../../assets/images/SwingingDoodle.png'
@@ -10,6 +9,7 @@ const WelcomePage: React.FC = () => {
     const navigate = useNavigate();
     const { user, loading } = useAuth();
 
+    //Si el usuario ya tiene sesión, redirige al perfil automáticamente
     useEffect(() => {
         if (!loading && user) {
             navigate('/auth/me', { replace: true });
@@ -26,6 +26,7 @@ const WelcomePage: React.FC = () => {
                         <img src={imgSD} alt="ilustracion-bienvenida" className="max-w-[350px] sm:max-w-[250px]"/>
                     </div>
                 
+                    {/*Botones de acceso: registro e inicio de sesión*/}
                     <div className="flex flex-col sm:flex-row gap-5 mb-8">
                         <Button asChild size="lg" className="px-10 py-6 text-base rounded-xl">
                             <Link to="/auth/register">

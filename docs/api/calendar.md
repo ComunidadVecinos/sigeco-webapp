@@ -2,132 +2,84 @@
 
 > API index: [docs/api/README.md](./README.md)
 
-Community month view and personal event management.
+Community month view and personal calendar events.
 
 Base path: `/api/communities/:communityId/calendar`
 
----
+## Access rules
 
-## Key rules
+- All endpoints require an authenticated session
+- Any community member can use this module, including suspended members
+- Automatic events and personal events share the same public DTO
+- API timestamps are returned as UTC ISO instants
 
-- All endpoints require session
-- Any community member, including suspended members, can use this module
-- Automatic and personal events share the same public DTO
-- The public API now exposes only `startsAt` and `endsAt` as **UTC ISO**
-- Backend still stores and segments events by business day in `Europe/Madrid`
-
----
-
-## Event DTO
+## Event shape
 
 ```json
 {
   "id": "uuid",
-  "title": "Reserva pista 2",
-  "type": "RESERVATION",
-  "startsAt": "2026-04-10T16:00:00.000Z",
-  "endsAt": "2026-04-10T17:00:00.000Z"
+  "title": "Board meeting",
+  "type": "NEWS",
+  "startsAt": "2026-04-10T17:00:00.000Z",
+  "endsAt": "2026-04-10T18:00:00.000Z"
 }
 ```
 
-`type` is one of:
-
-- `PERSONAL`
-- `NEWS`
-- `RESERVATION`
-- `VOTING`
+`type` is one of `PERSONAL`, `NEWS`, `RESERVATION`, or `VOTING`.
 
 ## Endpoints
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/communities/:communityId/calendar?month=YYYY-MM` | Get visible events of one month |
+| `GET` | `/api/communities/:communityId/calendar?month=YYYY-MM` | List one month of events |
 | `POST` | `/api/communities/:communityId/calendar/personal` | Create a personal event |
 | `PATCH` | `/api/communities/:communityId/calendar/personal/:eventId` | Update one owned personal event |
-| `DELETE` | `/api/communities/:communityId/calendar/personal/:eventId` | Soft-delete one owned personal event |
+| `DELETE` | `/api/communities/:communityId/calendar/personal/:eventId` | Delete one owned personal event |
 
----
-
-## 1. Get month events
+## Month query
 
 `GET /api/communities/:communityId/calendar?month=YYYY-MM`
 
-Success:
+Returns:
 
 ```json
 {
   "month": "2026-04",
-  "content": [
-    {
-      "id": "uuid",
-      "title": "Junta extraordinaria",
-      "type": "NEWS",
-      "startsAt": "2026-04-03T17:00:00.000Z",
-      "endsAt": "2026-04-03T18:00:00.000Z"
-    }
-  ]
+  "content": []
 }
 ```
 
-Notes:
+- `month` is required and must use `YYYY-MM`
+- The response is not paginated
 
-- there is no pagination
-- one automatic `NEWS` or `VOTING` source may appear as several entries in the same month
-- the selected month is still a business-month filter expressed as `YYYY-MM`
+## Personal events
 
----
-
-## 2. Create personal event
-
-`POST /api/communities/:communityId/calendar/personal`
+Create request:
 
 ```json
 {
-  "title": "Llamar al administrador",
+  "title": "Call the administrator",
   "startsAt": "2026-04-12T08:00:00.000Z",
   "endsAt": "2026-04-12T08:30:00.000Z"
 }
 ```
 
-Validation:
-
-- `title`: required, max `160`
-- `startsAt`: required UTC ISO instant
-- `endsAt`: required UTC ISO instant
-
-Rules:
-
-- personal events must start and end on the same business day in `Europe/Madrid`
-- `endsAt` must be later than `startsAt`
-
----
-
-## 3. Update personal event
-
-`PATCH /api/communities/:communityId/calendar/personal/:eventId`
-
-Any non-empty subset of:
+Update request:
 
 ```json
 {
-  "title": "Llamar al presidente",
-  "startsAt": "2026-04-13T09:00:00.000Z",
-  "endsAt": "2026-04-13T09:30:00.000Z"
+  "title": "Call the president"
 }
 ```
 
-The final merged event still has to respect:
+Rules:
 
-- same business day in `Europe/Madrid`
-- `endsAt > startsAt`
+- `title` is required on creation and limited to `160` characters
+- `startsAt` and `endsAt` must be valid ISO instants
+- `endsAt` must be later than `startsAt`
+- The final event must remain within the same business day in `Europe/Madrid`
 
----
-
-## 4. Delete personal event
-
-`DELETE /api/communities/:communityId/calendar/personal/:eventId`
-
-Success:
+Delete response:
 
 ```json
 {
@@ -135,4 +87,3 @@ Success:
   "eventId": "uuid"
 }
 ```
-

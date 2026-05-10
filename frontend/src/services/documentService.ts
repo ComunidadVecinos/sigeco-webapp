@@ -1,3 +1,4 @@
+//Servicios de documentos: CRUD de archivos y carpetas y drag and drop
 import api from './api';
 
 export interface DocItem {
@@ -7,6 +8,7 @@ export interface DocItem {
     type: 'file' | 'folder';
     parentId: string | null;
     url?: string;
+    sizeBytes?: number,
     createdAt: string;
 };
 
@@ -33,7 +35,7 @@ export const uploadDocument = (communityId: string, data: {name: string, descrip
 };
 
 //Editar nombre de documento o carpeta
-export const updateDocument = (communityId: string, docId: string, type: string, data: {name: string}) =>{
+export const updateDocument = (communityId: string, docId: string, type: string, data: any) =>{
     const route = type === 'folder' ? 'folders' : 'files';
     return api.patch(`/api/communities/${communityId}/documents/${route}/${docId}`, data);
 };
@@ -43,3 +45,7 @@ export const deleteDocument = (communityId: string, docId: string, type: string)
     const route = type === 'folder' ? 'folders' : 'files';
     return api.delete(`/api/communities/${communityId}/documents/${route}/${docId}`);
 };
+
+//Mover documento o carpeta
+export const moveItem = (communityId: string, data: {itemId: string; itemType: 'folder' | 'file'; targetFolderId: string | null}) =>
+    api.patch(`/api/communities/${communityId}/documents/move`, data);

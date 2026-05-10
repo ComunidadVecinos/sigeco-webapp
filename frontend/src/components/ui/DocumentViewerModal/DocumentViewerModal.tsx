@@ -1,3 +1,4 @@
+//Modal visor de documentos PDF con opciones de descarga y nueva pestaña
 import React from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from '../dialog';
 import { Button } from '../button';
@@ -11,6 +12,7 @@ interface DocumentViewerModalProps {
 }
 
 const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({isOpen, onClose, documentUrl, documentName}) => {
+    //Generea un enlace temporal para descargar el documento
     const handleDownload = () => {
         const link = document.createElement('a');
         link.href = documentUrl;
@@ -31,9 +33,6 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({isOpen, onClos
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => window.open(documentUrl, '_blank')}>
                                 <ExternalLink className="h-4 w-4 mr-2"/> Nueva pestaña
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={onClose}>
-                                <X className="h-4 w-4"/>
                             </Button>
                         </div>
                     </div>

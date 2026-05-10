@@ -1,6 +1,8 @@
+//Servicios de noticias: CRUD de noticas/eventos con soporte de imagen y conversión de fechas
 import api from './api';
 import { businessFormToUtcIso, utcIsoToBusinessForm } from '@/lib/businessDateTime';
 
+//Transforma el DTO del backend al formato que usa el frontend
 function mapNewsItem(item: any) {
     const start = item.eventStartsAt ? utcIsoToBusinessForm(item.eventStartsAt) : null;
     const end = item.eventEndsAt ? utcIsoToBusinessForm(item.eventEndsAt) : null;
@@ -21,6 +23,7 @@ function mapNewsItem(item: any) {
     };
 }
 
+//Construye el payload (JSON o FormData si hay imagen) para crear o editar una noticia
 function buildNewsPayload(data: {
     title?: string;
     content?: string;
@@ -134,3 +137,7 @@ export const updateNews = (communityId: string, newsId: string, data: {
 //Eliminar noticia
 export const deleteNews = (communityId: string, newsId: string) =>
     api.delete(`/api/communities/${communityId}/news/${newsId}`);
+
+//Eliminar imagen de noticia
+export const deleteNewsImage = (communityId: string, newsId: string) => 
+    api.delete(`/api/communities/${communityId}/news/${newsId}/image`);

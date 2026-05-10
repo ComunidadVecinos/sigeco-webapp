@@ -1,3 +1,4 @@
+//Modal para eliminar una comunidad: requiere texto de confirmación y contraseña del presidente
 import React, {useState} from 'react';
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import { Button } from '../button';
@@ -22,19 +23,22 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({isOpen, onCl
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const navigate = useNavigate();
     const { refreshUser } = useAuth();
+    
+    //Texto exacto que el usuario debe escribir para desbloquear la acción
     const expectedText = 'ELIMINAR COMUNIDAD';
 
+    //Valida texto y contraseña localmente, envía al backend, refresca el formulario y redirige al perfil
     const handleSubmit = async () => {
         setError('');
 
         const nextFieldErrors: Record<string, string> = {};
 
         if(confirmText !== expectedText){
-            nextFieldErrors.confirmationText = 'Escribe exactamente el texto de confirmacion indicado.';
+            nextFieldErrors.confirmationText = 'Escribe exactamente el texto de confirmación indicado.';
         }
 
         if(!password){
-            nextFieldErrors.currentPassword = 'Introduce tu contrasena actual para confirmar.';
+            nextFieldErrors.currentPassword = 'Introduce tu contraseña actual para confirmar.';
         }
 
         setFieldErrors(nextFieldErrors);
@@ -60,6 +64,7 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({isOpen, onCl
         }
     };
 
+    //Limpia todos los campos y errores al cerrar
     const handleClose = () =>{
         setConfirmText('');
         setPassword('');
@@ -85,7 +90,7 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({isOpen, onCl
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Escribe <strong>{expectedText}</strong> para confirmar la eliminacion de <strong>{communityName}</strong></Label>
+                        <p className='text-sm text-gray-700 pb-2'>Escribe <strong>{expectedText}</strong> para confirmar la eliminacion de <strong>{communityName}</strong></p>
                         <Input value={confirmText} onChange={(e) => {
                             setConfirmText(e.target.value);
                             setFieldErrors((prev) => ({ ...prev, confirmationText: '' }));
@@ -94,11 +99,11 @@ const DeleteCommunityModal: React.FC<DeleteCommunityModalProps> = ({isOpen, onCl
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="delete-community-password">Confirma tu contrasena</Label>
+                        <Label htmlFor="delete-community-password">Confirma tu contraseña</Label>
                         <Input id="delete-community-password" name="deleteCommunityPassword" type='password' autoComplete="current-password" value={password} onChange={(e) => {
                             setPassword(e.target.value);
                             setFieldErrors((prev) => ({ ...prev, currentPassword: '' }));
-                        }} placeholder="Tu contrasena"></Input>
+                        }} placeholder="Tu contraseña"></Input>
                         {fieldErrors.currentPassword && <p className='text-sm text-red-500'>{fieldErrors.currentPassword}</p>}
                     </div>
 

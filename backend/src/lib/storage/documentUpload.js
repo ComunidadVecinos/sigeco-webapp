@@ -1,7 +1,7 @@
+// Middleware de subida de documentos PDF en memoria.
+// Sigue el mismo patrón que las imágenes: parseo ahora, validación real antes de guardar.
 const multer = require('multer');
-
 const { FileTooLargeError, FileTypeUnsupportedError } = require('../errors');
-
 const MAX_DOCUMENT_SIZE_BYTES = 50 * 1024 * 1024;
 
 const upload = multer({
@@ -12,7 +12,6 @@ const upload = multer({
       cb(new FileTypeUnsupportedError('Solo se admiten documentos PDF'));
       return;
     }
-
     cb(null, true);
   }
 });
@@ -22,11 +21,9 @@ function uploadDocument(req, res, next) {
     if (!error) {
       return next();
     }
-
     if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
       return next(new FileTooLargeError(`No se admiten documentos de más de ${MAX_DOCUMENT_SIZE_BYTES} bytes.`));
     }
-
     return next(error);
   });
 }

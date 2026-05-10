@@ -1,3 +1,4 @@
+//Página de inicio de sesión: formulario con email/teléfono, contraseña, validación en tiempo real y toggle de visibilidad
 import React, {useEffect, useState} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import { useAuth } from '../../context/authContext';
@@ -11,7 +12,7 @@ const LogInPage: React.FC = () => {
 
     const navigate = useNavigate();
     const {login, user, loading} = useAuth();
-
+    //Identifica estado del formulario
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<{identifier?: string; password?: string}>({});
@@ -58,12 +59,14 @@ const LogInPage: React.FC = () => {
         }
     };
 
+    //Si el usuario ya tiene sesión activa, redirige al perfil automáticamente
     useEffect(() => {
         if (!loading && user) {
             navigate('/auth/me', { replace: true });
         }
     }, [loading, navigate, user]);
 
+    //Marca todos los campos como tocados, valida el formulario y llama a login del contexto de autenticación
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setTouched({identifier: true, password: true});
@@ -79,6 +82,7 @@ const LogInPage: React.FC = () => {
         }
     };
 
+    //Controla si el botón de envío estña habilitado
     const isFormValid = !validateIdentifier(identifier) && !validatePassword(password);
 
     return (

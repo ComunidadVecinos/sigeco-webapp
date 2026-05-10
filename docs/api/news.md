@@ -2,32 +2,27 @@
 
 > API index: [docs/api/README.md](./README.md)
 
-Community news board with optional image and optional automatic calendar projection.
+Community news board with optional images and optional calendar projection.
 
 Base path: `/api/communities/:communityId/news`
 
----
+## Access rules
 
-## Key rules
+- All endpoints require an authenticated session
+- Any community member, including suspended members, can read news
+- Only active administrators can create, edit, delete news, or delete a news image
+- API timestamps are returned as UTC ISO instants
 
-- All endpoints require session
-- Any member of the community, including suspended members, can read news
-- Only active admins can create, edit, delete news or delete its image
-- Every field with date and time is now returned as **UTC ISO**
-- `eventStartsAt` and `eventEndsAt` replace the old nested `event` block
-
----
-
-## News item
+## News item shape
 
 ```json
 {
   "id": "uuid",
-  "title": "Corte de agua programado",
-  "description": "El suministro se interrumpirá por mantenimiento.",
+  "title": "Scheduled water outage",
+  "description": "Water service will be interrupted for maintenance.",
   "imageUrl": "/uploads/images/communities/<communityId>/news/<newsId>/image.png",
   "creator": {
-    "alias": "Presi"
+    "alias": "Board President"
   },
   "createdAt": "2026-04-02T18:00:00.000Z",
   "editedAt": null,
@@ -37,81 +32,69 @@ Base path: `/api/communities/:communityId/news`
 }
 ```
 
-Notes:
-
-- `imageUrl`, `editedAt` and `eventEndsAt` may be `null`
-- `eventStartsAt` and `eventEndsAt` are UTC ISO instants
-- `creator.alias` becomes `"Usuario eliminado"` if the original author deletes the account
-
----
-
 ## Endpoints
 
 | Method | Path | Description |
 |---|---|---|
 | `POST` | `/api/communities/:communityId/news` | Create news |
-| `GET` | `/api/communities/:communityId/news` | List paginated news |
+| `GET` | `/api/communities/:communityId/news` | List news |
 | `GET` | `/api/communities/:communityId/news/:newsId` | Get one news item |
 | `PATCH` | `/api/communities/:communityId/news/:newsId` | Update one news item |
-| `DELETE` | `/api/communities/:communityId/news/:newsId/image` | Delete only the attached image |
-| `DELETE` | `/api/communities/:communityId/news/:newsId` | Soft-delete one news item |
+| `DELETE` | `/api/communities/:communityId/news/:newsId/image` | Delete the attached image |
+| `DELETE` | `/api/communities/:communityId/news/:newsId` | Delete one news item |
 
----
+## Create and update contract
 
-## 1. Create news
-
-`POST /api/communities/:communityId/news`
-
-Supported content types:
+Supported request content types:
 
 - `application/json`
 - `multipart/form-data`
 
-JSON example:
+Create request:
 
 ```json
 {
-  "title": "Junta extraordinaria",
-  "description": "Se convoca una reunión para aprobar el presupuesto.",
+  "title": "Extraordinary board meeting",
+  "description": "A meeting is scheduled to approve the budget.",
   "eventStartsAt": "2026-04-10T17:30:00.000Z",
   "eventEndsAt": "2026-04-10T18:30:00.000Z"
 }
 ```
 
-Multipart requests use the same text fields and may also include an `image` file.
+Multipart requests may also include an `image` file.
 
-Validation:
+Editable fields:
 
-- `title`: required, max `160`
-- `description`: required, max `4000`
-- `image`: optional JPG/PNG up to `5 MB`
-- `eventStartsAt`: optional UTC ISO instant
-- `eventEndsAt`: optional UTC ISO instant
-- if `eventEndsAt` exists, it must be later than `eventStartsAt`
+- `title`
+- `description`
+- `eventStartsAt`
+- `eventEndsAt`
+- `image`
 
-Success:
+Rules:
 
-- `201 Created`
-- returns one `News item`
+- `title` is required on creation and limited to `160` characters
+- `description` is required on creation and limited to `4000` characters
+- `image` is optional and must be a JPG or PNG file up to `5 MB`
+- `eventStartsAt` and `eventEndsAt` are optional
+- if `eventEndsAt` is present, it must be later than `eventStartsAt`
+- sending both event fields as `null` removes the event projection
+- update requests must include at least one text change or a new image
 
----
-
-## 2. List news
+## List query
 
 `GET /api/communities/:communityId/news`
 
-Query params:
-
-| Field | Required | Notes |
+| Param | Required | Rules |
 |---|---|---|
 | `page` | No | Integer, default `1` |
 | `pageSize` | No | Integer, default `10`, max `100` |
 | `search` | No | Case-insensitive filter over `title` |
-| `from` | No | Lower bound business day, `YYYY-MM-DD` |
-| `to` | No | Upper bound business day, `YYYY-MM-DD` |
-| `eventType` | No | `event` or `nonEvent` |
+| `from` | No | `YYYY-MM-DD` |
+| `to` | No | `YYYY-MM-DD` |
+| `eventType` | No | `all`, `event`, or `nonEvent` |
 
-Success:
+Returns:
 
 ```json
 {
@@ -125,66 +108,11 @@ Success:
 }
 ```
 
-Notes:
+## Delete responses
 
-- pagination is 1-based
-- `from` and `to` filter by `createdAt` using the business day in `Europe/Madrid`
+Deleting the image returns the updated news item with `imageUrl: null`.
 
----
-
-## 3. Update news
-
-`PATCH /api/communities/:communityId/news/:newsId`
-
-Allowed editable fields:
-
-- `title`
-- `description`
-- `eventStartsAt`
-- `eventEndsAt`
-- `image`
-
-Example:
-
-```json
-{
-  "title": "Junta extraordinaria actualizada",
-  "eventStartsAt": "2026-04-10T18:00:00.000Z",
-  "eventEndsAt": "2026-04-10T19:00:00.000Z"
-}
-```
-
-To remove event status:
-
-```json
-{
-  "eventStartsAt": null,
-  "eventEndsAt": null
-}
-```
-
-Notes:
-
-- if no new image is sent, the current image is preserved
-- if a new image is sent, it replaces the previous one
-- if `multipart/form-data` is used to remove the event while replacing the image, send `eventStartsAt = null` and `eventEndsAt = null` as literal string values
-- text-only changes do not reproject calendar unless the event schedule changes
-
----
-
-## 4. Delete image
-
-`DELETE /api/communities/:communityId/news/:newsId/image`
-
-Returns the updated `News item` with `imageUrl: null`.
-
----
-
-## 5. Delete news
-
-`DELETE /api/communities/:communityId/news/:newsId`
-
-Success:
+Deleting the news item returns:
 
 ```json
 {
@@ -192,13 +120,3 @@ Success:
   "newsId": "uuid"
 }
 ```
-
----
-
-## Calendar projection
-
-- `NEWS` automatic entries are created from `eventStartsAt` / `eventEndsAt`
-- backend segments them by business day in `Europe/Madrid`
-- calendar responses still expose those segments as UTC instants
-- deleting the news item removes all linked automatic calendar entries
-

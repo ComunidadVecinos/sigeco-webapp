@@ -1,4 +1,7 @@
-// Servicio del modulo forum.
+// Servicio de forum: aplica permisos y reglas del tablón social, incluidos likes y encuestas.
+// Flujo cubierto: usuario autenticado -> acceso comunitario -> repositorio y utilidades de fecha/storage.
+// Expone casos de uso para posts, comentarios, votos, likes y destacados.
+// Lo consumen los controladores HTTP del módulo.
 const { Prisma } = require('@prisma/client');
 
 const { ConflictError, ForbiddenError, NotFoundError, ValidationError } = require('../../lib/errors');
@@ -10,6 +13,7 @@ const membersService = require('../members/members.service');
 const DELETED_COMMENT_CONTENT_BY_AUTHOR = 'El contenido ha sido eliminado por el autor';
 const DELETED_COMMENT_CONTENT_BY_ADMIN = 'El contenido ha sido eliminado por el administrador';
 
+// --- Helpers comunes ---
 function buildValidationDetail(field, message, location = 'body') {
   return [{ field, location, message }];
 }
@@ -47,6 +51,11 @@ function isAdministrativeMembership(membership) {
   return membership?.role === 'PRESIDENT' || membership?.role === 'VICE_PRESIDENT';
 }
 
+function buildPagination(page, pageSize, total) {
+  return { page, pageSize, total, totalPages: Math.ceil(total / pageSize) };
+}
+
+// --- Helpers de mapeo ---
 function mapAuthor(membership) {
   if (!membership) {
     return null;
@@ -92,11 +101,9 @@ function isForumPollOpen(poll, now = new Date()) {
   if (!poll || poll.deletedAt || poll.closedAt) {
     return false;
   }
-
   if (poll.startsAt > now) {
     return false;
   }
-
   if (poll.endsAt && poll.endsAt <= now) {
     return false;
   }
@@ -109,7 +116,11 @@ function mapForumPoll(poll, voteCountMap, membershipVoteMap, now = new Date()) {
     return null;
   }
 
-  const options = poll.options.map((option) => ({ id: option.id, title: option.title, votes: voteCountMap.get(`${poll.id}:${option.id}`) || 0 }));
+  const options = poll.options.map((option) => ({
+    id: option.id,
+    title: option.title,
+    votes: voteCountMap.get(`${poll.id}:${option.id}`) || 0
+  }));
   const totalVotes = options.reduce((sum, option) => sum + option.votes, 0);
 
   return {
@@ -159,10 +170,7 @@ function mapForumComment(comment, context) {
   };
 }
 
-function buildPagination(page, pageSize, total) {
-  return { page, pageSize, total, totalPages: Math.ceil(total / pageSize) };
-}
-
+// --- Guards de acceso ---
 async function requireForumAccess(userId, communityId) {
   return membersService.requireOperationalCommunityAccess(userId, communityId, membersRepository);
 }
@@ -173,31 +181,25 @@ async function requireForumAdministrativeAccess(userId, communityId) {
 
 async function requireExistingPost(communityId, postId, forumRepository) {
   const post = await forumRepository.findForumPostById({ communityId, postId });
-
   if (!post) {
-    throw new NotFoundError('Publicaci\u00f3n no encontrada');
+    throw new NotFoundError('Publicación no encontrada');
   }
-
   return post;
 }
 
 async function requireVisiblePost(communityId, postId, forumRepository) {
   const post = await requireExistingPost(communityId, postId, forumRepository);
-
   if (post.isDeleted) {
-    throw new NotFoundError('Publicaci\u00f3n no encontrada');
+    throw new NotFoundError('Publicación no encontrada');
   }
-
   return post;
 }
 
 async function requireExistingComment(communityId, commentId, forumRepository) {
   const comment = await forumRepository.findForumCommentById({ communityId, commentId });
-
   if (!comment) {
     throw new NotFoundError('Comentario no encontrado');
   }
-
   return comment;
 }
 
@@ -205,7 +207,6 @@ function assertPostIsAvailable(post, message) {
   if (!post.isDeleted) {
     return;
   }
-
   throw new ConflictError(message);
 }
 
@@ -213,7 +214,6 @@ function assertCommentIsAvailable(comment, message) {
   if (!comment.isDeleted) {
     return;
   }
-
   throw new ConflictError(message);
 }
 
@@ -221,23 +221,20 @@ function assertCanEditPost(actorMembership, post) {
   if (post.authorMembershipId === actorMembership.id) {
     return;
   }
-
-  throw new ForbiddenError('No tienes permisos para editar esta publicaci\u00f3n');
+  throw new ForbiddenError('No tienes permisos para editar esta publicación');
 }
 
 function assertCanDeletePost(actorMembership, post) {
   if (post.authorMembershipId === actorMembership.id || isAdministrativeMembership(actorMembership)) {
     return;
   }
-
-  throw new ForbiddenError('No tienes permisos para eliminar esta publicaci\u00f3n');
+  throw new ForbiddenError('No tienes permisos para eliminar esta publicación');
 }
 
 function assertCanEditComment(actorMembership, comment) {
   if (comment.authorMembershipId === actorMembership.id) {
     return;
   }
-
   throw new ForbiddenError('No tienes permisos para editar este comentario');
 }
 
@@ -245,10 +242,10 @@ function assertCanDeleteComment(actorMembership, comment) {
   if (comment.authorMembershipId === actorMembership.id || isAdministrativeMembership(actorMembership)) {
     return;
   }
-
   throw new ForbiddenError('No tienes permisos para eliminar este comentario');
 }
 
+// --- Hidratación de respuestas ---
 async function buildForumPostResponses(posts, membershipId, forumRepository, now = new Date()) {
   if (!posts || posts.length === 0) {
     return [];
@@ -257,7 +254,7 @@ async function buildForumPostResponses(posts, membershipId, forumRepository, now
   const postIds = posts.map((post) => post.id);
   const pollIds = posts.map((post) => post.pollId).filter(Boolean);
 
-  // Solo hidratamos la pagina actual para mantener simple la consulta principal.
+  // Solo hidratamos la página actual para mantener simple y barata la consulta principal.
   const [commentCounts, likeCounts, polls, voteCounts, membershipVotes] = await Promise.all([
     forumRepository.findForumCommentCountsByPostIds(postIds),
     forumRepository.findForumPostLikeCountsByPostIds(postIds),
@@ -274,7 +271,6 @@ async function buildForumPostResponses(posts, membershipId, forumRepository, now
     voteCountMap: buildVoteCountMap(voteCounts),
     membershipVoteMap: buildMembershipVoteMap(membershipVotes)
   };
-
   return posts.map((post) => mapForumPost(post, context));
 }
 
@@ -282,23 +278,25 @@ async function buildForumCommentResponses(comments, forumRepository) {
   if (!comments || comments.length === 0) {
     return [];
   }
-
   const commentIds = comments.map((comment) => comment.id);
   const likeCounts = await forumRepository.findForumCommentLikeCountsByCommentIds(commentIds);
-  return comments.map((comment) => mapForumComment(comment, { likeCountMap: buildCountMap(likeCounts, 'commentId') }));
+
+  return comments.map((comment) =>
+    mapForumComment(comment, { likeCountMap: buildCountMap(likeCounts, 'commentId') })
+  );
 }
 
+// --- Publicaciones: POST y GET ---
 async function createPost(context, communityId, input, forumRepository) {
   const { membership } = await requireForumAccess(context.userId, communityId);
   const now = new Date();
   const pollEndsAt = buildPollEndsAtFromInput(input, now);
-
-  const createdPost = await forumRepository.withTransaction(async (tx) => {
+  const createdPost = await forumRepository.withTransaction(async (db) => {
     let poll = null;
 
-    // La encuesta se crea antes para enlazar el post dentro de la misma transaccion.
+    // La encuesta se crea antes para enlazarla al post dentro de la misma transacción.
     if (input.category === 'POLL') {
-      poll = await forumRepository.createForumPoll(tx, {
+      poll = await forumRepository.createForumPoll(db, {
         communityId,
         title: input.poll.title,
         description: input.poll.description,
@@ -309,7 +307,7 @@ async function createPost(context, communityId, input, forumRepository) {
       });
     }
 
-    return forumRepository.createForumPost(tx, {
+    return forumRepository.createForumPost(db, {
       communityId,
       authorMembershipId: membership.id,
       pollId: poll?.id || null,
@@ -336,7 +334,6 @@ async function getPostList(context, communityId, input, forumRepository) {
     page: input.page,
     pageSize: input.pageSize
   });
-
   return {
     items: await buildForumPostResponses(pageResult.items, membership.id, forumRepository),
     pagination: buildPagination(input.page, input.pageSize, pageResult.total)
@@ -350,15 +347,16 @@ async function getPostDetail(context, communityId, postId, forumRepository) {
   return item;
 }
 
+// --- Publicaciones: PATCH y DELETE ---
 async function updatePost(context, communityId, postId, input, forumRepository) {
   const { membership } = await requireForumAccess(context.userId, communityId);
   const post = await requireExistingPost(communityId, postId, forumRepository);
 
-  assertPostIsAvailable(post, 'La publicaci\u00f3n ya no est\u00e1 disponible');
+  assertPostIsAvailable(post, 'La publicación ya no está disponible');
   assertCanEditPost(membership, post);
 
-  await forumRepository.withTransaction(async (tx) => {
-    const updatedPost = await forumRepository.updateForumPost(tx, {
+  await forumRepository.withTransaction(async (db) => {
+    const updatedPost = await forumRepository.updateForumPost(db, {
       communityId,
       postId,
       data: {
@@ -367,9 +365,8 @@ async function updatePost(context, communityId, postId, input, forumRepository) 
         editedAt: new Date()
       }
     });
-
     if (!updatedPost) {
-      throw new ConflictError('No se ha podido actualizar la publicaci\u00f3n');
+      throw new ConflictError('No se ha podido actualizar la publicación');
     }
   });
 
@@ -380,46 +377,47 @@ async function deletePost(context, communityId, postId, forumRepository) {
   const { membership } = await requireForumAccess(context.userId, communityId);
   const post = await requireExistingPost(communityId, postId, forumRepository);
 
-  assertPostIsAvailable(post, 'La publicaci\u00f3n ya est\u00e1 eliminada');
+  assertPostIsAvailable(post, 'La publicación ya está eliminada');
   assertCanDeletePost(membership, post);
 
   const deletedAt = new Date();
-  await forumRepository.withTransaction(async (tx) => {
-    const deletedPost = await forumRepository.softDeleteForumPost(tx, { communityId, postId, deletedAt });
 
+  await forumRepository.withTransaction(async (db) => {
+    const deletedPost = await forumRepository.softDeleteForumPost(db, { communityId, postId, deletedAt });
     if (!deletedPost) {
-      throw new ConflictError('No se ha podido eliminar la publicaci\u00f3n');
+      throw new ConflictError('No se ha podido eliminar la publicación');
     }
-
     if (!post.pollId) {
       return;
     }
-
-    const deletedPollResult = await forumRepository.softDeleteForumPoll(tx, { communityId, pollId: post.pollId, deletedAt });
-
+    const deletedPollResult = await forumRepository.softDeleteForumPoll(db, {
+      communityId,
+      pollId: post.pollId,
+      deletedAt
+    });
     if (deletedPollResult.count !== 1) {
-      throw new ConflictError('No se ha podido eliminar la encuesta asociada a la publicaci\u00f3n');
+      throw new ConflictError('No se ha podido eliminar la encuesta asociada a la publicación');
     }
   });
-
   return { deleted: true, postId };
 }
 
+// --- Comentarios: POST y GET ---
 async function createComment(context, communityId, postId, input, forumRepository) {
   const { membership } = await requireForumAccess(context.userId, communityId);
   await requireVisiblePost(communityId, postId, forumRepository);
   const createdAt = new Date();
 
-  const comment = await forumRepository.withTransaction(async (tx) => {
-    const createdComment = await forumRepository.createForumComment(tx, {
+  const comment = await forumRepository.withTransaction(async (db) => {
+    const createdComment = await forumRepository.createForumComment(db, {
       postId,
       authorMembershipId: membership.id,
       content: input.content,
       createdAt
     });
 
-    // La actividad reciente del hilo se mueve al ultimo comentario persistido.
-    await forumRepository.updateForumPostLastActivity(tx, { postId, lastActivityAt: createdAt });
+    // La actividad reciente del hilo se mueve al último comentario persistido.
+    await forumRepository.updateForumPostLastActivity(db, { postId, lastActivityAt: createdAt });
     return createdComment;
   });
 
@@ -437,26 +435,28 @@ async function getCommentList(context, communityId, postId, input, forumReposito
     page: input.page,
     pageSize: input.pageSize
   });
-
   return {
     items: await buildForumCommentResponses(pageResult.items, forumRepository),
     pagination: buildPagination(input.page, input.pageSize, pageResult.total)
   };
 }
 
+// --- Comentarios: PATCH y DELETE ---
 async function updateComment(context, communityId, commentId, input, forumRepository) {
   const { membership } = await requireForumAccess(context.userId, communityId);
   const comment = await requireExistingComment(communityId, commentId, forumRepository);
 
-  assertCommentIsAvailable(comment, 'El comentario ya est\u00e1 eliminado');
+  assertCommentIsAvailable(comment, 'El comentario ya está eliminado');
   await requireVisiblePost(communityId, comment.postId, forumRepository);
   assertCanEditComment(membership, comment);
 
-  const updatedComment = await forumRepository.withTransaction((tx) => forumRepository.updateForumComment(tx, {
-    postId: comment.postId,
-    commentId,
-    data: { content: input.content, editedAt: new Date() }
-  }));
+  const updatedComment = await forumRepository.withTransaction((db) =>
+    forumRepository.updateForumComment(db, {
+      postId: comment.postId,
+      commentId,
+      data: { content: input.content, editedAt: new Date() }
+    })
+  );
 
   if (!updatedComment) {
     throw new ConflictError('No se ha podido actualizar el comentario');
@@ -470,17 +470,18 @@ async function deleteComment(context, communityId, commentId, forumRepository) {
   const { membership } = await requireForumAccess(context.userId, communityId);
   const comment = await requireExistingComment(communityId, commentId, forumRepository);
 
-  assertCommentIsAvailable(comment, 'El comentario ya est\u00e1 eliminado');
+  assertCommentIsAvailable(comment, 'El comentario ya está eliminado');
   await requireVisiblePost(communityId, comment.postId, forumRepository);
   assertCanDeleteComment(membership, comment);
 
   const deletedContent = comment.authorMembershipId === membership.id ? DELETED_COMMENT_CONTENT_BY_AUTHOR : DELETED_COMMENT_CONTENT_BY_ADMIN;
-
-  const deletedComment = await forumRepository.withTransaction((tx) => forumRepository.anonymizeForumComment(tx, {
-    postId: comment.postId,
-    commentId,
-    deletedContent
-  }));
+  const deletedComment = await forumRepository.withTransaction((db) =>
+    forumRepository.anonymizeForumComment(db, {
+      postId: comment.postId,
+      commentId,
+      deletedContent
+    })
+  );
 
   if (!deletedComment) {
     throw new ConflictError('No se ha podido eliminar el comentario');
@@ -490,6 +491,7 @@ async function deleteComment(context, communityId, commentId, forumRepository) {
   return item;
 }
 
+// --- Reacciones: POST ---
 async function togglePostLike(context, communityId, postId, forumRepository) {
   const { membership } = await requireForumAccess(context.userId, communityId);
   await requireVisiblePost(communityId, postId, forumRepository);
@@ -497,18 +499,18 @@ async function togglePostLike(context, communityId, postId, forumRepository) {
 
   if (existingLike) {
     await forumRepository.deleteForumPostLike({ membershipId: membership.id, postId });
-  } else {
+  }
+  else {
     try {
       await forumRepository.createForumPostLike({ membershipId: membership.id, postId });
-    } 
+    }
     catch (error) {
-      // Dos toggles simultaneos pueden chocar con la unique.
+      // Dos toggles simultáneos pueden chocar con la unique.
       if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
         throw error;
       }
     }
   }
-
   return { postId, likesCount: await forumRepository.countForumPostLikes(postId) };
 }
 
@@ -522,20 +524,21 @@ async function toggleCommentLike(context, communityId, commentId, forumRepositor
 
   if (existingLike) {
     await forumRepository.deleteForumCommentLike({ membershipId: membership.id, commentId });
-  } else {
+  }
+  else {
     try {
       await forumRepository.createForumCommentLike({ membershipId: membership.id, commentId });
-    } 
+    }
     catch (error) {
       if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
         throw error;
       }
     }
   }
-
   return { commentId, likesCount: await forumRepository.countForumCommentLikes(commentId) };
 }
 
+// --- Encuestas: POST de voto ---
 async function voteOnPoll(context, communityId, pollId, input, forumRepository) {
   const { membership } = await requireForumAccess(context.userId, communityId);
   const poll = await forumRepository.findForumPollById({ communityId, pollId });
@@ -543,52 +546,54 @@ async function voteOnPoll(context, communityId, pollId, input, forumRepository) 
   if (!poll || poll.deletedAt || !poll.forumPost || poll.forumPost.isDeleted) {
     throw new NotFoundError('Encuesta no encontrada');
   }
-
   if (!isForumPollOpen(poll)) {
-    throw new ConflictError('La encuesta ya est\u00e1 cerrada');
+    throw new ConflictError('La encuesta ya está cerrada');
   }
 
   const selectedOption = poll.options.find((option) => option.id === input.optionId);
 
   if (!selectedOption) {
     throw new ValidationError(
-      buildValidationDetail('optionId', 'La opci\u00f3n seleccionada no pertenece a esta encuesta'),
-      { message: 'La opci\u00f3n seleccionada no es v\u00e1lida' }
+      buildValidationDetail('optionId', 'La opción seleccionada no pertenece a esta encuesta'),
+      { message: 'La opción seleccionada no es válida' }
     );
   }
 
   try {
-    const vote = await forumRepository.withTransaction((tx) => forumRepository.insertForumPollVote(tx, {
-      pollId,
-      optionId: selectedOption.id,
-      membershipId: membership.id
-    }));
-
-    return { voted: true, pollId: vote.pollId, optionId: vote.optionId, votedAt: vote.createdAt.toISOString() };
-  } 
+    const vote = await forumRepository.withTransaction((db) =>
+      forumRepository.insertForumPollVote(db, {
+        pollId,
+        optionId: selectedOption.id,
+        membershipId: membership.id
+      })
+    );
+    return {
+      voted: true,
+      pollId: vote.pollId,
+      optionId: vote.optionId,
+      votedAt: vote.createdAt.toISOString()
+    };
+  }
   catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw new ConflictError('Solo se permite un voto por usuario y encuesta');
     }
-
     throw error;
   }
 }
 
+// --- Destacados: POST ---
 async function setPostPinned(context, communityId, postId, pinned, forumRepository) {
   await requireForumAdministrativeAccess(context.userId, communityId);
   const post = await requireExistingPost(communityId, postId, forumRepository);
 
-  assertPostIsAvailable(post, 'La publicaci\u00f3n ya no est\u00e1 disponible');
+  assertPostIsAvailable(post, 'La publicación ya no está disponible');
 
-  const updatedPost = await forumRepository.withTransaction((tx) => forumRepository.setForumPostPinned(tx, {
-    communityId,
-    postId,
-    pinned
-  }));
-
+  const updatedPost = await forumRepository.withTransaction((db) =>
+    forumRepository.setForumPostPinned(db, { communityId, postId, pinned })
+  );
   if (!updatedPost) {
-    throw new ConflictError('No se ha podido actualizar el estado destacado de la publicaci\u00f3n');
+    throw new ConflictError('No se ha podido actualizar el estado destacado de la publicación');
   }
 
   return { postId, pinned: updatedPost.pinned };
