@@ -78,8 +78,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({isOpen, onClose, ini
 
         //Validar email
         if(formData.email !== initialData.email){
-            if(!formData.email.endsWith('@ucm.es')){
-                setError('El email debe ser @ucm.es');
+            if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)){
+                setError('El email debe tener un formato válido');
                 return;
             }
         }

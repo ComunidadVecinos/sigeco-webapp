@@ -163,7 +163,7 @@ Cookie: sid=<session_cookie>
 |---|---|
 | `firstName` | Required, trimmed, letters/spaces/apostrophe/hyphen only |
 | `lastName` | Required, trimmed, letters/spaces/apostrophe/hyphen only |
-| `email` | Required, valid email, normalized to lowercase, must end with `@ucm.es` |
+| `email` | Required, valid email, normalized to lowercase |
 | `phone` | Optional, 9 digits, spaces allowed, normalized before saving |
 
 ### Success

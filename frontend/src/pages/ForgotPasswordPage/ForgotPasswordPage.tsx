@@ -16,7 +16,6 @@ const ForgotPassword: React.FC = () => {
     //Validar email
     const validateEmail = (value: string): string | undefined => {
         if(!value.trim()) return 'El email es requerido';
-        if(!value.endsWith('@ucm.es')) return 'El email debe ser @ucm.es';
         return undefined;
     };
 
@@ -77,7 +76,7 @@ const ForgotPassword: React.FC = () => {
                 <form className="space-y-4" onSubmit={handleSubmit}>
                     <div className="space-y-2">
                         <Label>Email</Label>
-                        <Input type="email" className={touched ? (error ? 'border-red-500' : 'border-green-500') : ''} placeholder='correo@ucm.es' value={email} onChange={(e) => setEmail(e.target.value)} onBlur={handleBlur}/>
+                        <Input type="email" className={touched ? (error ? 'border-red-500' : 'border-green-500') : ''} placeholder='correo@ejemplo.com' value={email} onChange={(e) => setEmail(e.target.value)} onBlur={handleBlur}/>
                         {touched && error && <p className='text-sm text-red-500'>{error}</p>}
                     </div>
 

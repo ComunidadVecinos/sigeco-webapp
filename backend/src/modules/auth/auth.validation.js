@@ -2,7 +2,7 @@
 // Flujo cubierto: entrada Express -> schemas Zod -> datos listos para el servicio.
 // Expone schemas de alta, login, cambio de contraseña y reseteo. Lo consumen las rutas antes de llegar a los controladores.
 const { z } = require('zod');
-const { personNameSchema, ucmEmailSchema, optionalPhoneSchema } = require('../../lib/validation/userFields');
+const { personNameSchema, emailSchema, optionalPhoneSchema } = require('../../lib/validation/userFields');
 
 // Regex que valida contraseñas:
 // - mínimo 8 caracteres
@@ -24,7 +24,7 @@ const registrationSchema = z
   .object({
     firstName: personNameSchema('firstName'),
     lastName: personNameSchema('lastName'),
-    email: ucmEmailSchema,
+    email: emailSchema,
     phone: optionalPhoneSchema,
     password: passwordSchema,
     passwordConfirmation: z.string().trim().min(1, 'La confirmación de la contraseña es obligatoria')

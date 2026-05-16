@@ -6,13 +6,13 @@ const { z } = require('zod');
 // Lo consumen las rutas antes de llegar a los controladores.
 const { ValidationError, errorCodes } = require('../../lib/errors');
 const { uuidFieldSchema } = require('../../lib/validation/requestFields');
-const { personNameSchema, ucmEmailSchema, optionalPhoneSchema } = require('../../lib/validation/userFields');
+const { personNameSchema, emailSchema, optionalPhoneSchema } = require('../../lib/validation/userFields');
 
 // Body de PATCH /me: actualización de los datos básicos del perfil del usuario autenticado.
 const updateMyProfileSchema = z.object({
   firstName: personNameSchema('firstName'),
   lastName: personNameSchema('lastName'),
-  email: ucmEmailSchema,
+  email: emailSchema,
   phone: optionalPhoneSchema
 });
 

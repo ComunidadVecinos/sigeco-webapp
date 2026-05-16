@@ -1,8 +1,7 @@
 // Validaciones reutilizables para datos personales.
-// Las usan sobre todo auth y users para mantener el mismo criterio con nombre, correo UCM y teléfono.
+// Las usan sobre todo auth y users para mantener el mismo criterio con nombre, correo y teléfono.
 const { z } = require('zod');
 
-const UCM_EMAIL_DOMAIN = '@ucm.es';
 const NAME_REGEX = /^[\p{L}\s'-]+$/u;
 
 function normalizePhone(rawPhone) {
@@ -27,10 +26,9 @@ const personNameSchema = (fieldName) =>
     .min(1, `El campo ${fieldName} es obligatorio`)
     .refine((value) => NAME_REGEX.test(value), `El campo ${fieldName} contiene caracteres no válidos`);
 
-const ucmEmailSchema = z.string().trim()
+const emailSchema = z.string().trim()
   .email('El correo electrónico debe ser válido')
-  .transform((value) => value.toLowerCase())
-  .refine((value) => value.endsWith(UCM_EMAIL_DOMAIN), 'El dominio del correo electrónico debe ser @ucm.es');
+  .transform((value) => value.toLowerCase());
 
 const optionalPhoneSchema = z.string().trim().optional()
   .transform((value) => (value === '' ? undefined : value))
@@ -40,4 +38,4 @@ const optionalPhoneSchema = z.string().trim().optional()
   )
   .transform((value) => normalizePhone(value));
 
-module.exports = { personNameSchema, ucmEmailSchema, optionalPhoneSchema };
+module.exports = { personNameSchema, emailSchema, optionalPhoneSchema };

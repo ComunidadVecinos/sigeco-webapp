@@ -104,7 +104,7 @@ Content-Type: application/json
 |---|---|
 | `firstName` | Required, trimmed, letters/spaces/apostrophe/hyphen only |
 | `lastName` | Required, trimmed, letters/spaces/apostrophe/hyphen only |
-| `email` | Required, valid email, normalized to lowercase, must end with `@ucm.es` |
+| `email` | Required, valid email, normalized to lowercase |
 | `phone` | Optional, 9 digits, spaces allowed, normalized before saving |
 | `password` | Required, min 8 chars, at least one uppercase, one lowercase, one digit and one special char |
 | `passwordConfirmation` | Required, must match `password` |
@@ -338,7 +338,7 @@ Content-Type: application/json
 ### Behavior notes
 
 - The endpoint returns the same success response whether the user exists or not
-- It does not require the email to belong to `@ucm.es`
+- Any valid email format is accepted
 - If the user exists:
   - backend generates a temporary password
   - updates stored password

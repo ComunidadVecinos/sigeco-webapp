@@ -100,7 +100,7 @@ const LogInPage: React.FC = () => {
                             type="text" 
                             autoComplete="username"
                             className={touched.identifier ? (errors.identifier ? 'border-red-500' : 'border-green-500') : ''}
-                            placeholder='correo@ucm.es' 
+                            placeholder='correo@ejemplo.com' 
                             value={identifier} 
                             onChange={(e) => setIdentifier(e.target.value)} 
                             onBlur={() => handleBlur('identifier')} 

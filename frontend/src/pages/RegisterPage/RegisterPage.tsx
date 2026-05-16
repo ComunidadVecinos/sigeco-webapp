@@ -1,4 +1,4 @@
-//Página de registro: formulario con nombre, apellidos, email (@ucm.es), teléfono opcional, contraseña con requisitos de seguridad
+//Página de registro: formulario con nombre, apellidos, email, teléfono opcional, contraseña con requisitos de seguridad
 //Validación en tiempo real por campo y mapeo de errores de la API
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -48,26 +48,26 @@ const RegisterPage: React.FC = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    //Validacion de nombre
+    //Validación de nombre
     const validateNombre = (value: string): string | undefined => {
         if (!value.trim()) return 'El nombre es requerido';
         return undefined;
     };
 
-    //Validacion de apellidos
+    //Validación de apellidos
     const validateApellidos = (value: string): string | undefined => {
         if (!value.trim()) return 'Los apellidos son requeridos';
         return undefined;
     };
 
-    //Validacion de email
+    //Validación de email
     const validateEmail = (value: string): string | undefined => {
         if (!value.trim()) return 'El email es requerido';
-        if (!value.endsWith('@ucm.es')) return 'El email debe ser @ucm.es';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return 'El correo electrónico debe ser válido';
         return undefined;
     };
 
-    //Validacion de teléfono
+    //Validación de teléfono
     const validateTelefono = (value: string): string | undefined => {
         if (!value.trim()) return undefined;
         if (!/^[\d\s]+$/.test(value)) return 'El teléfono solo puede contener dígitos y espacios';
@@ -76,7 +76,7 @@ const RegisterPage: React.FC = () => {
         return undefined;
     };
 
-    //Validacion de contraseña
+    //Validación de contraseña
     const validatePassword = (value: string): string | undefined => {
         if (!value.trim()) return 'El contraseña es requerida';
         if (value.length < 8) return 'Mínimo 8 caracteres';
@@ -87,7 +87,7 @@ const RegisterPage: React.FC = () => {
         return undefined;
     };
 
-    //Validacion de confirmacion de contraseña
+    //Validación de confirmación de contraseña
     const validateConfirmPassword = (value: string): string | undefined => {
         if (!value.trim()) return 'Debes repetir la contraseña';
         if (value !== formData.password) return 'Las contraseñas no coinciden';
@@ -219,7 +219,7 @@ const RegisterPage: React.FC = () => {
 
                     </div>
 
-                    {/*Fila 2: Email (obligatorio y @ucm.es) y teléfono (opcional, 9 dígitos)*/}
+                    {/*Fila 2: Email (obligatorio) y teléfono (opcional, 9 dígitos)*/}
                     <div className="flex flex-col md:flex-row gap-4">
 
                         <div className="space-y-2 w-full md:w-8/12">
@@ -230,7 +230,7 @@ const RegisterPage: React.FC = () => {
                                 type="email"
                                 autoComplete="email"
                                 className={touched.email ? (errors.email ? 'border-red-500' : 'border-green-500') : ''}
-                                placeholder='correo@ucm.es'
+                                placeholder='correo@ejemplo.com'
                                 value={formData.email}
                                 onChange={(e) => handleChange('email', e.target.value)}
                                 onBlur={() => handleBlur('email')}
