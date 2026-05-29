@@ -30,7 +30,6 @@ docker compose logs -f db_init
 ## Local access
 
 - Application: http://localhost
-- Backend API: http://localhost/api
 - MailPit inbox: http://localhost/mail
 
 ## Demo access
