@@ -5,6 +5,7 @@ import { Button } from '../button';
 import { Label } from '../label';
 import { updateIncidentStatus, IncidentStatus } from '@/services/incidentService';
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import { getApiErrorMessage } from '@/lib/formErrors';
 
 
 interface ChangeStatusModalProps {
@@ -59,7 +60,7 @@ const ChangeStatusModal: React.FC<ChangeStatusModalProps> = ({isOpen, onClose, c
             onClose();
             onSuccess();
         } catch (err: any) {
-            setFeedback({isOpen: true, type: 'error', message: 'Error al cambiar el estado.'});
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al cambiar el estado.')});
         } finally {
             setLoading(false);
         }

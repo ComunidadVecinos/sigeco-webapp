@@ -221,28 +221,28 @@ function assertCanEditPost(actorMembership, post) {
   if (post.authorMembershipId === actorMembership.id) {
     return;
   }
-  throw new ForbiddenError('No tienes permisos para editar esta publicación');
+  throw new ForbiddenError('No tienes permisos para editar esta publicación, solo el autor o la administración pueden editarla');
 }
 
 function assertCanDeletePost(actorMembership, post) {
   if (post.authorMembershipId === actorMembership.id || isAdministrativeMembership(actorMembership)) {
     return;
   }
-  throw new ForbiddenError('No tienes permisos para eliminar esta publicación');
+  throw new ForbiddenError('No tienes permisos para eliminar esta publicaciónsolo el autor o la administración pueden eliminarla');
 }
 
 function assertCanEditComment(actorMembership, comment) {
   if (comment.authorMembershipId === actorMembership.id) {
     return;
   }
-  throw new ForbiddenError('No tienes permisos para editar este comentario');
+  throw new ForbiddenError('No tienes permisos para editar este comentario, solo el autor pueden editarlo');
 }
 
 function assertCanDeleteComment(actorMembership, comment) {
   if (comment.authorMembershipId === actorMembership.id || isAdministrativeMembership(actorMembership)) {
     return;
   }
-  throw new ForbiddenError('No tienes permisos para eliminar este comentario');
+  throw new ForbiddenError('No tienes permisos para eliminar este comentario solo el autor o la administración pueden eliminarlo');
 }
 
 // --- Hidratación de respuestas ---

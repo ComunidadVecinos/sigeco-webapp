@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { getIncidents, createIncident, updateIncident, deleteIncident, Incident, IncidentStatus, IncidentSummary, deleteIncidentImage } from '@/services/incidentService';
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
+import { getApiErrorMessage } from '@/lib/formErrors';
 
 //Configuración visual de las tarjetas de resumen: icono, color y clave por estado
 const summaryCards: {key: keyof Omit<IncidentSummary, 'total'>; label: string; icon: React.ReactNode; bg:string; border: string; text: string }[] = [
@@ -124,8 +125,10 @@ const IncidentPage: React.FC = () => {
                     await deleteIncidentImage(communityId, editingId);
                 }
                 await updateIncident(communityId, editingId, formData);
+                setFeedback({isOpen: true, type: 'success', message: '¡Incidencia actualizada con éxito!'});
             }else{
                 await createIncident(communityId, formData);
+                setFeedback({isOpen: true, type: 'success', message: '¡Incidencia reportada con éxito!'});
             }
             setIsFormOpen(false);
             setFormData({title: '', description: '', imageFile: null as File | null, imagePreview: ''});
@@ -133,7 +136,7 @@ const IncidentPage: React.FC = () => {
             setPage(0);
             loadIncidents(0);
         } catch (err: any) {
-            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al guardar la incidencia.'});
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al guardar la incidencia.')});
         }
     };
 
@@ -142,11 +145,12 @@ const IncidentPage: React.FC = () => {
         if(!communityId) return;
         try{
             await deleteIncident(communityId, incidentId);
+            setFeedback({isOpen: true, type: 'success', message: '¡Incidencia eliminada con éxito!'});
             setPage(0);
             loadIncidents(0);
         }
         catch (err: any) {
-            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar la incidencia.'});
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al eliminar la incidencia.')});
         }
     };
 

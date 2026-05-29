@@ -12,6 +12,7 @@ import { getNews, createNews, updateNews, deleteNews, deleteNewsImage } from '@/
 import { useNavigate } from 'react-router-dom';
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
+import { getApiErrorMessage } from '@/lib/formErrors';
 
 //Estructura de una noticia del tablón
 interface News {
@@ -124,7 +125,7 @@ const NewsPage: React.FC = () => {
             setPage(0);
             loadNews(0);
         } catch (err: any) {
-            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al guardar la noticia.'});
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al guardar la noticia.')});
         }
     };
 
@@ -160,7 +161,7 @@ const NewsPage: React.FC = () => {
             setNewsList(newsList.filter(n => n.id !== newsId));
         }
         catch (err: any) {
-            setFeedback({isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar la noticia.'});
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al eliminar la noticia.')});
         }
     };
 

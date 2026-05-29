@@ -13,6 +13,7 @@ import { getPosts, createPost, updatePost, deletePost, toggleLike, getComments, 
 import { useNavigate } from 'react-router-dom';
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
 import ConfirmModal from '@/components/ui/ConfirmModal/ConfirmModal';
+import { getApiErrorMessage } from '@/lib/formErrors';
 
 //Tipos del foro: categoría de publicación, opciones de encuesta, datos de autor y estructura de comentario
 type PostCategory = 'question' | 'poll' | 'announcement' | 'request';
@@ -162,7 +163,7 @@ const ForumPage: React.FC = () => {
             loadPosts(0);
         }
         catch (err: any) {
-            setFeedback({ isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al crear publicación.' });
+            setFeedback({ isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al crear publicación.' )});
         }
     };
 
@@ -178,7 +179,7 @@ const ForumPage: React.FC = () => {
             setEditPostContent('');
             setEditPostTitle('');
         } catch (err: any) {
-            setFeedback({ isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al editar publicación.' });
+            setFeedback({ isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al editar publicación.' )});
         }
     };
 
@@ -189,7 +190,7 @@ const ForumPage: React.FC = () => {
             await deletePost(communityId, postId);
             setPosts(posts.filter(p => p.id !== postId));
         } catch (err: any) {
-            setFeedback({ isOpen: true, type: 'error', message: err.response?.data?.error?.message || 'Error al eliminar publicación.' });
+            setFeedback({ isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al eliminar publicación.' )});
         }
     };
 

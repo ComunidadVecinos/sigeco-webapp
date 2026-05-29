@@ -14,6 +14,7 @@ import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { getSpaces, getAvailability, createBooking, getMyBookings, cancelBooking, getCommunityBookings, type Space, type Slot, type BookingRules, type Booking } from '@/services/reservationService';
 import FeedbackModal from '@/components/ui/FeedbackModal/FeedbackModal';
+import { getApiErrorMessage } from '@/lib/formErrors';
 
 //Pestañas de navegación: calendario, mis reservas y todas las reservas (solo admin)
 type Tab = 'calendar' | 'myBookings' | 'allBookings';
@@ -169,9 +170,9 @@ const ReservationsPage: React.FC = () => {
             const res = await getAvailability(communityId, selectedSpaceId, dateStr);
             setSlots(res.data.slots || []);
             setBookingRules(res.data.bookingRules || null);
-            setFeedback({isOpen: true, type: 'success', message: '¡Reservada creada con éxito!'});
+            setFeedback({isOpen: true, type: 'success', message: '¡Reserva creada con éxito!'});
         } catch (err) {
-            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al crear la reserva'});
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al crear la reserva')});
         }
     };
 
@@ -241,6 +242,7 @@ const ReservationsPage: React.FC = () => {
             await cancelBooking(communityId, cancellingBookingId, reason);
             setIsCancelModalOpen(false);
             setCancellingBookingId(null);
+            setFeedback({isOpen: true, type: 'success', message: '¡Reserva cancelada con éxito!'});
             if (activeTab === 'myBookings') {
                 setMyBookingsPage(0);
                 loadMyBookings(0);
@@ -250,7 +252,7 @@ const ReservationsPage: React.FC = () => {
                 loadAllBookings(0);
             }
         } catch (err) {
-            setFeedback({isOpen: true, type: 'error', message: (err as any).response?.data?.error?.message || 'Error al cancelar la reserva'});
+            setFeedback({isOpen: true, type: 'error', message: getApiErrorMessage(err, 'Error al cancelar la reserva')});
         };
     };
 
